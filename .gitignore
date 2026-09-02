@@ -1,0 +1,9 @@
+# Internal insurer documents and pre-merge backups stay out of the repository
+*.pdf
+backup/
+# Superseded standalone page (merged into index.html as the CAR/EAR tab)
+car_ear_v15 Iphone.html
+# Local tooling
+.claude/
+Thumbs.db
+desktop.ini
