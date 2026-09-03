@@ -698,11 +698,20 @@ var OIC_WORD_AR  = 640/103;
          "PRITHVI, AGNI, JAL, AAKASH" tagline, so no company-name text is drawn
          over it. Falls back to the drawn seal + typed name if addImage throws
          for any reason, so a quote is never lost to a bad image. */
-      /* Masthead is typed only — the seal and wordmark artwork were removed on request. */
-      text('THE ORIENTAL INSURANCE COMPANY LTD.', W / 2, 30,
-           { bold: true, size: 15.5, color: C.blue, align: 'center' });
-      text('PRITHVI, AGNI, JAL, AAKASH  \u00B7  Sab Ki Suraksha Hamare Paas', W / 2, 44,
-           { size: 7.5, color: C.mute, align: 'center' });
+      /* Wordmark only (the round seal was removed on request). Falls back to the
+         typed company name if the image cannot be drawn. */
+      var drew = false;
+      try {
+        var wordW = 258, wordH = wordW / OIC_WORD_AR;
+        doc.addImage(OIC_WORD_PNG, 'PNG', (W - wordW) / 2, 12, wordW, wordH, 'oicWord', 'FAST');
+        drew = true;
+      } catch (e) { console.error('OICL wordmark could not be drawn, using typed masthead:', e); }
+      if (!drew) {
+        text('THE ORIENTAL INSURANCE COMPANY LTD.', W / 2, 30,
+             { bold: true, size: 15.5, color: C.blue, align: 'center' });
+        text('PRITHVI, AGNI, JAL, AAKASH  \u00B7  Sab Ki Suraksha Hamare Paas', W / 2, 44,
+             { size: 7.5, color: C.mute, align: 'center' });
+      }
       text(spec.subtitle || 'Quotation Worksheet', W / 2, 66,
            { bold: true, italic: true, size: 9.5, color: C.blue, align: 'center', maxWidth: CW - 80 });
 
@@ -819,6 +828,9 @@ var OIC_WORD_AR  = 640/103;
      so the very same layout code paints page 1 of any quotation as a PNG for WhatsApp / gallery. -->
 <script>
 (function(root){
+  /* images are decoded once up front so the synchronous builders can paint them */
+  var IMG_CACHE = {};
+  if(typeof OIC_WORD_PNG === 'string'){ var wm = new Image(); wm.src = OIC_WORD_PNG; IMG_CACHE[OIC_WORD_PNG] = wm; }
   function CanvasDoc(opts){
     opts = opts || {};
     var S = opts.scale || 2.2, W = 595.28, H = 841.89;
@@ -871,7 +883,11 @@ var OIC_WORD_AR  = 640/103;
         ctx.textAlign = o.align === 'center' ? 'center' : (o.align === 'right' ? 'right' : 'left');
         var lh = st.size * 1.15;
         lines.forEach(function(l, i){ ctx.fillText(l, x*S, (y + i*lh)*S); }); return api; },
-      addImage: function(){ return api; },
+      addImage: function(data, fmt, x, y, w, h){ if(!on()) return api;
+        var im = IMG_CACHE[data]; if(!im){ im = IMG_CACHE[data] = new Image(); im.src = data; }
+        if(im.complete && im.naturalWidth){ ctx.drawImage(im, x*S, y*S, w*S, h*S); }
+        else { throw new Error('image not decoded yet'); }
+        return api; },
       addPage: function(){ st.pages++; st.page = st.pages; return api; },
       setPage: function(n){ st.page = n; return api; },
       output: function(){ return new ArrayBuffer(0); },
@@ -11537,10 +11553,15 @@ function generatePDF(q, docOverride){
        line of business goes out on the same letterhead. Only painted on the
        real pass - the measure pass does not need it. Falls back to the old
        drawn seal + typed name if addImage throws. */
-    /* Masthead is typed only — the seal and wordmark artwork were removed on request. */
+    /* Wordmark only (the round seal was removed on request); typed name if the image fails. */
     if(!MEASURE){
-      text('THE ORIENTAL INSURANCE COMPANY LTD.', W/2, 30, {bold:true,size:15.5,color:C.blue,align:'center'});
-      text('PRITHVI, AGNI, JAL, AAKASH  \u00B7  Sab Ki Suraksha Hamare Paas', W/2, 44, {size:7.5,color:C.mute,align:'center'});
+      let drew=false;
+      try{ const wordW=258, wordH=wordW/OIC_WORD_AR; doc.addImage(OIC_WORD_PNG,'PNG',(W-wordW)/2,12,wordW,wordH,'oicWord','FAST'); drew=true; }
+      catch(e){ console.error('OICL wordmark could not be drawn, using typed masthead:',e); }
+      if(!drew){
+        text('THE ORIENTAL INSURANCE COMPANY LTD.', W/2, 30, {bold:true,size:15.5,color:C.blue,align:'center'});
+        text('PRITHVI, AGNI, JAL, AAKASH  \u00B7  Sab Ki Suraksha Hamare Paas', W/2, 44, {size:7.5,color:C.mute,align:'center'});
+      }
     }
     text('Quotation Worksheet For Motor Insurance \u2013 '+quoteSubtitle(q), W/2, 66, {bold:true,italic:true,size:9.5,color:C.blue,align:'center',maxWidth:CW-80});
 
@@ -22197,7 +22218,7 @@ window.FIRE = {shareImage: (typeof shareImage==='function'? shareImage : functio
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v62 · logo removed, single-page quote image sharing · 03-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v62 · seal removed (wordmark kept), single-page quote image sharing · 03-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
