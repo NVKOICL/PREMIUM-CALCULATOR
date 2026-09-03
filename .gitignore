@@ -7,3 +7,8 @@ car_ear_v15 Iphone.html
 .claude/
 Thumbs.db
 desktop.ini
+# Product filings and wordings supplied by the office (kept local)
+*.doc
+*.docx
+BATTERY PROTECT ADD-ON*/
+EPC ADD-ON*/

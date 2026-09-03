@@ -5456,6 +5456,7 @@ right.push({sub:'Final Premium Summary',rows:[{label:'Net Premium before GST'+(h
 const notes=['Rates are as per the TAC All India Engineering Tariff (CAR / EAR) read with the Fire & Engineering rating methodology circular effective 10.09.2026 (road-risk rates, NATCAT rates, deductibles, discount authority). This is an indicative quotation - final premium, terms and conditions are subject to underwriting and acceptance of risk.',isEAR?'EAR / SCE: the Col. 4 base rate covers the first erection month and one testing month; testing cannot exceed 12 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.':'CAR: the minimum rate covers the first 3 months of the policy period and the additional monthly rate applies beyond 3 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.','Excess applies to each claim as shown in the Compulsory Excess table. Third Party Liability is not granted during extended maintenance. ALOP / DSU, if shown, is a separate section and is not included in the total above.','This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.'];
 const safeName=String(q.insuredName||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);const mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const dStr=String(now.getDate()).padStart(2,'0')+mons[now.getMonth()]+now.getFullYear();
 const out=OICPDF.render({subtitle:isEAR?'Quotation Worksheet For Erection All Risks / SCE Insurance - EAR (TAC ENGINEERING TARIFF)':"Quotation Worksheet For Contractor's All Risks Insurance - CAR (TAC ENGINEERING TARIFF)",quoteNumber:String(Math.floor(now.getTime()/1000)).slice(-5),quoteId:q.quoteRef,dateStr:dateStr,costCode:'',agent:A,left:left,right:right,notes:notes,totalLabel:'Total Premium (incl. GST)',totalValue:R(q.grand),filename:'Oriental_'+(isEAR?'EAR':'CAR')+'_Quote_'+safeName+'_'+dStr+'.pdf'});
+try{ drawCarCoverPages(out.doc, q); }catch(e){ console.error('CAR/EAR cover pages skipped:', e); }
 q.pdfFilename=out.filename;if(returnBlob)return new Blob([out.doc.output('arraybuffer')],{type:'application/pdf'});out.doc.save(out.filename);}
 let alopActive=false;function toggleALOP(){alopActive=!alopActive;$('sw-alop').classList.toggle('on',alopActive);$('exp-alop').style.display=alopActive?'block':'none';if(alopActive)calcALOP();}
 function calcALOP(){const si=parseFloat($('alop-si').value)||0;const rate=parseFloat($('alop-rate').value)||0.20;if(si<=0){$('alop-result').style.display='none';return;}
@@ -5541,7 +5542,206 @@ ok=false;}else{if(errEl)errEl.style.display='none';}}
 return ok;}
 setTimeout(()=>setMode('car'),50);
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   CAR / EAR — SCOPE OF COVER & CONDITIONS PAGES, appended to every CAR/EAR quote PDF.
+   Summarised from the All India Tariff on Contractor's All Risks Insurance and the
+   Erection All Risks / Storage-cum-Erection Tariff (TAC): policy wording (general
+   exclusions, general conditions, Section I and II with memos), the general
+   regulations for extensions (TPL, surrounding property, debris, escalation, air
+   freight, CPM, maintenance, EQ) and endorsements ENGG/END-104/105/109/113.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function drawCarCoverPages(doc, q){
+  if(!q) return;
+  const isEAR = q.mode === 'ear';
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+  const M = 26, CW = W - 2*M;
+  const NAVY=[13,44,94], NAVY2=[18,50,95], BLUELT=[219,230,245], SOFT=[238,243,251], WHITE=[255,255,255],
+        INK=[18,33,63], MUTE=[110,125,150], LINE=[195,208,228], GREEN=[233,247,239], GOLD=[184,147,47],
+        GOLDBG=[253,248,236], RED=[176,40,30], REDBG=[253,236,236], ZEBRA=[249,251,254];
+  const LBLW = 118, VALW = CW - LBLW, VALX = M + LBLW, PADX = 9, PADY = 6, FS = 8.2, LH = 10.6;
+  const safe = function(t){ return String(t == null ? '' : t).replace(/₹\s*/g,'Rs. ').replace(/‰/g,' per mille').replace(/[≤]/g,'<=').replace(/[≥]/g,'>=').replace(/[—–]/g,'-').replace(/[^\x00-\xFF]/g,''); };
+  const R = function(n){ return 'Rs. ' + Math.round(n||0).toLocaleString('en-IN'); };
+  let y = 0, pageNo = 0;
+  const setFill=c=>doc.setFillColor(c[0],c[1],c[2]), setText=c=>doc.setTextColor(c[0],c[1],c[2]), setDraw=c=>doc.setDrawColor(c[0],c[1],c[2]);
+  function header(){
+    pageNo++;
+    setFill(NAVY); doc.rect(M, M, CW, 34, 'F'); setFill(GOLD); doc.rect(M, M+31, CW, 3, 'F');
+    setText(WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(11.5); doc.setCharSpace(0.55);
+    doc.text(isEAR ? 'ERECTION ALL RISKS — SCOPE OF COVER & CONDITIONS' : "CONTRACTOR'S ALL RISKS — SCOPE OF COVER & CONDITIONS", M+12, M+14);
+    doc.setCharSpace(0); doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(197,217,242);
+    doc.text(safe((q.insuredName||'') + '   |   Sum Insured ' + R(q.si) + '   |   ' + (q.periodLabel||'') + (q.risk && q.risk.n ? '   |   ' + q.risk.n : '')).slice(0,150), M+12, M+25);
+    y = M + 34 + 8;
+  }
+  function footer(){
+    setDraw(LINE); doc.setLineWidth(0.4); doc.line(M, H-26, W-M, H-26);
+    setText(MUTE); doc.setFont('helvetica','normal'); doc.setFontSize(6.4);
+    doc.text('The Oriental Insurance Company Limited   ·   Summary of the TAC ' + (isEAR ? 'EAR / SCE' : 'CAR') + ' tariff policy wording and endorsements; the policy wording prevails', M, H-17);
+    doc.setFont('helvetica','bold'); doc.text('Cover Schedule  ·  Page ' + pageNo, W-M, H-17, {align:'right'});
+  }
+  function space(need){ if(y + need > H - 34){ footer(); doc.addPage(); header(); } }
+  function section(title, right){
+    space(48); setFill(BLUELT); doc.rect(M, y, CW, 18, 'F'); setFill(NAVY); doc.rect(M, y, 3.2, 18, 'F');
+    setText(NAVY); doc.setFont('helvetica','bold'); doc.setFontSize(8.4); doc.setCharSpace(0.3);
+    doc.text(safe(title).toUpperCase(), M+PADX+2, y+12); doc.setCharSpace(0);
+    if(right){ doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(20,96,58); doc.text(safe(right), W-M-PADX, y+12, {align:'right'}); }
+    y += 18;
+  }
+  function block(label, lines, opts){
+    opts = opts || {}; if(!lines || !lines.length) return;
+    doc.setFont('helvetica','normal'); doc.setFontSize(FS);
+    const wrapped = [];
+    lines.forEach(function(t, i){ const prefix = opts.numbered ? (i+1) + '.  ' : (opts.bullet ? '•  ' : '');
+      doc.splitTextToSize(safe(prefix + t), VALW - 2*PADX).forEach(function(l){ wrapped.push({t:l}); }); wrapped.push({gap:true}); });
+    wrapped.pop();
+    let idx = 0;
+    while(idx < wrapped.length){
+      const avail = H - 34 - y - 2*PADY; let maxLines = Math.floor(avail / LH);
+      if(maxLines < 3 && y > M + 60){ footer(); doc.addPage(); header(); continue; }
+      const chunk = wrapped.slice(idx, idx + Math.max(3, maxLines));
+      const hRow = 2*PADY + chunk.reduce(function(a, w){ return a + (w.gap ? LH*0.35 : LH); }, 0);
+      setFill(opts.tint === 'red' ? REDBG : (opts.tint === 'green' ? GREEN : WHITE)); doc.rect(M, y, CW, hRow, 'F');
+      setFill(SOFT); doc.rect(M, y, LBLW, hRow, 'F'); setDraw(LINE); doc.setLineWidth(0.35); doc.rect(M, y, CW, hRow); doc.line(VALX, y, VALX, y+hRow);
+      if(idx === 0){ setText(opts.tint === 'red' ? RED : NAVY); doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.6);
+        doc.splitTextToSize(safe(label), LBLW - 2*PADX).forEach(function(l, k){ doc.text(l, M+PADX, y + PADY + LH*0.72 + k*LH); }); }
+      setText(INK); doc.setFont('helvetica','normal'); doc.setFontSize(FS);
+      let ty = y + PADY + LH*0.72; chunk.forEach(function(w){ if(w.gap){ ty += LH*0.35; return; } doc.text(w.t, VALX+PADX, ty); ty += LH; });
+      y += hRow; idx += chunk.length;
+    }
+  }
+  function table(tb){
+    if(!tb) return; const c1 = Math.round(CW*0.5); const rows = [tb.head].concat(tb.rows);
+    rows.forEach(function(r, i){ space(16); const isHead = i === 0;
+      setFill(isHead ? NAVY2 : (i%2 ? ZEBRA : WHITE)); doc.rect(M, y, CW, 14, 'F'); setDraw(LINE); doc.setLineWidth(0.3); doc.rect(M, y, CW, 14); doc.line(M+c1, y, M+c1, y+14);
+      setText(isHead ? WHITE : INK); doc.setFont('helvetica', isHead ? 'bold' : 'normal'); doc.setFontSize(FS-0.4);
+      doc.text(safe(r[0]), M+PADX, y+9.6); doc.text(safe(r[1]), M+c1+PADX, y+9.6); y += 14; });
+  }
+  function note(text){
+    doc.setFont('helvetica','normal'); doc.setFontSize(FS-0.6);
+    const lines = doc.splitTextToSize(safe(text), CW - 2*PADX - 6); const hRow = 2*PADY - 1 + lines.length*(LH-0.8); space(hRow + 6);
+    doc.setFont('helvetica','normal'); doc.setFontSize(FS-0.6);
+    setFill(GOLDBG); doc.rect(M, y, CW, hRow, 'F'); setFill(GOLD); doc.rect(M, y, 2.6, hRow, 'F'); setDraw(LINE); doc.setLineWidth(0.35); doc.rect(M, y, CW, hRow);
+    setText(INK); let ty = y + PADY + (LH-0.8)*0.62; lines.forEach(function(l){ doc.text(l, M+PADX+4, ty); ty += (LH-0.8); }); y += hRow;
+  }
+
+  const POL = isEAR ? 'Erection All Risks / Storage-cum-Erection' : "Contractor's All Risks";
+  const ex = q.excess || null;
+  doc.addPage(); header();
+  note('This schedule summarises what the ' + POL + ' policy covers, its exclusions and conditions, and the extensions included in this quotation, so the proposer knows the scope before the proposal. It is drawn from the All India Tariff policy wording, memos and endorsements; the policy wording issued with the policy prevails.');
+  y += 8;
+
+  /* ── 1. Policy basis ── */
+  section('1. Policy basis', POL);
+  block('Period of cover', isEAR ? [
+    'Liability starts only after unloading of the insured property at the site named in the schedule and continues until immediately after the first test operation or test loading is concluded - but in no case beyond four weeks from the day a trial run is made or readiness for work is declared, whichever is earlier. Parts of the plant tested and put into operation go out of cover; the rest stays covered.',
+    'Second-hand / used property: cover ceases on commencement of testing. Testing beyond the trial period, or beyond the policy period, is chargeable at the tariff extension rates. The testing period can never exceed 12 months, and ceases on commercial production or handing over, whichever is earlier.',
+    'No refund if the actual erection period is shorter than the schedule unless specifically allowed.'
+  ] : [
+    'Liability starts from commencement of work after unloading of the property at the site named in the schedule (whichever is earlier) and expires on the date in the schedule - or earlier for parts of the works taken over or put into service by the Principal.',
+    'No refund if the actual construction period is shorter than the schedule unless specifically allowed. If the works are not completed in time the period can be extended at the tariff extension rates.'
+  ], { bullet:true });
+  block('Sum Insured (Memo 1)', ['The Sum Insured must not be less than the completely erected value of the property, inclusive of freight, customs duty and erection cost; the insured must increase or decrease it on any material fluctuation in wages or prices. If at a loss the Sum Insured is found to be less than the amount required, the claim is reduced in the proportion the Sum Insured bears to the required amount (under-insurance).']);
+  block('Premium adjustment (Memo 2)', ['The Sum Insured is adjustable on completion on the basis of the actual values declared for freight and handling, customs dues and ' + (isEAR ? 'erection' : 'construction') + ' cost, with the premium difference paid or refunded. Changes in the prime cost of materials / plant are not subject to premium adjustment.']);
+  block('Reinstatement of Sum Insured', ['After a loss the insurance is maintained for the full Sum Insured; the insured pays a pro-rata additional premium on the amount of each claim from the date of loss to expiry.']);
+  block('Basis of settlement', ['Repairable damage: cost of repairs to restore the property to its condition immediately before the damage, less salvage. Total loss: actual value immediately before the loss, less salvage. Provisional repairs are paid if they form part of the final repairs. Alterations, additions and improvements are not recoverable. Overtime, holiday work and express freight' + (isEAR ? ' (including air freight)' : ' (air freight excluded)') + ' are not covered unless agreed at additional premium.']);
+  block('Major perils / AOG', [(isEAR ? 'Earthquake (fire & shock); landslide / rockslide / subsidence; flood / inundation; storm, tempest, hurricane, typhoon, cyclone, lightning or other atmospheric disturbances.' : 'Earthquake (fire & shock); landslide / rockslide / subsidence; flood / inundation; storm, tempest, hurricane, typhoon, cyclone, lightning or other atmospheric disturbances; collapse; water damage for wet risks (works in rivers, canals, lakes or sea).') + ' These carry the higher AOG excess. An incident is treated as terminated only after seven consecutive days free of the peril; the excess then applies afresh.']);
+
+  /* ── 2. Section I ── */
+  section('2. Section I - Material Damage');
+  block('What is covered', ['All-risks cover: if during the period of insurance (or any extension) the insured property, or any part of it, is lost, damaged or destroyed by any cause other than those specifically excluded, in a manner necessitating replacement or repair, the Company pays or makes good the loss up to the sum set against each item and the total Sum Insured. Packing materials are not covered.',
+    'Also reimburses the cost of clearance and removal of debris following an admissible claim, up to the sum (if any) set against it in the schedule.'], { bullet:true });
+  block('Exclusions to Section I', isEAR ? [
+    'The excess shown in the schedule for each and every occurrence.',
+    'Loss discovered only at the time of taking an inventory.',
+    'Normal wear and tear, gradual deterioration due to atmospheric conditions or otherwise, rust, scratching of painted or polished surfaces, breakage of glass.',
+    'Loss or damage due to faulty design, defective material or casting, bad workmanship other than faults in erection - limited to the items immediately affected; other insured items damaged in consequence remain covered.',
+    'Cost of rectifying or correcting any error during erection unless resulting in physical loss or damage.',
+    'Files, drawings, accounts, bills, currency, stamps, deeds, evidence of debt, notes, securities, cheques, packing materials.',
+    'Penalties for non-fulfilment of delivery or completion terms, consequential loss of any kind, aesthetic defects or operational deficiencies.'
+  ] : [
+    'The excess shown in the schedule for each and every occurrence.',
+    'Loss discovered only at the time of taking an inventory.',
+    'Normal wear and tear, gradual deterioration due to atmospheric conditions, lack of use, obsolescence or otherwise, rust, scratching of painted or polished surfaces, breakage of glass.',
+    'Loss or damage due to faulty design.',
+    'Cost of replacing, repairing or rectifying defective material and / or workmanship - limited to the items immediately affected; correctly executed items damaged in consequence remain covered.',
+    'Cost of rectifying or correcting any error during construction unless resulting in physical loss or damage.',
+    'Files, drawings, accounts, bills, currency, stamps, deeds, evidence of debt, notes, securities, cheques, packing materials.',
+    'Penalties for non-fulfilment of delivery or completion terms, consequential loss of any kind, aesthetic defects or operational deficiencies.',
+    'Vehicles licensed for general road use, water-borne vessels, and machinery mounted on floating craft or aircraft.'
+  ], { numbered:true, tint:'red' });
+  if(ex){ block('Excess on this quote', ['Normal claims: ' + ex.normal.pct + '% of claim, minimum ' + R(ex.normal.min) + (ex.testing ? '.  Testing period: ' + ex.testing.pct + '% of claim, minimum ' + R(ex.testing.min) : '') + '.  AOG / major perils: ' + ex.aog.pct + '% of claim, minimum ' + R(ex.aog.min) + (isEAR ? ', maximum Rs. 5 Crores' : '') + '.  Basis: ' + ex.src], { tint:'green' }); }
+  block('Construction plant & machinery', ['Loss of or damage to construction plant and machinery excludes damage directly caused by its own explosion or its own mechanical or electrical breakdown or derangement.' + (EXT_STATE.cpm ? ' CPM is included on this quote.' : '')]);
+
+  /* ── 3. Section II ── */
+  section('3. Section II - Third Party Liability', EXT_STATE.tpl ? 'Opted' : 'Not opted');
+  if(EXT_STATE.tpl){
+    block('What is covered', ['Legal liability for accidental loss or damage to property of other persons (including property held in trust or custody, excluding property used in connection with the ' + (isEAR ? 'erection' : 'construction') + ' works).',
+      'Legal liability (liability under contract excepted) for fatal or non-fatal injury to persons other than the insured\'s own employees / workmen, employees of the owner of the works, other firms on the site, or members of their families - directly consequent upon the ' + (isEAR ? 'erection' : 'construction') + ' of the insured property.',
+      'Costs and expenses of litigation recovered by any claimant, and costs incurred with the Company\'s written consent.',
+      'Limit of indemnity: any one person / any one accident / entire policy period - up to Rs. 1 Crore for policies with Sum Insured up to Rs. 10 Crores; above that, 10% of the completely erected value or Rs. 10 Crores, whichever is lower. Higher limits are underwritten separately (Miscellaneous department).'], { bullet:true });
+    block('Exclusions to Section II', ['The excess to be borne by the insured in any one occurrence of property damage (policy excess; AOG excess for AOG claims).',
+      'Anything covered or coverable under Section I.',
+      'Injury or illness of employees / workmen of the Contractor(s), the Principal(s) or any firm connected with the project, or members of their families.',
+      'Property belonging to or in the care, custody or control of the Contractor(s), Principal(s) or firms connected with the project, or their employees.',
+      'Accidents caused by vehicles licensed for general road use, water-borne vessels or aircraft.',
+      'Liability assumed by agreement unless it would have attached anyway.'], { numbered:true, tint:'red' });
+    block('Conditions', ['No admission, offer, promise, payment or indemnity without the Company\'s written consent; the Company may take over the defence or settlement of any claim.',
+      'The Company may pay the limit of indemnity for any one accident (less sums already paid) and be under no further liability for that accident.',
+      'The TPL Sum Insured cannot be reinstated after a loss. The tariff extension rate applies to TPL during any extension. TPL cannot be granted during extended maintenance. Cross-liability between named insured parties can be added at 50% of the TPL premium.'], { numbered:true });
+  } else {
+    block('Not opted', ['Third Party Liability (Section II) is not included in this quotation. It can be added at the Section I rate on the limit of indemnity, subject to the tariff limits.']);
+  }
+
+  /* ── 4. General exclusions & terrorism ── */
+  section('4. General exclusions');
+  block('Not covered', ['War, invasion, act of foreign enemy, hostilities or war-like operations, civil war, rebellion, revolution, insurrection, mutiny, civil commotion, military or usurped power, martial law, conspiracy, confiscation, commandeering, a group of malicious persons or persons acting for a political organisation, requisition or destruction by order of any government or public authority.',
+    'Nuclear reaction, nuclear radiation or radioactive contamination.',
+    'Wilful act or wilful negligence of the insured or of his responsible representative.',
+    'Cessation of work, whether total or partial.',
+    'Terrorism Damage Exclusion Warranty: loss, damage, cost or expense directly or indirectly caused by any act of terrorism (use of force or violence or the threat of it for political, religious, ideological or similar purposes) or by action taken in controlling, preventing or suppressing it' + (EXT_STATE.terror ? ' - DELETED on this quotation by the Terrorism Cover endorsement (Indian Market Terrorism Risk Insurance Pool terms, limits and excess apply).' : '. Terrorism cover can be added as an extension at the pool rate.')], { numbered:true, tint:'red' });
+
+  /* ── 5. Extensions on this quote ── */
+  const EXT = {
+    eq: { t:'Earthquake (fire & shock)', c:['Extends cover to loss or damage (including by fire) occasioned by earthquake, including landslide / rockslide resulting from it. Optional; it cannot be opted mid-term or for part of the project period, so it is charged for the total period including all extensions and re-worked for extensions beyond 12 months.',
+          'First-loss option: limit of 20% of the Sum Insured at 50% of the EQ rate, or 10% at 40%, calculated on the total Sum Insured. Higher-excess discounts may be taken on the EQ premium alone.',
+          'AOG excess applies to earthquake claims' + (isEAR ? '' : ' (tariff minimum Rs. 25,000 per claim in Zone I and Rs. 10,000 in Zone II, or the schedule excess if higher)') + '. The higher AOG excess applies to all AOG perils even where earthquake cover is not taken.'] },
+    stfi: { t:'Storm, tempest, flood & inundation (NAT-CAT)', c:['Storm, tempest, hurricane, typhoon, cyclone, flood and inundation are AOG perils under the tariff and are rated as a separate NAT-CAT add-on for the full project period per the Fire & Engineering rating circular. Claims from these perils carry the AOG excess; an incident ends only after seven consecutive days free of the peril.'] },
+    sp: { t:'Surrounding property of the Principal / Contractor', c:['Covers loss of or damage to property on or adjacent to the site belonging to, or in the care, custody or control of, the Principal(s) or Contractor(s), only if occurring directly due to the ' + (isEAR ? 'erection, construction or testing' : 'construction') + ' of the insured works during the period of cover, and only where a separate sum is entered in the schedule. Construction / erection machinery, plant and equipment are not surrounding property.',
+          'Rated at 50% of the Section I rate on the limit selected; policy excesses apply; the limit can be reinstated after a claim on payment of additional premium.'] },
+    dr: { t:'Clearance and removal of debris', c:['Reimburses the cost of clearance and removal of debris following an event giving rise to an admissible claim, up to the limit fixed in the schedule. Rated at the Section I rate on the limit; the policy excess (normal / AOG or testing) applies - no separate debris excess. Where no premium is paid for a debris limit, debris expenses are not indemnifiable.'] },
+    esc: { t:'Escalation provision (ENGG/END-104)', c:['Provides for escalation in the Section I Sum Insured up to the selected percentage of the original site value (maximum 50%), permitted only once at inception. Claims are settled on the original site value plus the increase in replacement cost within the selected escalation; the insured is treated as fully insured up to the Sum Insured inclusive of the escalation, and under-insurance applies only beyond it.',
+          'Premium is charged at the Section I rate on 50% of the escalation amount. The escalation premium is not refundable under the premium-adjustment memo; additional escalation premium is chargeable on final adjustment.'] },
+    af: { t:'Air freight (ENGG/END-105)', c:['Indemnifies air freight incurred in connection with an indemnifiable loss, up to the limit selected for the policy period. Premium 5% of the limit. Each claim bears a minimum excess of 5% of the air freight incurred, in addition to the policy excess. The limit can be reinstated after a claim on payment of additional premium.'] },
+    cpm: { t:"Contractor's plant & machinery", c:['A separate Sum Insured is fixed for construction plant, machinery and equipment. Where it does not exceed 5% of the project Sum Insured or Rs. 25 lakhs (whichever is lower) it can be covered under this policy at the CPM tariff rates, terms and excesses; above that it must be covered under a separate CPM policy.',
+          'Loss or damage to plant caused by its own explosion or its own mechanical or electrical breakdown is excluded.'] },
+    terror: { t:'Terrorism cover', c:['Deletes the Terrorism Damage Exclusion Warranty and covers physical loss or damage caused by an act of terrorism, or by action taken in suppressing or controlling it, subject to the Indian Market Terrorism Risk Insurance Pool exclusions, aggregate limit per location and excess as endorsed on the policy. Premium at the pool rate on the Sum Insured for the project period; no refund on cancellation except with the base policy.'] },
+    maint: { t:'Maintenance cover (ENGG/END-113)', c:['Limited Maintenance Visits cover: extends the policy for the maintenance period reckoned from completion / handing over (EAR: from completion of testing), covering solely loss of or damage to the contract works caused by the insured contractor(s) in the course of operations carried out to comply with the maintenance obligations of the contract.',
+          'Extended Maintenance cover: as above, and additionally loss or damage occurring during the maintenance period that was caused on the site during the ' + (isEAR ? 'erection' : 'construction') + ' period.',
+          'Granted at inception only (not just before the maintenance period). Rates: visits 0.25 (6 months) / 0.50 (12 months) per mille; extended 0.50 / 1.00 per mille, 1.00 per mille per annum pro-rata beyond 12 months; no pro-rata for shorter periods. Excess as for the ' + (isEAR ? 'testing' : 'AOG / testing') + ' period. Deletion before attachment: refund less 25%; after attachment no refund. TPL is not available during extended maintenance.'] },
+    tpl: null
+  };
+  const opted = Object.keys(EXT).filter(function(k){ return EXT[k] && EXT_STATE[k]; });
+  section('5. Extensions included in this quotation', opted.length ? (opted.length + ' extension' + (opted.length>1?'s':'')) : 'None');
+  if(!opted.length) block('Extensions', ['No add-on covers other than those shown above are included. Earthquake, STFI, surrounding property, debris removal, escalation, air freight, CPM, terrorism and maintenance covers can be added at the tariff / circular rates.']);
+  opted.forEach(function(k){ const e = EXT[k]; const line = (q.extLines||[]).find(function(l){ return new RegExp('^' + (k==='sp'?'Surrounding':k==='dr'?'Debris':k==='esc'?'Escalation':k==='af'?'Air Freight':k==='cpm'?'CPM':k==='terror'?'Terrorism':k==='stfi'?'STFI':k==='maint'?'Maintenance':'EQ'), 'i').test(l.label); });
+    block(e.t + (line ? '  (' + R(line.amt) + ')' : ''), e.c, { bullet: e.c.length > 1 }); });
+  if(isEAR && alopActive) block('ALOP / DSU (separate section)', ['Advance Loss of Profits / Delay in Start-Up indemnifies the loss of gross profit from delay in start-up following insured physical damage. It is rated separately and not included in the total above. Time excess per the F&E circular: 30 days for the first year plus one day per erection month beyond 12 months, not exceeding 60 days (45 days for specialised risks and combined-cycle plants).']);
+  if(isEAR && q.risk && q.risk.hc) block('Hydrocarbon endorsement (ENGG/END-109)', ['Applies to this risk. The insured must give prior written notice of the date of initial start-up for testing. During any operation involving hydrocarbons or hydrogen (cleaning, purging, testing, commissioning) the excess is 5% of the claim, minimum Rs. 5,00,000. From the introduction of hydrocarbon / feedstock the Company is not liable for catalysts (unless separately endorsed), reforming-unit tubes overheating or cracking, overheating following an exothermic reaction, or non-observance of prescribed techniques / cut-out of safety devices. Fire / explosion losses are indemnified only if adequate fire-fighting facilities are installed before machinery is stored or installed.'], { tint:'red' });
+
+  /* ── 6. Conditions ── */
+  section('6. General conditions');
+  block('Duties of the insured', ['Take all reasonable precautions, comply with the Company\'s recommendations, statutory requirements and manufacturers\' recommendations; allow inspection of the risk at any reasonable time; notify any material change in the risk immediately, in writing, and take the additional precautions required. No material alteration increasing the risk without the Company\'s written confirmation.'], {});
+  block('Claims', ['Notify the Company immediately by telephone / telegram and in writing, giving the nature and extent of the loss; minimise the loss; preserve the affected parts for inspection by the Company\'s representative or surveyor; furnish all information and documents; inform the police in case of theft or burglary. No liability for a loss not notified within 14 days of its ' + (isEAR ? 'detection' : 'occurrence') + '.',
+    'Minor repairs up to ' + (isEAR ? 'Rs. 7,500' : 'Rs. 2,500') + ' may be carried out after notification; in all other cases the Company\'s representative must have the opportunity to inspect before repairs. Liability ceases for an item not repaired properly without delay. The insured must assist the Company in exercising rights of recovery (subrogation).',
+    'Disputes on quantum only (liability admitted) go to arbitration under the Arbitration and Conciliation Act 1996; an award is a condition precedent to any suit. A fraudulent claim, or a rejected claim not pursued within three months, forfeits all benefits. Contribution applies where other insurance covers the same loss.'], { numbered:true });
+  block('Cancellation', ['By the insured at any time, with refund of the appropriate premium only if the claims experience is below 60% of the reworked premium, the unexpired period is not less than 3 months or 25% of the policy period (whichever is less), and testing has not commenced. By the Company on 15 days\' notice with a rateable refund for the unexpired term.',
+    'Early completion: refund is possible for policies of 18 months or more, with advance notice' + (isEAR ? ' (before commencement of testing, or within 7 days of it)' : '') + ', claims experience below 60%, a minimum refund period of 3 months and the policy period not exceeding the contract period.'], { bullet:true });
+  block('Rating notes', [(q.discPct ? 'Discount applied on this quote: ' + q.discPct + '%.  ' : '') + 'Higher-excess discount scale: 2x minimum excess 5%, 5x 10%, 10x 20%, 20x 30%, 30x 35%, 40x 40%, 50x 45%, 100x 50%, above 100x 55% (both normal and AOG / testing excesses raised together); the same scale may be applied to the earthquake premium alone. Volume discounts per Annexure I for large projects. Mid-term increase in Sum Insured is charged at the full applicable rate (no pro-rata, no volume discount). Extensions beyond the policy period are charged at the tariff extension scale (0.30 per mille for one month rising to 3.00 per mille for 24 months, plus pro-rata beyond).']);
+  note('Insurance is the subject matter of the solicitation. The policy wording, schedule and endorsements issued with the policy govern the cover; this schedule is a summary for the proposer.');
+  footer();
+}
+
   const VERIFIED=[
+    {label:'CAR/EAR cover schedule: Section I, II, exclusions, extensions and conditions pages available', expect:'function', check:()=>typeof drawCarCoverPages},
     {label:'Road (townships) SI 1 Cr, 12 months: 0.60 + 0.0075 x 9 = 0.6675 per mille (NIC circular §2.1a)', expect:6675,
      check:()=>Math.round(computeCARPremium(1e7,12,CAR_DATA['051042']).grossPrem*100)/100},
     {label:'Road (hilly/ghat) SI 1 Cr, 3 months: minimum 0.90 per mille (NIC circular §2.1a)', expect:9000,
@@ -11498,7 +11698,8 @@ const MOTOR_ADDON_WORDINGS = {
   },
   engineProtect: {
     title: "Engine Protect Add-on Cover",
-    scope: "Private Car (Bundled, SAOD, Package)",
+    scope: "Private Car (Bundled, SAOD, Package) and Two-Wheeler (Bundled, SAOD)",
+    maxAge: { _all: 5 },
     covers: [
       "Consequential loss or damage to the internal parts of the Engine / Gear box / Transmission or Differential Assembly arising out of ingress of water into the engine and / or leakage of lubricating oil from the engine / gear box / transmission / differential due to accidental causes.",
       "Pays for (1) repair or replacement of the internal parts of the Engine / Gear box / Transmission / Differential Assembly and (2) labour cost of repair / overhaul of the damaged assembly."
@@ -11520,7 +11721,40 @@ const MOTOR_ADDON_WORDINGS = {
       "Aggravation of loss or damage (including corrosion) due to delay in intimation to the Company or delay in retrieving the vehicle from the water-logged area.",
       "Loss / damage covered under the manufacturer's warranty, recall campaign, or forming part of a maintenance / preventive-maintenance agreement."
     ],
-    uin: { privateCar: ["Bundled: IRDAN556RP0005V01201/A0016V01201819", "Standalone OD: IRDAN556RP0001V01201920/A0006V01201920", "Package: IRDAN556A0002V01201718"] }
+    uin: { privateCar: ["Bundled: IRDAN556RP0005V01201/A0016V01201819", "Standalone OD: IRDAN556RP0001V01201920/A0006V01201920", "Package: IRDAN556A0002V01201718"] },
+    /* Two-wheeler wording (Oriental EPC add-on to Two Wheeler Bundled / SAOD policies, 2026-27 filing) */
+    byClass: {
+      twoWheeler: {
+        scope: "Two-Wheeler Bundled and Standalone Own Damage (SAOD) policies",
+        covers: [
+          "Consequential loss or damage to the internal parts of the Engine, Gearbox and / or Transmission arising solely and directly out of ingress of water into the engine and / or leakage of lubricating oil from the engine, gearbox and / or transmission, due to accidental external causes covered under the base policy.",
+          "Pays for repair or replacement of the internal parts of the Engine, Gearbox and / or Transmission, and the labour costs necessarily incurred for repair or overhaul of the damaged assembly."
+        ],
+        table: { head: ["Vehicle age (from invoice / first registration)", "Premium as % of IDV"], rows: [
+          ["Up to 1 year", "0.067%"], ["Over 1 up to 2 years", "0.077%"], ["Over 2 up to 3 years", "0.090%"],
+          ["Over 3 up to 4 years", "0.110%"], ["Over 4 up to 5 years", "0.140%"] ] },
+        conditions: [
+          "Available only for vehicles up to five years from the date of invoice or the date of first registration, whichever is earlier. Mid-term inclusion of the cover is not permitted.",
+          "A claim is admissible only where there is evidence of ingress of water damaging the internal parts of the engine, and / or visible evidence of accidental under-carriage damage to engine / gearbox / transmission leading to leakage of lubricating oil and damage to internal parts - AND the loss is not payable under the base policy.",
+          "The vehicle must be transported / towed to the workshop within 48 hours of water receding from the water-logged area, and all reasonable steps taken to prevent aggravation of loss.",
+          "No depreciation on replacement of parts ONLY if the Nil Depreciation add-on is also opted under the base policy and the vehicle is up to five years old on commencement; otherwise depreciation applies at the base-policy rates.",
+          "Prior approval of the Company must be taken before repair / replacement of parts.",
+          "No NCB accrues on the add-on premium; a claim admitted under this add-on affects the NCB of the base policy as per its terms.",
+          "Subject otherwise to all terms, conditions, limitations and exceptions of the base Two-Wheeler policy."
+        ],
+        exclusions: [
+          "All consequential losses other than the damage to internal engine / gearbox / transmission parts described above.",
+          "Expenses towards improvements and / or extra fittings.",
+          "Consumables, engine oil and consumables used in flushing the engine.",
+          "Loss / damage covered under the manufacturer's warranty, recall campaign or a maintenance / preventive-maintenance agreement.",
+          "Aggravation of loss or damage (including corrosion) due to delay in intimation to the Company or delay in retrieving the vehicle from the water-logged area.",
+          "Wilful act or gross negligence of the insured, including failure to take reasonable care to prevent further damage.",
+          "Water-ingress claims where inundation or ingress of water is not established; engine seizure without evidence of water ingress or oil leakage.",
+          "Claims arising out of the use of non-OEM or incompatible lubricants."
+        ],
+        uin: { twoWheeler: ["Two-Wheeler Bundled: IRDAN556RP0006V02201819/A0003V01202627", "Two-Wheeler Standalone OD: IRDAN556RP0002V01201920/A0004V01202627"] }
+      }
+    }
   },
   rti: {
     title: "Return to Invoice Add-on Cover",
@@ -11647,24 +11881,27 @@ const MOTOR_ADDON_WORDINGS = {
   },
   batteryProtect: {
     title: "Battery Protect Add-on Cover (Electric / Hybrid vehicles)",
-    scope: "Electric and Hybrid Electric vehicles - Private Car Package / Standalone OD / Bundled",
+    scope: "Electric and Hybrid Electric vehicles - Private Car (Package, Standalone OD, Bundled) and Two-Wheeler (Bundled, Standalone OD)",
     maxAge: { _all: 5 },
     covers: [
       "Section 1 (Own Damage) is extended to cover the expenses of repair or replacement of the battery, the charger (including a wall-mounted charger), the drive motor / electric motor and the HEV (hybrid electric vehicle) system - while attached to and forming part of the insured vehicle - for consequential damage arising out of (a) water ingression and (b) short circuit, including electrical surge during charging.",
       "Water ingression means unintended entry of water / moisture into covered components due to environmental exposure (flooding, rain) without submersion of the vehicle, excluding entry due to negligence or improper maintenance. Short circuit / electrical surge means an unintended electrical connection or a sudden voltage spike damaging battery cells or control systems."
     ],
+    copayTable: { head: ["Age of vehicle (With Co-Pay option)", "Co-payment borne by insured"], rows: [
+      ["Not exceeding 1 year", "Nil"], ["Over 1 year up to 2 years", "10%"], ["Over 2 years up to 3 years", "20%"],
+      ["Over 3 years up to 4 years", "30%"], ["Over 4 years up to 5 years", "50%"] ] },
+    table: { head: ["Private Car - vehicle age", "Office premium rate (% of IDV)"], rows: [
+      ["Not exceeding 1 year", "0.34%"], ["Over 1 year up to 2 years", "0.38%"], ["Over 2 years up to 3 years", "0.45%"],
+      ["Over 3 years up to 4 years", "0.53%"], ["Over 4 years up to 5 years", "0.53%"] ] },
     conditions: [
-      "Available only for Electric and Hybrid Electric vehicles.",
-      "Maximum TWO claims are payable under this add-on per policy period.",
-      "Applicable for a maximum of 5 years from the date of purchase of a brand-new battery.",
+      "Available only for Electric and Hybrid Electric vehicles, up to 5 years of vehicle age counted from the date of invoice / purchase.",
+      "Maximum TWO claims are payable under this add-on per policy period, after which the cover ceases.",
+      "If a battery is replaced during the policy for any reason without a claim, the new battery is covered only if its details are informed to the Company.",
       "Each claim is subject to the policy excess.",
       "With Co-Pay variant: the insured bears a share of the assessed loss on every claim as per the co-payment table below; the co-payment does not reduce the Sum Insured.",
       "If the add-on is opted at renewal without having been in the previous policy: pre-inspection of the vehicle with mandatory speedometer reading, and a waiting period of one month and 1,000 km from the reading taken at pre-inspection.",
       "Can be cancelled only if the base policy is cancelled at the same time; refund as per the base policy. Subject otherwise to the base-policy terms."
     ],
-    table: { head: ["Age of vehicle (With Co-Pay variant)", "Co-payment borne by insured"], rows: [
-      ["Not exceeding 1 year", "Nil"], ["Over 1 year up to 2 years", "10%"], ["Over 2 years up to 3 years", "20%"],
-      ["Over 3 years up to 4 years", "30%"], ["Over 4 years up to 5 years", "50%"] ] },
     exclusions: [
       "Claims where the subject matter is covered under any other insurance, the manufacturer's warranty, recall campaign, service contract or similar package at the same time.",
       "Claims intimated to the Company after 30 days of the loss / damage.",
@@ -11677,7 +11914,28 @@ const MOTOR_ADDON_WORDINGS = {
       "Any claim where the vehicle is left unused for more than 90 days in an unplugged condition (not actively connected to a live charging source, no current received by the Battery Management System, or not kept in the OEM battery-preservation mode).",
       "Inconsequential aspects such as noises, vibrations or heating that do not lead to failure of function or performance."
     ],
-    uin: { _all: ["Battery Protect - Standalone OD Private Car: IRDAN556RP0001V01201920/A0003V01202526"] }
+    uin: { privateCar: ["Private Car Package: IRDAN556RP007701200506/A0001V01202526", "Private Car Standalone OD: IRDAN556RP0001V01201920/A0003V01202526"],
+           _all: ["Private Car Standalone OD: IRDAN556RP0001V01201920/A0003V01202526"] },
+    /* Two-wheeler wording (Oriental Battery Protect add-on to Two Wheeler Bundled / SAOD, 2026-27 filing) */
+    byClass: {
+      twoWheeler: {
+        scope: "Electric / Hybrid Electric Motorized Two-Wheelers - Bundled and Standalone Own Damage (SAOD) policies",
+        table: { head: ["Two-Wheeler - vehicle age", "Without Co-Pay  /  With Co-Pay (% of IDV)"], rows: [
+          ["Up to 1 year", "0.15%  /  0.15%"], ["Over 1 up to 2 years", "0.17%  /  0.15%"], ["Over 2 up to 3 years", "0.20%  /  0.16%"],
+          ["Over 3 up to 4 years", "0.23%  /  0.16%"], ["Over 4 up to 5 years", "0.28%  /  0.16%"] ] },
+        conditions: [
+          "Available only for Electric and Hybrid Electric two-wheelers, up to five years from the date of invoice or the date of first registration, whichever is earlier.",
+          "Maximum TWO claims are payable under this add-on per policy period.",
+          "If the battery is replaced with a new battery during the five-year period, cover automatically extends to the replaced battery - but only up to the completion of five years from the original invoice / first-registration date, whatever the date of replacement.",
+          "Each claim is subject to the policy excess.",
+          "The insured chooses either the With Co-Pay option or the Without Co-Pay option, shown in the policy schedule. Under With Co-Pay the insured bears the age-based share of every admissible claim (table below); under Without Co-Pay no co-payment applies, subject to the policy excess.",
+          "If the add-on is opted at renewal without having been in the previous policy: pre-inspection of the vehicle with mandatory speedometer reading, and a waiting period of one month and 1,000 km from the reading taken at pre-inspection.",
+          "No NCB accrues on the add-on premium; a claim admitted under this add-on affects the NCB of the base policy as per its terms.",
+          "Can be cancelled only if the base policy is cancelled at the same time; refund as per the base policy. Subject otherwise to the base-policy terms."
+        ],
+        uin: { twoWheeler: ["Two-Wheeler Bundled: IRDAN556RP0006V02201819/A0005V01202627", "Two-Wheeler Standalone OD: IRDAN556RP0002V01201920/A0006V01202627"] }
+      }
+    }
   },
   emiProtect: {
     title: "EMI Protector Add-on Cover",
@@ -11879,10 +12137,16 @@ function drawMotorAddonPages(doc, q){
   y += 8;
 
   picks.forEach(function(p){
-    const w = MOTOR_ADDON_WORDINGS[p.key];
+    const base = MOTOR_ADDON_WORDINGS[p.key];
+    const clsKey = (vt === 'twoWheelerHire') ? 'twoWheeler' : vt;
+    const w = Object.assign({}, base, (base.byClass && base.byClass[clsKey]) || {});
     const amt = (p.item && p.item.amount) ? ('Premium Rs. ' + Math.round(p.item.amount).toLocaleString('en-IN')) : '';
     section(w.title, amt);
     block('Applies to', [w.scope], {});
+    if(p.key === 'batteryProtect'){
+      const copay = (p.item && p.item.key === 'batteryProtectCoPay');
+      block('Option selected', [copay ? 'Battery Protect Cover - With Co-Pay option (insured bears the age-based co-payment on every claim)' : 'Battery Protect Cover - Without Co-Pay option (no co-payment; policy excess applies)'], { tint: 'green' });
+    }
     if(w.maxAge){
       const lim = (w.maxAge[vt] != null) ? w.maxAge[vt] : w.maxAge._all;
       if(lim != null){
@@ -11892,6 +12156,7 @@ function drawMotorAddonPages(doc, q){
     }
     block('What is covered', w.covers, { bullet: w.covers.length > 1 });
     table(w.table);
+    if(w.copayTable && !(p.key === 'batteryProtect' && p.item && p.item.key !== 'batteryProtectCoPay')) table(w.copayTable);
     block('Conditions', w.conditions, { numbered: true });
     block('Exclusions', w.exclusions, { numbered: true, tint:'red' });
     const uins = (w.uin && (w.uin[vt] || w.uin._all)) || [];
@@ -21782,6 +22047,10 @@ window.FIRE_VERIFIED = [
   { label:'Fire: EQ Sec III 0.25/0.15/0.10/0.05 and Sec IV–VII 0.50/0.25/0.10/0.05 per mille — §1.3', expect:'0.25,0.15,0.1,0.05|0.5,0.25,0.1,0.05', check:()=>[1,2,3,4].map(z=>ANNEXB_EQ['non-industrial'][z]).join(',')+'|'+[1,2,3,4].map(z=>ANNEXB_EQ['industrial'][z]).join(',') },
   { label:'Fire: minimum deductible bands 10k / 25k / 5L / 25L / 50L — Annexure E 1.1', expect:'10000/25000/500000/2500000/5000000', check:()=>[5e7,50e7,500e7,2000e7,3000e7].map(v=>fireDeductibleSlab(v).minNum).join('/') },
   { label:'Fire: roads STFI may be discounted from 0.52 to 0.37 per mille = 28.85% — §1.3', expect:28.85, check:()=>ROADS_STFI_FLOOR_DISC },
+  { label:'Motor: two-wheeler Engine Protect / Battery Protect wordings carry the 2026-27 UINs (Bundled A0003 / A0005, SAOD A0004 / A0006)', expect:'ok',
+    check:()=>{ const e=MOTOR_ADDON_WORDINGS.engineProtect.byClass.twoWheeler.uin.twoWheeler.join(' '), b=MOTOR_ADDON_WORDINGS.batteryProtect.byClass.twoWheeler.uin.twoWheeler.join(' '); return (/A0003V01202627/.test(e)&&/A0004V01202627/.test(e)&&/A0005V01202627/.test(b)&&/A0006V01202627/.test(b)) ? 'ok' : 'missing'; } },
+  { label:'Motor: two-wheeler EPC rate table in the schedule matches the rating engine (0.067 … 0.140% of IDV)', expect:'0.067%/0.140%',
+    check:()=>{ const r=MOTOR_ADDON_WORDINGS.engineProtect.byClass.twoWheeler.table.rows; return r[0][1]+'/'+r[4][1]; } },
   { label:'Fire: Terrorism 0.21 per mille on Rs.12 Cr = Rs.25,200 (OICL Laghu sheet R/432702/11/2027/61, 27/08/2026)', expect:25200, check:()=>Math.round((12e7/1000)*(parseFloat(document.getElementById('terror-rate').value)||0)) },
   { label:'Fire: Terrorism 0.21 per mille on Rs.4 Cr = Rs.8,400 (OICL Sookshma sheet R/432702/11/2027/3, 24/04/2026)', expect:8400, check:()=>Math.round((4e7/1000)*(parseFloat(document.getElementById('terror-rate').value)||0)) },
   { label:'Fire: Laghu STFI industrial 0.37 on Rs.12 Cr = Rs.44,400 and EQ Zone IV 0.05 = Rs.6,000 (same Laghu sheet)', expect:'44400/6000', check:()=>Math.round(12e4*ANNEXB_STFI.industrial)+'/'+Math.round(12e4*ANNEXB_EQ.industrial[4]) },
@@ -21793,7 +22062,7 @@ window.FIRE = {updateTerrorPill: (typeof updateTerrorPill==='function'? updateTe
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v60 · full-app fuzz sweep · 02-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v61 · 2W EPC/Battery wordings + CAR/EAR cover schedule · 03-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
