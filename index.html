@@ -572,7 +572,7 @@ var OIC_WORD_AR  = 640/103;
   function render(spec) {
     spec = spec || {};
     var jsPDFctor = (root.jspdf && root.jspdf.jsPDF) || (typeof require === 'function' && require('jspdf').jsPDF);
-    var doc = new jsPDFctor({ unit: 'pt', format: 'a4' });
+    var doc = (root.OICIMG && root.OICIMG.docOverride) || new jsPDFctor({ unit: 'pt', format: 'a4' });
 
     var W  = doc.internal.pageSize.getWidth();    // 595
     var PH = doc.internal.pageSize.getHeight();   // 842
@@ -698,21 +698,11 @@ var OIC_WORD_AR  = 640/103;
          "PRITHVI, AGNI, JAL, AAKASH" tagline, so no company-name text is drawn
          over it. Falls back to the drawn seal + typed name if addImage throws
          for any reason, so a quote is never lost to a bad image. */
-      var drew = false;
-      try {
-        var sealH = 44, sealW = sealH * OIC_SEAL_AR;
-        doc.addImage(OIC_SEAL_PNG, 'PNG', M, 8, sealW, sealH, 'oicSeal', 'FAST');
-        var wordW = 258, wordH = wordW / OIC_WORD_AR;
-        doc.addImage(OIC_WORD_PNG, 'PNG', (W - wordW) / 2, 12, wordW, wordH, 'oicWord', 'FAST');
-        drew = true;
-      } catch (e) {
-        console.error('OICL logo could not be drawn, using fallback masthead:', e);
-      }
-      if (!drew) {
-        seal(M + 16, 30, 17);
-        text('THE ORIENTAL INSURANCE COMPANY LTD.', W / 2, 27,
-             { bold: true, size: 15.5, color: C.blue, align: 'center' });
-      }
+      /* Masthead is typed only — the seal and wordmark artwork were removed on request. */
+      text('THE ORIENTAL INSURANCE COMPANY LTD.', W / 2, 30,
+           { bold: true, size: 15.5, color: C.blue, align: 'center' });
+      text('PRITHVI, AGNI, JAL, AAKASH  \u00B7  Sab Ki Suraksha Hamare Paas', W / 2, 44,
+           { size: 7.5, color: C.mute, align: 'center' });
       text(spec.subtitle || 'Quotation Worksheet', W / 2, 66,
            { bold: true, italic: true, size: 9.5, color: C.blue, align: 'center', maxWidth: CW - 80 });
 
@@ -825,6 +815,100 @@ var OIC_WORD_AR  = 640/103;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
+<!-- Quote image renderer: a canvas 'document' that answers the jsPDF calls the quote builders make,
+     so the very same layout code paints page 1 of any quotation as a PNG for WhatsApp / gallery. -->
+<script>
+(function(root){
+  function CanvasDoc(opts){
+    opts = opts || {};
+    var S = opts.scale || 2.2, W = 595.28, H = 841.89;
+    var canvas = document.createElement('canvas');
+    canvas.width = Math.round(W*S); canvas.height = Math.round(H*S);
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    var st = { fill:[0,0,0], draw:[0,0,0], text:[0,0,0], style:'normal', size:16, lw:1, page:1, pages:1, cs:0 };
+    var rgb = function(a){ return 'rgb(' + a.join(',') + ')'; };
+    var on = function(){ return st.page === 1; };
+    var fontStr = function(){ var b = st.style.indexOf('bold') >= 0, i = st.style.indexOf('italic') >= 0;
+      return (i ? 'italic ' : '') + (b ? 'bold ' : '') + (st.size*S) + 'px Helvetica, Arial, "Liberation Sans", sans-serif'; };
+    var api = {
+      canvas: canvas,
+      internal: { pageSize: { getWidth: function(){ return W; }, getHeight: function(){ return H; }, width: W, height: H },
+                  getNumberOfPages: function(){ return st.pages; } },
+      setFillColor: function(r,g,b){ st.fill = [r,g,b]; return api; },
+      setDrawColor: function(r,g,b){ st.draw = [r,g,b]; return api; },
+      setTextColor: function(r,g,b){ st.text = [r,g,b]; return api; },
+      setLineWidth: function(w){ st.lw = w; return api; },
+      setFont: function(n, style){ if(style) st.style = String(style); return api; },
+      setFontSize: function(n){ st.size = n; return api; },
+      getFontSize: function(){ return st.size; },
+      setCharSpace: function(n){ st.cs = n || 0; return api; },
+      rect: function(x,y,w,h,style){ if(!on()) return api; var m = style || 'S';
+        ctx.fillStyle = rgb(st.fill); ctx.strokeStyle = rgb(st.draw); ctx.lineWidth = Math.max(0.5, st.lw*S);
+        if(m.indexOf('F') >= 0) ctx.fillRect(x*S, y*S, w*S, h*S);
+        if(m.indexOf('D') >= 0 || m === 'S') ctx.strokeRect(x*S, y*S, w*S, h*S); return api; },
+      roundedRect: function(x,y,w,h,rx,ry,style){ if(!on()) return api; var m = style || 'S', r = Math.min(rx*S, w*S/2, h*S/2);
+        ctx.beginPath(); ctx.moveTo(x*S+r, y*S); ctx.arcTo((x+w)*S, y*S, (x+w)*S, (y+h)*S, r); ctx.arcTo((x+w)*S, (y+h)*S, x*S, (y+h)*S, r);
+        ctx.arcTo(x*S, (y+h)*S, x*S, y*S, r); ctx.arcTo(x*S, y*S, (x+w)*S, y*S, r); ctx.closePath();
+        ctx.fillStyle = rgb(st.fill); ctx.strokeStyle = rgb(st.draw); ctx.lineWidth = Math.max(0.5, st.lw*S);
+        if(m.indexOf('F') >= 0) ctx.fill(); if(m.indexOf('D') >= 0 || m === 'S') ctx.stroke(); return api; },
+      line: function(x1,y1,x2,y2){ if(!on()) return api; ctx.strokeStyle = rgb(st.draw); ctx.lineWidth = Math.max(0.5, st.lw*S);
+        ctx.beginPath(); ctx.moveTo(x1*S, y1*S); ctx.lineTo(x2*S, y2*S); ctx.stroke(); return api; },
+      circle: function(x,y,r,style){ if(!on()) return api; var m = style || 'S'; ctx.beginPath(); ctx.arc(x*S, y*S, r*S, 0, Math.PI*2);
+        ctx.fillStyle = rgb(st.fill); ctx.strokeStyle = rgb(st.draw); ctx.lineWidth = Math.max(0.5, st.lw*S);
+        if(m.indexOf('F') >= 0) ctx.fill(); if(m.indexOf('D') >= 0 || m === 'S') ctx.stroke(); return api; },
+      getTextWidth: function(t){ ctx.font = fontStr(); return ctx.measureText(String(t == null ? '' : t)).width / S + st.cs*String(t == null ? '' : t).length; },
+      getTextDimensions: function(t){ return { w: api.getTextWidth(t), h: st.size }; },
+      splitTextToSize: function(text, maxW){ var out = [];
+        String(text == null ? '' : text).split(/\r?\n/).forEach(function(par){ var words = par.split(' '), cur = '';
+          words.forEach(function(w){ var t = cur ? cur + ' ' + w : w; if(!cur || api.getTextWidth(t) <= maxW) cur = t; else { out.push(cur); cur = w; } });
+          out.push(cur); });
+        return out; },
+      text: function(str, x, y, o){ if(!on()) return api; o = o || {};
+        var lines = Array.isArray(str) ? str.slice() : [String(str == null ? '' : str)];
+        if(o.maxWidth){ var wrapped = []; lines.forEach(function(l){ wrapped = wrapped.concat(api.splitTextToSize(l, o.maxWidth)); }); lines = wrapped; }
+        ctx.font = fontStr(); ctx.fillStyle = rgb(st.text); ctx.textBaseline = 'alphabetic';
+        ctx.textAlign = o.align === 'center' ? 'center' : (o.align === 'right' ? 'right' : 'left');
+        var lh = st.size * 1.15;
+        lines.forEach(function(l, i){ ctx.fillText(l, x*S, (y + i*lh)*S); }); return api; },
+      addImage: function(){ return api; },
+      addPage: function(){ st.pages++; st.page = st.pages; return api; },
+      setPage: function(n){ st.page = n; return api; },
+      output: function(){ return new ArrayBuffer(0); },
+      save: function(){ return api; }
+    };
+    /* anything the builders call that the canvas has no use for (dashes, graphics states…) is a harmless no-op */
+    return new Proxy(api, { get: function(t, k){ return (k in t) ? t[k] : function(){ return t; }; } });
+  }
+  function share(canvas, filename, title, text){
+    return new Promise(function(resolve){
+      canvas.toBlob(function(blob){
+        if(!blob){ alert('Could not render the quote image.'); resolve(false); return; }
+        var file = new File([blob], filename, { type: 'image/png' });
+        if(navigator.canShare && navigator.canShare({ files:[file] })){
+          navigator.share({ title: title, text: text || title, files: [file] }).then(function(){ resolve(true); })
+            .catch(function(e){ if(e && e.name !== 'AbortError') alert('Share failed: ' + e.message); resolve(false); });
+        } else {
+          var url = URL.createObjectURL(blob), a = document.createElement('a');
+          a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function(){ URL.revokeObjectURL(url); }, 8000);
+          setTimeout(function(){ window.open('https://wa.me/?text=' + encodeURIComponent((text || title) + '\n\n_Quote image downloaded - please attach it to this chat._'), '_blank'); }, 600);
+          resolve(true);
+        }
+      }, 'image/png');
+    });
+  }
+  /* run a quote builder against the canvas document instead of jsPDF and share page 1 */
+  function shareViaBuilder(build, filename, title, text){
+    var cd = new CanvasDoc();
+    root.OICIMG.docOverride = cd;
+    try { build(cd); } finally { root.OICIMG.docOverride = null; }
+    return root.OICIMG.share(cd.canvas, filename, title, text);
+  }
+  root.OICIMG = { CanvasDoc: CanvasDoc, share: share, shareViaBuilder: shareViaBuilder, docOverride: null };
+})(window);
+</script>
+
 <style>
 :root{
   --bg:#f4f7fc;--bg-tint:#eaf0fb;--card:#ffffff;
@@ -2329,6 +2413,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
       <div class="action-row">
         <button class="btn btn-pdf" id="pdfBtn"><svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>PDF</button>
         <button class="btn btn-whatsapp" id="waBtn"><svg class="icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>Share</button>
+        <button class="btn btn-secondary" id="imgBtn"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Share as Image</button>
       </div>
       <button class="btn btn-secondary" id="resetBtn"><svg class="icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>New Quote</button>
     </div>
@@ -2606,6 +2691,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
         style="flex:1;padding:13px;border:1.5px solid var(--accent-dark);border-radius:10px;background:#fff;color:var(--accent-dark);font-size:14px;font-weight:700;cursor:pointer">
         Download PDF
       </button>
+      <button type="button" class="btn btn-secondary" onclick="ohShareImage()" style="margin-top:8px"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Share as Image</button>
     </div>
     <div id="ohOut" style="margin-top:12px"></div>
   </section>
@@ -2919,6 +3005,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
           <svg class="icon" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
           Share PDF
         </button>
+        <button class="btn btn-secondary" id="hImgBtn"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Share as Image</button>
       </div>
       <button class="btn btn-secondary" id="hResetBtn">
         <svg class="icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>
@@ -3519,6 +3606,10 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
           <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
         </svg>
         <span id="wa-btn-label">Share PDF on WhatsApp</span>
+      </button>
+      <button class="btn btn-wa" id="img-btn" onclick="FIRE.shareImage()" type="button" style="background:var(--grad-ink)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>
+        <span>Share Quote as Image</span>
       </button>
     </div>
   </div>
@@ -5141,6 +5232,10 @@ Quote Date
 <svg width="20" height="20" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
 <span id="ce-wa-btn-label">Share PDF on WhatsApp</span>
 </button>
+<button class="btn btn-wa" id="ce-img-btn" onclick="CAR.shareImage()" type="button" style="background:var(--grad-ink)">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>
+<span>Share Quote as Image</span>
+</button>
 </div>
 <!-- Excess details panel below the card -->
 <div class="excess-panel" id="ce-excess-panel">
@@ -5427,6 +5522,7 @@ function loadJsPDF(onReady,onFail){if(typeof window.jspdf!=='undefined'&&window.
 const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';s.async=true;s.onload=onReady;s.onerror=onFail;document.head.appendChild(s);}
 function generatePDF(){const card=$('result-card');if(!card.classList.contains('visible')){alert('Please calculate the premium first.');return;}
 const btn=$('pdf-btn');const lbl=$('pdf-btn-label');btn.disabled=true;lbl.innerHTML='<span class="pdf-spin">&#x21BB;</span>&nbsp; Generating PDF…';const finish=(err)=>{btn.disabled=false;lbl.textContent='Download PDF Quote';if(err)alert(err);};loadJsPDF(()=>{try{buildPDF(false);finish();}catch(e){finish('PDF error: '+(e.message||e));}},()=>finish('Could not load PDF library. Check internet connection.'));}
+function shareImage(){if(!lastQuote){alert('Please calculate the premium first.');return;}const q=lastQuote;const safe=(q.insuredName||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);OICIMG.shareViaBuilder(function(){buildPDF(true);},'Oriental_'+(q.mode==='ear'?'EAR':'CAR')+'_Quote_'+safe+'.png',(q.mode==='ear'?'EAR':'CAR')+' Premium Quote \u2014 '+q.insuredName,'Oriental Insurance '+(q.mode==='ear'?'EAR':'CAR')+' quote for '+q.insuredName+' \u2014 grand total '+fmtR(q.grand)+' (incl. GST). '+AG().name+' \u00b7 '+AG().phone);}
 function shareWA(){const card=$('result-card');if(!card.classList.contains('visible')){alert('Please calculate the premium first.');return;}
 if(!lastQuote){alert('Please calculate the premium first.');return;}
 const btn=$('wa-btn');const lbl=$('wa-btn-label');btn.disabled=true;lbl.innerHTML='<span class="pdf-spin">&#x21BB;</span>&nbsp; Preparing PDF…';const finish=(err)=>{btn.disabled=false;lbl.textContent='Share PDF on WhatsApp';if(err)alert(err);};loadJsPDF(()=>{try{const blob=buildPDF(true);if(!blob){finish('Could not generate PDF.');return;}
@@ -5771,7 +5867,7 @@ function drawCarCoverPages(doc, q){
     {label:'EAR SI 1 Cr, 2 months: Col. 4 flat', expect:22500,
      check:()=>Math.round(computeEARPremium(1e7,2,1,EAR_DATA.find(r=>r.c==='010102')).grossPrem*100)/100}
   ];
-window.CAR={setMode,updateSplitTotal,onPeriodChange,onCARSearch,updateDiscSummary,onEARSearch,clearEARSelection,clearCARSelection,updateTestingHint,updateDiscSummaryEAR,toggleSplit,addSplitSegment,toggleALOP,calcALOP,toggleExt,onEQLoc,closeEQLoc,onEQZone,generatePDF,shareWA,renderInstallments,calculate,selectCAR,selectEAR,applyEQLocation,removeSplitSegment,onSegSearch,selectSegRisk,clearSegSelection,buildPDF,computeCARPremium,computeEARPremium,computeExtensions,VERIFIED,get lastQuote(){return lastQuote;},CAR_DATA,EAR_DATA};
+window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updateDiscSummary,onEARSearch,clearEARSelection,clearCARSelection,updateTestingHint,updateDiscSummaryEAR,toggleSplit,addSplitSegment,toggleALOP,calcALOP,toggleExt,onEQLoc,closeEQLoc,onEQZone,generatePDF,shareWA,renderInstallments,calculate,selectCAR,selectEAR,applyEQLocation,removeSplitSegment,onSegSearch,selectSegRisk,clearSegSelection,buildPDF,computeCARPremium,computeEARPremium,computeExtensions,VERIFIED,get lastQuote(){return lastQuote;},CAR_DATA,EAR_DATA};
 })();
   </script>
 <script>
@@ -5925,6 +6021,7 @@ window.CAR={setMode,updateSplitTotal,onPeriodChange,onCARSearch,updateDiscSummar
     h += '<div class="wc-actions">' +
          '<button type="button" class="btn" id="wcPdfBtn">PDF</button>' +
          '<button type="button" class="btn-secondary" id="wcShareBtn">Share</button>' +
+         '<button type="button" class="btn-secondary" id="wcImgBtn">Image</button>' +
          '<button type="button" class="btn-secondary" id="wcNewBtn">New Quote</button>' +
          '</div>';
     if(q.perCapitaWarn)
@@ -6172,6 +6269,13 @@ window.CAR={setMode,updateSplitTotal,onPeriodChange,onCARSearch,updateDiscSummar
     }, ()=>{ busy(btn,false); alert('Could not load the PDF library. Please check your internet connection.'); });
   }
 
+  function wcShareImage(){
+    const q=window.wcLastQuote;
+    if(!q){ alert('Please calculate the premium first.'); return; }
+    const safeName=(q.insured||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);
+    OICIMG.shareViaBuilder(function(){ buildWcPDF(true); }, 'Oriental_WC_Quote_'+safeName+'.png', "Employees' Compensation Quote \u2014 "+(q.insured||''),
+      "Oriental Insurance Employees' Compensation quote for "+(q.insured||'')+' \u2014 total \u20b9'+Number(q.grand).toLocaleString('en-IN')+' (incl. GST). '+((typeof AGENT!=='undefined'&&AGENT.name)||'')+' \u00b7 '+((typeof AGENT!=='undefined'&&AGENT.phone)||''));
+  }
   function wcShare(){
     const q=window.wcLastQuote;
     if(!q){ alert('Please calculate the premium first.'); return; }
@@ -6213,6 +6317,7 @@ window.CAR={setMode,updateSplitTotal,onPeriodChange,onCARSearch,updateDiscSummar
     const t=e.target; if(!t.closest || !t.closest('#sectionWc')) return;
     if(t.id==='wcPdfBtn'){ wcPDF(); }
     else if(t.id==='wcShareBtn'){ wcShare(); }
+    else if(t.id==='wcImgBtn'){ wcShareImage(); }
     else if(t.id==='wcNewBtn'){ if(window.WCUI) WCUI.reset(); window.wcLastQuote=null; }
   });
 
@@ -6379,6 +6484,7 @@ window.CAR={setMode,updateSplitTotal,onPeriodChange,onCARSearch,updateDiscSummar
           <svg class="icon" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
           Share PDF
         </button>
+        <button class="btn btn-secondary" id="yecImgBtn"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Share as Image</button>
       </div>
       <button class="btn btn-secondary" id="yecResetBtn">
         <svg class="icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>
@@ -11275,9 +11381,9 @@ function seatingCapacityLabel(q){
   return pax > 0 ? (pax + 1) + ' (incl. driver)' : '';
 }
 
-function generatePDF(q){
+function generatePDF(q, docOverride){
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit:'pt', format:'a4' });
+  const doc = docOverride || new jsPDF({ unit:'pt', format:'a4' });
   const W = doc.internal.pageSize.getWidth();   // 595
   const PH = doc.internal.pageSize.getHeight(); // 842
   const M = 34;
@@ -11431,25 +11537,10 @@ function generatePDF(q){
        line of business goes out on the same letterhead. Only painted on the
        real pass - the measure pass does not need it. Falls back to the old
        drawn seal + typed name if addImage throws. */
-    let mastheadDrawn=false;
+    /* Masthead is typed only — the seal and wordmark artwork were removed on request. */
     if(!MEASURE){
-      try{
-        const sealH=44, sealW=sealH*OIC_SEAL_AR;
-        doc.addImage(OIC_SEAL_PNG,'PNG',M,8,sealW,sealH,'oicSeal','FAST');
-        const wordW=258, wordH=wordW/OIC_WORD_AR;
-        doc.addImage(OIC_WORD_PNG,'PNG',(W-wordW)/2,12,wordW,wordH,'oicWord','FAST');
-        mastheadDrawn=true;
-      }catch(e){ console.error('OICL logo could not be drawn, using fallback masthead:',e); }
-      if(!mastheadDrawn){
-        const lx=M+16, lyc=30, r=17;
-        setFill(C.blue); doc.circle(lx,lyc,r,'F');
-        setFill(C.white); doc.circle(lx,lyc,r-2.5,'F');
-        setDraw(C.blue); doc.setLineWidth(1.1); doc.circle(lx,lyc,r,'S'); doc.circle(lx,lyc,r-5.5,'S');
-        doc.setLineWidth(0.7);
-        for(let a=0;a<360;a+=30){ const rad=a*Math.PI/180; doc.line(lx+Math.cos(rad)*(r-5.5),lyc+Math.sin(rad)*(r-5.5),lx+Math.cos(rad)*(r-2.5),lyc+Math.sin(rad)*(r-2.5)); }
-        text('OICL',lx,lyc+2.4,{bold:true,size:6,color:C.blue,align:'center'});
-        text('THE ORIENTAL INSURANCE COMPANY LTD.', W/2, 27, {bold:true,size:15.5,color:C.blue,align:'center'});
-      }
+      text('THE ORIENTAL INSURANCE COMPANY LTD.', W/2, 30, {bold:true,size:15.5,color:C.blue,align:'center'});
+      text('PRITHVI, AGNI, JAL, AAKASH  \u00B7  Sab Ki Suraksha Hamare Paas', W/2, 44, {size:7.5,color:C.mute,align:'center'});
     }
     text('Quotation Worksheet For Motor Insurance \u2013 '+quoteSubtitle(q), W/2, 66, {bold:true,italic:true,size:9.5,color:C.blue,align:'center',maxWidth:CW-80});
 
@@ -12260,6 +12351,17 @@ document.addEventListener('change', updateStepProgress);
 document.addEventListener('input',  updateStepProgress);
 updateStepProgress();
 
+$('imgBtn').addEventListener('click', async ()=>{
+  if(!state.lastQuote){ return; }
+  try{
+    const q = state.lastQuote;
+    const cd = new OICIMG.CanvasDoc();
+    const { filename } = generatePDF(q, cd);
+    await OICIMG.share(cd.canvas, filename.replace(/\.pdf$/i, '.png'), 'Motor Insurance Quote \u2014 ' + (q.data.customerName || 'Customer'),
+      'Oriental Insurance motor quote for ' + (q.data.customerName || 'Customer') + ' \u2014 total premium \u20b9' + fmt(q.total) + ' (incl. GST). ' + AGENT.name + ' \u00b7 ' + AGENT.phone);
+    toast('Quote image ready');
+  }catch(err){ console.error(err); toast('Image error'); }
+});
 $('pdfBtn').addEventListener('click', ()=>{
   if(state.lastQuote){
     try{
@@ -16340,6 +16442,26 @@ document.getElementById('hPdfBtn').addEventListener('click', ()=>{
   } catch(err){ console.error(err); toast('PDF error'); }
 });
 
+document.getElementById('hImgBtn').addEventListener('click', async ()=>{
+  try {
+    const r = hCalculate();
+    const snap = { plan: hState.plan, si: hState.si, basis: hState.basis, zone: hState.zone, freq: hState.freq, members: [...hState.members] };
+    let fname = 'Oriental_Health_Quote.png';
+    await OICIMG.shareViaBuilder(()=>{ const out = generateHealthPDF(r, snap); fname = String(out.filename||fname).replace(/\.pdf$/i,'.png'); },
+      fname, 'Health Insurance Quote', 'Oriental Insurance health quote \u2014 ' + AGENT.name + ' \u00b7 ' + AGENT.phone);
+    toast('Quote image ready');
+  } catch(err){ console.error(err); toast('Image error'); }
+});
+document.getElementById('yecImgBtn').addEventListener('click', async ()=>{
+  try {
+    const r = yecCalculate();
+    const snap = { plan: yState.plan, si: yState.si, basis: yState.basis, members: yState.basis==='floater_floater' ? [...yState.group1,...yState.group2] : [...yState.members] };
+    let fname = 'Oriental_YEC_Quote.png';
+    await OICIMG.shareViaBuilder(()=>{ const out = generateYecPDF(r, snap); fname = String(out.filename||fname).replace(/\.pdf$/i,'.png'); },
+      fname, 'Youth Eco Care Quote', 'Oriental Insurance Youth Eco Care quote \u2014 ' + AGENT.name + ' \u00b7 ' + AGENT.phone);
+    toast('Quote image ready');
+  } catch(err){ console.error(err); toast('Image error'); }
+});
 // ── YEC PDF button ──
 document.getElementById('yecPdfBtn').addEventListener('click', ()=>{
   try {
@@ -18511,6 +18633,10 @@ function ohRemovePerson(i){
 /* PDF for the chart-based health products (Mediclaim Individual / Group,
    HFFP, Overseas). Reads the rendered breakdown so the document can never
    disagree with what is on screen. */
+function ohShareImage(){
+  OICIMG.shareViaBuilder(function(){ ohGeneratePDF(); }, 'Oriental_Health_Quote.png', 'Health Insurance Quote',
+    'Oriental Insurance health quote \u2014 ' + AGENT.name + ' \u00b7 ' + AGENT.phone).then(function(){ if(typeof toast==='function') toast('Quote image ready'); });
+}
 function ohGeneratePDF(){
   const out = document.getElementById('ohOut');
   if(!out || !out.querySelector('table')){ alert('Please calculate the premium first.'); return; }
@@ -21479,6 +21605,13 @@ function generatePDF(){
   });
 }
 
+function shareImage(){
+  if(!lastQuote){ alert('Please calculate the premium first.'); return; }
+  const q = lastQuote;
+  const safeName = (q.insured||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);
+  OICIMG.shareViaBuilder(function(){ buildFirePDF(true); }, 'Oriental_Fire_Quote_' + safeName + '.png', 'Fire Premium Quote \u2014 ' + q.insured,
+    'Oriental Insurance fire quote for ' + q.insured + ' \u2014 total premium \u20b9' + fmt(q.grand) + ' (incl. GST). ' + ((typeof AGENT!=='undefined'&&AGENT.name)||'') + ' \u00b7 ' + ((typeof AGENT!=='undefined'&&AGENT.phone)||''));
+}
 function shareOnWhatsApp(){
   const card = document.getElementById('result-card');
   if(!card.classList.contains('visible')){
@@ -22047,6 +22180,8 @@ window.FIRE_VERIFIED = [
   { label:'Fire: EQ Sec III 0.25/0.15/0.10/0.05 and Sec IV–VII 0.50/0.25/0.10/0.05 per mille — §1.3', expect:'0.25,0.15,0.1,0.05|0.5,0.25,0.1,0.05', check:()=>[1,2,3,4].map(z=>ANNEXB_EQ['non-industrial'][z]).join(',')+'|'+[1,2,3,4].map(z=>ANNEXB_EQ['industrial'][z]).join(',') },
   { label:'Fire: minimum deductible bands 10k / 25k / 5L / 25L / 50L — Annexure E 1.1', expect:'10000/25000/500000/2500000/5000000', check:()=>[5e7,50e7,500e7,2000e7,3000e7].map(v=>fireDeductibleSlab(v).minNum).join('/') },
   { label:'Fire: roads STFI may be discounted from 0.52 to 0.37 per mille = 28.85% — §1.3', expect:28.85, check:()=>ROADS_STFI_FLOOR_DISC },
+  { label:'Quote image renderer: canvas document answers the jsPDF calls (page size, text wrap) and paints only page 1', expect:'595/2/1',
+    check:()=>{ const d=new OICIMG.CanvasDoc({scale:1}); d.setFontSize(10); const w=Math.round(d.internal.pageSize.getWidth()); const n=d.splitTextToSize('one two three four five six seven eight nine ten', 60).length>1?2:1; d.addPage(); d.text('x',10,10); return w+'/'+n+'/'+(d.internal.getNumberOfPages()>=2?1:0); } },
   { label:'Motor: two-wheeler Engine Protect / Battery Protect wordings carry the 2026-27 UINs (Bundled A0003 / A0005, SAOD A0004 / A0006)', expect:'ok',
     check:()=>{ const e=MOTOR_ADDON_WORDINGS.engineProtect.byClass.twoWheeler.uin.twoWheeler.join(' '), b=MOTOR_ADDON_WORDINGS.batteryProtect.byClass.twoWheeler.uin.twoWheeler.join(' '); return (/A0003V01202627/.test(e)&&/A0004V01202627/.test(e)&&/A0005V01202627/.test(b)&&/A0006V01202627/.test(b)) ? 'ok' : 'missing'; } },
   { label:'Motor: two-wheeler EPC rate table in the schedule matches the rating engine (0.067 … 0.140% of IDV)', expect:'0.067%/0.140%',
@@ -22058,11 +22193,11 @@ window.FIRE_VERIFIED = [
   { label:'Fire: tier auto-classification — Engineering Workshop (Steel Plants) is industrial, not non-industrial (was matched by the keyword "shop")', expect:'industrial/industrial/non-industrial/storage-closed/storage-open/roads/td-lines',
     check:()=>['Engineering Workshop (Steel Plants)','Engineering Workshop (Others)/Motor Vehicle Garages','Office Premises/Meeting Rooms','Godown/Silo Storage (Non-Hazardous Goods)','Open Storage (Non-Hazardous Goods)','Roads','Electric Transmission/Distribution Lines'].map(autoClassifyTier).join('/') }
 ];
-window.FIRE = {updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
+window.FIRE = {shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v61 · 2W EPC/Battery wordings + CAR/EAR cover schedule · 03-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v62 · logo removed, single-page quote image sharing · 03-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
