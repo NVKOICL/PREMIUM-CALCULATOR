@@ -840,7 +840,8 @@ var OIC_WORD_AR  = 640/103;
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     var st = { fill:[0,0,0], draw:[0,0,0], text:[0,0,0], style:'normal', size:16, lw:1, page:1, pages:1, cs:0 };
     var rgb = function(a){ return 'rgb(' + a.join(',') + ')'; };
-    var on = function(){ return st.page === 1; };
+    var target = opts.page || 1;
+    var on = function(){ return st.page === target; };
     var fontStr = function(){ var b = st.style.indexOf('bold') >= 0, i = st.style.indexOf('italic') >= 0;
       return (i ? 'italic ' : '') + (b ? 'bold ' : '') + (st.size*S) + 'px Helvetica, Arial, "Liberation Sans", sans-serif'; };
     var api = {
@@ -5552,7 +5553,7 @@ const riskRows=[];if(isSplit){q.splitSegments.forEach((s,i)=>{riskRows.push({lab
 else{riskRows.push(['Risk Code',isEAR?q.risk.c:q.selectedCode]);wrapText(q.risk.n,68).forEach((l,i)=>riskRows.push({label:(i===0?'Risk: ':'      ')+l}));if(isEAR){riskRows.push(['Col. 4 base rate',q.risk.c4.toFixed(2)+pm]);riskRows.push(['Col. 5 (erection months 2-11)',q.risk.c5.toFixed(3)+pm+' / month']);riskRows.push(['Col. 6 (beyond month 11)',q.risk.c6.toFixed(3)+pm+' / month']);riskRows.push(['Col. 7 (extra testing)',q.risk.c7.toFixed(2)+pm+' / month']);}else{riskRows.push(['Minimum rate (first 3 months)',q.risk.r.toFixed(3)+pm]);riskRows.push(['Additional rate per month',q.risk.a.toFixed(3)+pm]);riskRows.push(['Effective rate applied',q.grossRate.toFixed(4)+pm]);}}
 left.push({bar:'Risk Details',rows:riskRows});
 const d=q.discInputs||{};left.push({bar:'Section I Discounts',rows:[['Higher Excess Discount',(d.ex||0)+'%'],['Volume Discount',(d.vol||0)+'%'],['Special / Additional Discount',(d.sp||0)+'%'],{label:'Combined discount applied',value:(q.discPct||0)+'%',total:true}]});
-const exRows=[];const E=q.excess||excessFor(q.risk,q.si,q.mode);exRows.push([isEAR?'Normal period':'Normal claims',E.normal.pct+'% of claim, min Rs. '+OICPDF.fmtIN(E.normal.min)]);if(E.testing)exRows.push(['Testing period',E.testing.pct+'% of claim, min Rs. '+OICPDF.fmtIN(E.testing.min)]);exRows.push([isEAR?'AOG / major perils':'AOG / major peril claims',E.aog.pct+'% of claim, min Rs. '+OICPDF.fmtIN(E.aog.min)+(isEAR?', max Rs. 5 Cr':'')]);exRows.push({label:'Basis: '+E.src+(E.mult?' (TAC minimum x '+E.mult+')':'')});
+const exRows=[];const E=q.excess||excessFor(q.risk,q.si,q.mode);exRows.push([isEAR?'Normal period':'Normal claims',E.normal.pct+'% of claim, min Rs. '+OICPDF.fmtIN(E.normal.min)]);if(E.testing)exRows.push(['Testing period',E.testing.pct+'% of claim, min Rs. '+OICPDF.fmtIN(E.testing.min)]);exRows.push([isEAR?'AOG / major perils':'AOG / major peril claims',E.aog.pct+'% of claim, min Rs. '+OICPDF.fmtIN(E.aog.min)+(isEAR?', max Rs. 5 Cr':'')]);exRows.push({label:'Basis: % of each claim, subject to the tariff minimum'+(E.mult?' (minimum x '+E.mult+')':'')});
 left.push({bar:'Compulsory Excess',rows:exRows});
 const al=isEAR?alopSnapshot():null;if(al){left.push({bar:'ALOP / DSU (separate section - not in total)',rows:[['ALOP Sum Insured',R(al.si)],['Rate',al.rate.toFixed(2)+pm],['Max. indemnity period',al.mip+' months'],{label:'ALOP premium (excl. GST)',value:R(al.prem),total:true}]});}
 if(q.flags&&q.flags.length){left.push({bar:'Referral / Compliance Flags',rows:q.flags.map((f,i)=>({label:(i+1)+'. '+f}))});}
@@ -5710,7 +5711,11 @@ function drawCarCoverPages(doc, q){
       const avail = H - 34 - y - 2*PADY; let maxLines = Math.floor(avail / LH);
       if(maxLines < 3 && y > M + 60){ footer(); doc.addPage(); header(); continue; }
       const chunk = wrapped.slice(idx, idx + Math.max(3, maxLines));
-      const hRow = 2*PADY + chunk.reduce(function(a, w){ return a + (w.gap ? LH*0.35 : LH); }, 0);
+      let hRow = 2*PADY + chunk.reduce(function(a, w){ return a + (w.gap ? LH*0.35 : LH); }, 0);
+      if(idx === 0){ /* the label column wraps too - never let a two-line label overrun a one-line value */
+        doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.6);
+        const nl = doc.splitTextToSize(safe(label), LBLW - 2*PADX).length;
+        hRow = Math.max(hRow, 2*PADY + nl*LH); doc.setFont('helvetica','normal'); doc.setFontSize(FS); }
       setFill(opts.tint === 'red' ? REDBG : (opts.tint === 'green' ? GREEN : WHITE)); doc.rect(M, y, CW, hRow, 'F');
       setFill(SOFT); doc.rect(M, y, LBLW, hRow, 'F'); setDraw(LINE); doc.setLineWidth(0.35); doc.rect(M, y, CW, hRow); doc.line(VALX, y, VALX, y+hRow);
       if(idx === 0){ setText(opts.tint === 'red' ? RED : NAVY); doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.6);
@@ -5722,10 +5727,14 @@ function drawCarCoverPages(doc, q){
   }
   function table(tb){
     if(!tb) return; const c1 = Math.round(CW*0.5); const rows = [tb.head].concat(tb.rows);
-    rows.forEach(function(r, i){ space(16); const isHead = i === 0;
-      setFill(isHead ? NAVY2 : (i%2 ? ZEBRA : WHITE)); doc.rect(M, y, CW, 14, 'F'); setDraw(LINE); doc.setLineWidth(0.3); doc.rect(M, y, CW, 14); doc.line(M+c1, y, M+c1, y+14);
+    rows.forEach(function(r, i){ const isHead = i === 0;
+      doc.setFont('helvetica', isHead ? 'bold' : 'normal'); doc.setFontSize(FS-0.4);
+      const a = doc.splitTextToSize(safe(r[0]), c1 - 2*PADX), b = doc.splitTextToSize(safe(r[1]), CW - c1 - 2*PADX);
+      const hl = LH - 1.4, hRow = 4.5 + Math.max(a.length, b.length) * hl; space(hRow + 2);
+      setFill(isHead ? NAVY2 : (i%2 ? ZEBRA : WHITE)); doc.rect(M, y, CW, hRow, 'F'); setDraw(LINE); doc.setLineWidth(0.3); doc.rect(M, y, CW, hRow); doc.line(M+c1, y, M+c1, y+hRow);
       setText(isHead ? WHITE : INK); doc.setFont('helvetica', isHead ? 'bold' : 'normal'); doc.setFontSize(FS-0.4);
-      doc.text(safe(r[0]), M+PADX, y+9.6); doc.text(safe(r[1]), M+c1+PADX, y+9.6); y += 14; });
+      let ty = y + 2.2 + hl*0.72; a.forEach(function(l){ doc.text(l, M+PADX, ty); ty += hl; });
+      ty = y + 2.2 + hl*0.72; b.forEach(function(l){ doc.text(l, M+c1+PADX, ty); ty += hl; }); y += hRow; });
   }
   function note(text){
     doc.setFont('helvetica','normal'); doc.setFontSize(FS-0.6);
@@ -5780,7 +5789,7 @@ function drawCarCoverPages(doc, q){
     'Penalties for non-fulfilment of delivery or completion terms, consequential loss of any kind, aesthetic defects or operational deficiencies.',
     'Vehicles licensed for general road use, water-borne vessels, and machinery mounted on floating craft or aircraft.'
   ], { numbered:true, tint:'red' });
-  if(ex){ block('Excess on this quote', ['Normal claims: ' + ex.normal.pct + '% of claim, minimum ' + R(ex.normal.min) + (ex.testing ? '.  Testing period: ' + ex.testing.pct + '% of claim, minimum ' + R(ex.testing.min) : '') + '.  AOG / major perils: ' + ex.aog.pct + '% of claim, minimum ' + R(ex.aog.min) + (isEAR ? ', maximum Rs. 5 Crores' : '') + '.  Basis: ' + ex.src], { tint:'green' }); }
+  if(ex){ block('Excess on this quote', ['Normal claims: ' + ex.normal.pct + '% of claim, minimum ' + R(ex.normal.min) + (ex.testing ? '.  Testing period: ' + ex.testing.pct + '% of claim, minimum ' + R(ex.testing.min) : '') + '.  AOG / major perils: ' + ex.aog.pct + '% of claim, minimum ' + R(ex.aog.min) + (isEAR ? ', maximum Rs. 5 Crores' : '') + '.'], { tint:'green' }); }
   block('Construction plant & machinery', ['Loss of or damage to construction plant and machinery excludes damage directly caused by its own explosion or its own mechanical or electrical breakdown or derangement.' + (EXT_STATE.cpm ? ' CPM is included on this quote.' : '')]);
 
   /* ── 3. Section II ── */
@@ -12205,7 +12214,11 @@ function drawMotorAddonPages(doc, q){
       let maxLines = Math.floor(avail / LH);
       if(maxLines < 3 && y > M + 60){ footer(); doc.addPage(); header(); continue; }
       const chunk = wrapped.slice(idx, idx + Math.max(3, maxLines));
-      const hRow = 2*PADY + chunk.reduce(function(a, w){ return a + (w.gap ? LH*0.35 : LH); }, 0);
+      let hRow = 2*PADY + chunk.reduce(function(a, w){ return a + (w.gap ? LH*0.35 : LH); }, 0);
+      if(idx === 0){ /* the label column wraps too - never let a two-line label overrun a one-line value */
+        doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.6);
+        const nl = doc.splitTextToSize(safe(label), LBLW - 2*PADX).length;
+        hRow = Math.max(hRow, 2*PADY + nl*LH); doc.setFont('helvetica','normal'); doc.setFontSize(FS); }
       setFill(opts.tint === 'red' ? REDBG : (opts.tint === 'green' ? GREEN : WHITE)); doc.rect(M, y, CW, hRow, 'F');
       setFill(SOFT); doc.rect(M, y, LBLW, hRow, 'F');
       setDraw(LINE); doc.setLineWidth(0.35); doc.rect(M, y, CW, hRow); doc.line(VALX, y, VALX, y+hRow);
@@ -12222,13 +12235,17 @@ function drawMotorAddonPages(doc, q){
     const c1 = Math.round(CW*0.5);
     const rows = [tb.head].concat(tb.rows);
     rows.forEach(function(r, i){
-      space(16);
       const isHead = i === 0;
-      setFill(isHead ? NAVY2 : (i%2 ? ZEBRA : WHITE)); doc.rect(M, y, CW, 14, 'F');
-      setDraw(LINE); doc.setLineWidth(0.3); doc.rect(M, y, CW, 14); doc.line(M+c1, y, M+c1, y+14);
+      doc.setFont('helvetica', isHead ? 'bold' : 'normal'); doc.setFontSize(FS-0.4);
+      const a = doc.splitTextToSize(safe(r[0]), c1 - 2*PADX), b = doc.splitTextToSize(safe(r[1]), CW - c1 - 2*PADX);
+      const hl = LH - 1.4, hRow = 4.5 + Math.max(a.length, b.length) * hl;
+      space(hRow + 2);
+      setFill(isHead ? NAVY2 : (i%2 ? ZEBRA : WHITE)); doc.rect(M, y, CW, hRow, 'F');
+      setDraw(LINE); doc.setLineWidth(0.3); doc.rect(M, y, CW, hRow); doc.line(M+c1, y, M+c1, y+hRow);
       setText(isHead ? WHITE : INK); doc.setFont('helvetica', isHead ? 'bold' : 'normal'); doc.setFontSize(FS-0.4);
-      doc.text(safe(r[0]), M+PADX, y+9.6); doc.text(safe(r[1]), M+c1+PADX, y+9.6);
-      y += 14;
+      let ty = y + 2.2 + hl*0.72; a.forEach(function(l){ doc.text(l, M+PADX, ty); ty += hl; });
+      ty = y + 2.2 + hl*0.72; b.forEach(function(l){ doc.text(l, M+c1+PADX, ty); ty += hl; });
+      y += hRow;
     });
   }
   function note(text){
@@ -21867,7 +21884,11 @@ function drawFireCoverPages(doc, q){
       const avail = H - 34 - y - 2*PADY; const maxLines = Math.floor(avail / LH);
       if(maxLines < 3 && y > M + 60){ footer(); doc.addPage(); header(); continue; }
       const chunk = wrapped.slice(idx, idx + Math.max(3, maxLines));
-      const hRow = 2*PADY + chunk.reduce(function(a, w){ return a + (w.gap ? LH*0.35 : LH); }, 0);
+      let hRow = 2*PADY + chunk.reduce(function(a, w){ return a + (w.gap ? LH*0.35 : LH); }, 0);
+      if(idx === 0){ /* the label column wraps too - never let a two-line label overrun a one-line value */
+        doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.6);
+        const nl = doc.splitTextToSize(safe(label), LBLW - 2*PADX).length;
+        hRow = Math.max(hRow, 2*PADY + nl*LH); doc.setFont('helvetica','normal'); doc.setFontSize(FS); }
       setFill(opts.tint === 'red' ? REDBG : (opts.tint === 'green' ? GREEN : WHITE)); doc.rect(M, y, CW, hRow, 'F');
       setFill(SOFT); doc.rect(M, y, LBLW, hRow, 'F');
       setDraw(LINE); doc.setLineWidth(0.35); doc.rect(M, y, CW, hRow); doc.line(VALX, y, VALX, y+hRow);
@@ -21882,8 +21903,21 @@ function drawFireCoverPages(doc, q){
   /* two wrapped columns with a header row */
   function table2(head, rows, split, tint){
     const c1 = Math.round(CW * (split || 0.42)), c2 = CW - c1;
-    function drawHead(){ space(18); setFill(NAVY2); doc.rect(M, y, CW, 15, 'F'); setText(WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.4);
-      doc.text(safe(head[0]), M+PADX, y+10); doc.text(safe(head[1]), M+c1+PADX, y+10); y += 15; }
+    /* header wraps inside its own column (a long heading used to run across into the next column),
+       and the carve-out column of a red-tinted table gets a red header so the two columns read apart */
+    function drawHead(){
+      doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.4);
+      const h0 = doc.splitTextToSize(safe(head[0]), c1 - 2*PADX), h1 = doc.splitTextToSize(safe(head[1]), c2 - 2*PADX);
+      const hl = LH - 1.4, hh = 6 + Math.max(h0.length, h1.length) * hl;
+      space(hh + 3);
+      setFill(NAVY2); doc.rect(M, y, c1, hh, 'F');
+      setFill(tint === 'red' ? RED : NAVY2); doc.rect(M+c1, y, c2, hh, 'F');
+      setDraw(WHITE); doc.setLineWidth(0.6); doc.line(M+c1, y, M+c1, y+hh);
+      setText(WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.4);
+      let ty = y + 3 + hl*0.72; h0.forEach(function(l){ doc.text(l, M+PADX, ty); ty += hl; });
+      ty = y + 3 + hl*0.72; h1.forEach(function(l){ doc.text(l, M+c1+PADX, ty); ty += hl; });
+      y += hh;
+    }
     drawHead();
     rows.forEach(function(r, i){
       doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.3); const a = doc.splitTextToSize(safe(r[0]), c1 - 2*PADX);
@@ -21930,7 +21964,7 @@ function drawFireCoverPages(doc, q){
 
   /* 2. insured perils */
   section('2. Insured perils - what is covered and what is carved out');
-  table2(['Column A - we cover loss, damage or destruction caused by', 'Column B - but not when caused by'], isSFSP ? D.perilsSFSP : D.perilsBSU, 0.42, 'red');
+  table2(['COVERED - loss, damage or destruction caused by', 'NOT COVERED - when it is caused by'], isSFSP ? D.perilsSFSP : D.perilsBSU, 0.42, 'red');
   y += 6;
 
   /* 3. in-built covers (BSU/BLU) */
@@ -22210,7 +22244,7 @@ window.FIRE = {shareImage: (typeof shareImage==='function'? shareImage : functio
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v63 · customer-facing PDFs without circular / UIN citations · 03-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v64 · cover-page tables wrap; covered / not-covered headers · 04-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
