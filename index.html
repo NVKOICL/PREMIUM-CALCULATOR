@@ -4530,6 +4530,9 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
   // E.C. Act monthly wage ceiling for compensation purposes.
   const WC_WAGE_CAP_MONTHLY = 15000;
   const WC_EXCESS_RATE_FLOOR = 1.2;   // per mille, on wages above the ceiling
+  const WC_DISC_AUTH = { BO:90, KBO:95, RO:98 };            // CR-8743 dated 01-08-2025
+  const WC_OFFICE_NAME = { BO:'Business Office', KBO:'Key Business Office', RO:'Regional Office' };
+  const WC_DISC_EXCLUDED_RE = /blast furnace|boiler makers|explosive|mining|\bmines?\b|blasting|tunnel|demolition|compressed.*gas|under ?water|diver|power transmission|live (power|electric)|oil well|refiner/i;
   function wcExcessRate(rate){ return Math.max(rate / 16, WC_EXCESS_RATE_FLOOR); }
 
   /* Condition 7 short-period scale. Applies when the policy runs for less than
@@ -4585,6 +4588,11 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
         perEmployee:Math.round(perEmp), amount });
     });
 
+    /* Part C occupational diseases (UW guidelines reg. 9): +50% of the book rate, shown as a separate line */
+    const basicBase = basic;
+    const occLoad = input.occDisease ? Math.round(basicBase * 0.5) : 0;
+    basic = basicBase + occLoad;
+
     // Medical Extension - priced off each group's own tariff rate, then summed.
     let med = 0; const medRows = [];
     const medSI = input.medSI || 0;
@@ -4606,14 +4614,31 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
     const discBasic = Math.round(basic * discBasicPct / 100);
     const discMed   = Math.round(med   * discMedPct   / 100);
 
-    const total = basic - discBasic + med - discMed;
+    /* minimum premium (UW guidelines reg. 10): Rs.150, or Rs.250 where more than one rate applies */
+    const minPrem = (new Set(groups.map(g=>g.rate)).size > 1) ? 250 : 150;
+    const netBasic = basic - discBasic;
+    const minAdj = (groups.length && netBasic < minPrem) ? (minPrem - netBasic) : 0;
+
+    /* discount authority (CR-8743, 01-08-2025): RO 98%, KBO 95%, BO 90%, the same for the Medical Extension;
+       the listed occupancies stay outside this delegation */
+    const office = WC_DISC_AUTH[input.office] ? input.office : 'BO';
+    const authCap = WC_DISC_AUTH[office];
+    const flags = [];
+    if(discBasicPct > authCap) flags.push('Discount of '+discBasicPct+'% on the basic premium exceeds the '+WC_OFFICE_NAME[office]+' authority of '+authCap+'% - refer to the higher office.');
+    if(discMedPct > authCap) flags.push('Discount of '+discMedPct+'% on the Medical Extension exceeds the '+WC_OFFICE_NAME[office]+' authority of '+authCap+'% - refer to the higher office.');
+    const excl = groups.filter(g => WC_DISC_EXCLUDED_RE.test(g.desc||''));
+    if(excl.length && (discBasicPct > 0 || discMedPct > 0)) flags.push('Occupancy "'+excl[0].desc.slice(0,60)+'" is outside the delegated discount authority (blast furnaces, boiler makers, explosives, mining, blasting or tunnelling, manual demolition, compressed inflammable gases, underwater work, live power lines, oil wells and refineries) - discount needs Regional Office approval.');
+    if(minAdj) flags.push('Premium raised to the minimum of Rs.'+minPrem+' for this policy.');
+
+    const total = basic - discBasic + minAdj + med - discMed;
     const cgst = Math.round(total * 0.09), sgst = Math.round(total * 0.09);
     const stamp = Math.round(total / 1000);  // Re.1 per Rs.1,000, nearest rupee as INLIAS prints it (1,18,341 -> 118)
 
     return { groups, medRows, headcount, perCapitaWarn, periodFactor:pf,
-      medSI, basic, med, discBasicPct, discMedPct, discBasic, discMed,
+      medSI, basic, basicBase, occDisease: !!input.occDisease, occLoad, med, discBasicPct, discMedPct, discBasic, discMed,
+      minPrem, minAdj, office, authCap, flags,
       total, cgst, sgst, gst:cgst+sgst, stamp, grand: total + cgst + sgst,
-      insured: input.insured||'', from:input.from, to:input.to };
+      insured: input.insured||'', location: input.location||'', from:input.from, to:input.to };
   }
 
   /* ── document-verified checks (run by the app's self-test) ─────────────── */
@@ -4654,9 +4679,15 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
           groups:[{code:'WC_451', employees:4, monthlyWage:79000},{code:'WC_236', employees:6, monthlyWage:79000}], medSI:100000 });
         return [q.groups[0].amount,q.groups[1].amount,q.medRows[0].amount,q.medRows[1].amount,q.gst,q.stamp].join('/'); },
       expect:'12434/99796/640/5471/21302/118' },
-    { label:'WC \u2014 calculation types: pro-rata 4 Sep to 3 Dec 2026 = 91/365; short period same dates = \u00bd; annual = 1; cover schedule has 7 sections',
+    { label:'WC \u2014 calculation types: pro-rata 4 Sep to 3 Dec 2026 = 91/365; short period same dates = \u00bd; annual = 1; cover schedule has 9 sections',
       check:()=>[wcPeriodFactor('2026-09-04','2026-12-03','prorata').factor.toFixed(4), wcPeriodFactor('2026-09-04','2026-12-03','short').factor, wcPeriodFactor('2026-09-04','2026-12-03','annual').factor, (window.WCPDF && WCPDF.coverData ? WCPDF.coverData.sections.length : 0)].join('/'),
-      expect:'0.2493/0.5/1/7' }
+      expect:'0.2493/0.5/1/9' },
+    { label:'WC \u2014 UW guidelines: Part C occupational diseases +50% of book rate; minimum premium Rs.150 / Rs.250; CR-8743 discount authority BO 90 / KBO 95 / RO 98 with referral flags',
+      check:()=>{ const a=wcCalculate({ from:'2026-03-05', to:'2027-03-04', groups:[{code:'WC_090', employees:8, monthlyWage:15000}], medSI:0, occDisease:true });
+        const b=wcCalculate({ from:'2026-03-05', to:'2027-03-04', groups:[{code:'WC_118', employees:1, monthlyWage:1000}], medSI:0 });
+        const c=wcCalculate({ from:'2026-03-05', to:'2027-03-04', groups:[{code:'WC_090', employees:8, monthlyWage:15000}], medSI:0, discBasic:92, office:'BO' });
+        return [a.occLoad, a.basic, b.total, c.flags.length, WC_DISC_AUTH.RO, WC_DISC_AUTH.KBO].join('/'); },
+      expect:'30816/92448/150/1/98/95' }
   ];
 
   window.WC = { calculate:wcCalculate, occ:WC_OCC, byCode:wcOccByCode, excessRate:wcExcessRate,
@@ -4672,6 +4703,10 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
       <div class="field">
         <label class="lbl" for="wcInsured">Insured / Establishment Name</label>
         <input type="text" id="wcInsured" placeholder="M/s. ..." />
+      </div>
+      <div class="field">
+        <label class="lbl" for="wcLocation">Place and nature of employment</label>
+        <input type="text" id="wcLocation" placeholder="e.g. Loading, packing and gardening works at plot 177/2, Bharuch" />
       </div>
 
       <div class="field-row">
@@ -4716,6 +4751,10 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
         <div class="hint">CR-7005 dated 16/06/2015. Premium per employee = applicable WC tariff rate &times; multiplier, subject to the minimum. Cannot be sold standalone.</div>
       </div>
 
+      <div class="field" style="margin-top:8px"><label class="lbl" style="display:flex;gap:8px;align-items:flex-start;font-weight:500;font-size:12.5px">
+        <input type="checkbox" id="wcOccDis" style="width:auto;margin-top:2px" />
+        <span>Cover occupational diseases listed in <b>Part C of Schedule III</b> of the Act (additional premium 50% of the book rate)</span></label></div>
+
       <div class="section-label mt">Flexi Discount</div>
       <div class="field-row">
         <div class="field">
@@ -4727,7 +4766,16 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
           <input type="number" id="wcDiscMed" inputmode="decimal" min="0" max="100" step="0.01" placeholder="0" />
         </div>
       </div>
-      <div class="hint" id="wcDiscMedWarn" style="display:none;color:var(--accent-dark)">CR-7005: no discount is permitted on the Medical Extension rate. Under exceptional circumstances a reference must be made to Head Office.</div>
+      <div class="field">
+        <label class="lbl" for="wcOffice">Discount authority of the issuing office</label>
+        <select id="wcOffice">
+          <option value="BO">Business Office &mdash; up to 90%</option>
+          <option value="KBO">Key Business Office &mdash; up to 95%</option>
+          <option value="RO">Regional Office &mdash; up to 98%</option>
+        </select>
+        <div class="hint">Authority applies to the basic premium and to the Medical Extension alike, subject to the office and client loss ratios; listed hazardous occupancies need Regional Office approval.</div>
+      </div>
+      <div class="hint" id="wcDiscMedWarn" style="display:none;color:var(--accent-dark)">Medical Extension discount is allowed within the same office authority as the basic premium. Beyond that authority a reference must be made to Head Office.</div>
 
       <button type="button" class="btn" id="wcCalcBtn" style="width:100%;margin-top:20px">Calculate Premium</button>
     </div>
@@ -6097,6 +6145,9 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
       from: ($('wcFrom')||{}).value || '',
       to: ($('wcTo')||{}).value || '',
       calcType: ($('wcCalcType')||{}).value || 'short',
+      location: ($('wcLocation')||{}).value || '',
+      occDisease: !!(($('wcOccDis')||{}).checked),
+      office: ($('wcOffice')||{}).value || 'BO',
       medSI: parseInt(($('wcMedSI')||{}).value,10) || 0,
       discBasic: parseFloat(($('wcDiscBasic')||{}).value) || 0,
       discMed: parseFloat(($('wcDiscMed')||{}).value) || 0,
@@ -6121,9 +6172,13 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
            '</span><span class="v">'+fmt(g.amount)+'</span></div>';
     });
     if(q.periodFactor.factor !== 1)
-      h += '<div class="wc-row sub"><span>Short period \u2014 '+q.periodFactor.label+'</span><span class="v">applied</span></div>';
+      h += '<div class="wc-row sub"><span>'+q.periodFactor.label+'</span><span class="v">applied</span></div>';
+    if(q.occLoad)
+      h += '<div class="wc-row"><span>Add: Occupational diseases, Part C of Schedule III (50% of book rate)</span><span class="v">'+fmt(q.occLoad)+'</span></div>';
     if(q.discBasic)
       h += '<div class="wc-row wc-neg"><span>Less: Flexi Discount on Basic ('+q.discBasicPct+'%)</span><span class="v">\u2212 '+fmt(q.discBasic)+'</span></div>';
+    if(q.minAdj)
+      h += '<div class="wc-row"><span>Add: adjustment to the minimum premium of \u20b9'+q.minPrem+'</span><span class="v">'+fmt(q.minAdj)+'</span></div>';
     if(q.med){
       h += '<div class="wc-row"><span>Medical Extension Add-on ('+fmt(q.medSI)+' per employee)</span><span class="v">'+fmt(q.med)+'</span></div>';
       q.medRows.forEach(m=>{
@@ -6146,6 +6201,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
          '</div>';
     if(q.perCapitaWarn)
       h += '<p class="hint" style="color:var(--accent-dark)">One or more selected trades are rated <b>Per Capita</b> on the card and carry no per-mille rate. Refer those to the branch.</p>';
+    (q.flags||[]).forEach(f=>{ h += '<p class="hint" style="color:var(--accent-dark)">\u26a0 '+f+'</p>'; });
     h += '</div>';
     $('wcResult').innerHTML = h;
     return q;
@@ -6164,7 +6220,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
       const isAbove=(parseFloat(t.value)||0)>WC.wageCap;
       if(wasAbove!==isAbove) render();
     }
-    else if(t.id==='wcCalcType'){ if(window.wcLastQuote) calc(); }
+    else if(t.id==='wcCalcType' || t.id==='wcOccDis' || t.id==='wcOffice'){ if(window.wcLastQuote) calc(); }
     else if(t.id==='wcDiscMed'){
       const w=$('wcDiscMedWarn'); if(w) w.style.display = (parseFloat(t.value)>0) ? 'block' : 'none';
     }
@@ -6239,7 +6295,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
 
 
   /* ── customer-facing schedule: policy scope, exceptions, conditions, medical extension (from the policy wording and CR-7005) ── */
-  const WC_COVER_DATA = {"title":"Employees' Compensation Insurance Policy","intro":"This schedule summarises what the quoted Employees' Compensation (Workmen's Compensation) policy covers, what it does not, the conditions that apply and how the premium is worked out, so the employer knows the scope before proposal. The policy wording prevails in case of any difference.","sections":[{"heading":"1. POLICY OVERVIEW","rows":[{"label":"What the policy does","lines":["Indemnifies the insured employer against all sums it becomes legally liable to pay as compensation to its employees for personal injury by accident or disease arising out of and in the course of their employment in the business described in the schedule, either under the Employees' Compensation Act, 1923 (with amendments) or at common law.","Also pays the costs and expenses incurred with the Company's consent in defending any claim for such compensation."]},{"label":"Who is covered","lines":["Employees in the insured's immediate service in the business described in the schedule, for the period of insurance. Every employee's name and wages must be recorded and the records made available to the Company."]},{"label":"Change in law","lines":["If the law is changed or replaced during the policy the cover continues, but the Company's liability is limited to what it would have paid had the law remained unaltered."]},{"label":"Basis of premium","lines":["The premium is provisional. It is regulated by the wages, salaries and other earnings actually paid during the period of insurance; the insured must supply a correct account of all such earnings within one month of expiry, and the difference is paid to or refunded by the Company (Condition 6).","Each employee's wages up to Rs. 15,000 per month are rated at the tariff rate for the occupation; the part of the wages above that ceiling is rated at the reduced excess-wages rate shown on the quotation."]}]},{"heading":"2. WHAT IS COVERED","rows":[{"label":"Compensation under the Act","lines":["Death, permanent total disablement, permanent partial disablement and temporary disablement of an employee caused by an accident arising out of and in the course of employment, as payable under the Employees' Compensation Act.","Occupational diseases listed in Parts A and B of Schedule III of the Act, contracted in the course of employment."]},{"label":"Common law liability","lines":["Damages the employer is held liable to pay at common law for such injury or disease, together with defence costs incurred with the Company's consent."]},{"label":"Medical Extension add-on (where opted)","lines":["Reasonable medical, surgical and hospital expenses, including the cost of conveyance to hospital, incurred by the insured in connection with an injury by accident arising out of and in the course of employment to which the policy indemnity applies, or would have applied had the disablement exceeded three days.","The Company's liability under the extension is limited to the sum insured per employee shown on the quotation for any one case of injury. The extension cannot be issued on its own and no discount is allowed on its premium."],"tint":"green"}]},{"heading":"3. MEDICAL EXTENSION - PREMIUM PER EMPLOYEE","table":{"head":["Sum insured per employee","Premium per employee"],"rows":[["Rs. 50,000","Occupation tariff rate x 10, minimum Rs. 80"],["Rs. 75,000","Occupation tariff rate x 10, minimum Rs. 125"],["Rs. 1,00,000","Occupation tariff rate x 12.5, minimum Rs. 160"],["Rs. 1,25,000","Occupation tariff rate x 12.5, minimum Rs. 200"],["Rs. 1,50,000","Occupation tariff rate x 15, minimum Rs. 240"],["Rs. 2,00,000","Occupation tariff rate x 15, minimum Rs. 300"],["Rs. 2,50,000","Occupation tariff rate x 17, minimum Rs. 350"],["Rs. 5,00,000","Occupation tariff rate x 20, minimum Rs. 480"]]}},{"heading":"4. WHAT IS NOT COVERED","rows":[{"label":"Exceptions","lines":["Injury by accident or disease directly attributable to war, invasion, act of foreign enemy, hostilities (whether war be declared or not), civil war, mutiny, insurrection, rebellion, revolution or military or usurped power.","The insured's liability to employees of contractors to the insured, unless such employees are declared and rated.","Liability that attaches only by virtue of an agreement and would not have attached in its absence.","Any sum the insured would have been entitled to recover from another party but for an agreement between them.","Compensation for the occupational diseases listed in Part C of Schedule III of the Act, unless covered by paying additional premium.","Interest and / or penalty imposed on the insured for failure to comply with the requirements of the Act (endorsement)."],"tint":"red","numbered":true}]},{"heading":"5. CONDITIONS","rows":[{"label":"Contract and notices","lines":["The policy and the schedule are read together as one contract, and any word given a specific meaning in either bears that meaning throughout.","Every notice or communication under the policy must be given to the Company in writing."]},{"label":"Precautions","lines":["The insured must take reasonable precautions to prevent accidents and disease and must comply with all statutory obligations."]},{"label":"Claims","lines":["On any occurrence that may give rise to a claim, give the Company notice as soon as possible with full particulars. Every letter, claim, writ, summons and process must be forwarded to the Company immediately on receipt, and the Company must be told at once of any impending prosecution, inquest or fatal enquiry.","No admission, offer, promise or payment may be made by or on behalf of the insured without the Company's consent. The Company may take over and conduct, in the insured's name, the defence or settlement of any claim, or pursue any claim for indemnity or damages, and the insured must give all information and assistance required."]},{"label":"Premium adjustment","lines":["The premium is regulated by the wages, salaries and other earnings paid during each period of insurance. Every employee's name and earnings must be properly recorded and open to inspection; a correct account must be supplied within one month of expiry, and any difference in premium is paid or refunded proportionately."]},{"label":"Cancellation","lines":["The Company may cancel the policy for fraud, moral hazard, misrepresentation or non-cooperation by notice to the insured's last known address; the premium is adjusted under the premium-adjustment condition and the pro-rata premium for the unexpired period refunded.","The insured may cancel at any time; provided no claim has occurred up to the date of cancellation, the Company retains premium on the short-period scale below and refunds the balance."]},{"label":"Arbitration","lines":["A dispute only about the amount payable (liability being otherwise admitted) is referred to a sole arbitrator agreed in writing, or, failing agreement within 30 days, to a panel of three arbitrators under the Arbitration and Conciliation Act, 1996. No dispute is referable to arbitration where the Company has disputed or not accepted liability. Obtaining the award is a condition precedent to any suit.","If the Company disclaims liability for a claim and the claim is not made the subject of a suit within 12 calendar months of the disclaimer, it is deemed abandoned and is not recoverable."]},{"label":"Due observance","lines":["Compliance with the terms, conditions and endorsements, and the truth of the statements and answers in the proposal, are conditions precedent to any liability of the Company.","No alteration of the insurance or endorsement is valid unless initialled by an official of the Company; renewal receipts are valid only on the printed office form under authorised signature."]}]},{"heading":"6. SHORT-PERIOD SCALE (CONDITION 7)","table":{"head":["Period on risk","Premium to be charged"],"rows":[["Up to 1 month","1/4 of the annual rate"],["Up to 3 months","1/2 of the annual rate"],["Up to 6 months","3/4 of the annual rate"],["Exceeding 6 months","Full annual rate"]]}},{"heading":"7. DOCUMENTS FOR A CLAIM","rows":[{"label":"Usually required","lines":["Claim form and written notice of the accident; wage register or salary record of the injured employee; accident report and, where applicable, the first information report; medical certificate of disablement or the post-mortem report and death certificate; the Employees' Compensation Commissioner's order or deposit challan where compensation is deposited; bills and receipts for a Medical Extension claim."]}]}]};
+  const WC_COVER_DATA = {"title":"Employees' Compensation Insurance Policy","intro":"This schedule summarises what the quoted Employees' Compensation (Workmen's Compensation) policy covers, what it does not, the conditions that apply and how the premium is worked out, so the employer knows the scope before proposal. The policy wording prevails in case of any difference.","sections":[{"heading":"1. POLICY OVERVIEW","rows":[{"label":"What the policy does","lines":["Indemnifies the insured employer against all sums it becomes legally liable to pay as compensation to its employees for personal injury by accident or disease arising out of and in the course of their employment in the business described in the schedule, either under the Employees' Compensation Act, 1923 (with amendments) or at common law.","Also pays the costs and expenses incurred with the Company's consent in defending any claim for such compensation."]},{"label":"Who is covered","lines":["Employees in the insured's immediate service in the business described in the schedule, for the period of insurance. Every employee's name and wages must be recorded and the records made available to the Company."]},{"label":"Change in law","lines":["If the law is changed or replaced during the policy the cover continues, but the Company's liability is limited to what it would have paid had the law remained unaltered."]},{"label":"Basis of premium","lines":["The premium is provisional. It is regulated by the wages, salaries and other earnings actually paid during the period of insurance; the insured must supply a correct account of all such earnings within one month of expiry, and the difference is paid to or refunded by the Company (Condition 6).","Each employee's wages up to Rs. 15,000 per month are rated at the tariff rate for the occupation; the part of the wages above that ceiling is rated at the reduced excess-wages rate shown on the quotation."]}]},{"heading":"2. WHAT IS COVERED","rows":[{"label":"Compensation under the Act","lines":["Death, permanent total disablement, permanent partial disablement and temporary disablement of an employee caused by an accident arising out of and in the course of employment, as payable under the Employees' Compensation Act.","Occupational diseases listed in Parts A and B of Schedule III of the Act, contracted in the course of employment."]},{"label":"Common law liability","lines":["Damages the employer is held liable to pay at common law for such injury or disease, together with defence costs incurred with the Company's consent."]},{"label":"Medical Extension add-on (where opted)","lines":["Reasonable medical, surgical and hospital expenses, including the cost of conveyance to hospital, incurred by the insured in connection with an injury by accident arising out of and in the course of employment to which the policy indemnity applies, or would have applied had the disablement exceeded three days.","The Company's liability under the extension is limited to the sum insured per employee shown on the quotation for any one case of injury. The extension cannot be issued on its own and no discount is allowed on its premium."],"tint":"green"}]},{"heading":"3. COMPENSATION PAYABLE TO THE EMPLOYEE UNDER THE ACT","table":{"head":["Contingency","Compensation under the Employees' Compensation Act"],"rows":[["Death","50% of monthly wages x the relevant factor for the employee's age, minimum Rs. 1,20,000"],["Permanent total disablement","60% of monthly wages x the relevant factor, minimum Rs. 1,40,000. Injuries in Schedule I Part I (loss of both hands, a hand and a foot, double amputation, loss of sight for any work needing eyesight, very severe facial disfigurement, absolute deafness) count as 100% loss"],["Permanent partial disablement","The permanent total disablement amount x the percentage loss of earning capacity listed in Schedule I Part II (for example loss of a thumb 30%, an index finger 14%, one eye 40%, four fingers of one hand 50%)"],["Temporary disablement (total or partial)","Half-monthly payments of 25% of monthly wages, from the 16th day where the disablement lasts 28 days or more, otherwise after a 3-day waiting period, for the period of disablement up to 5 years"],["Monthly wages and relevant factor","Actual wages subject to the statutory ceiling of Rs. 15,000 per month; the relevant factor is read from Schedule IV of the Act for the completed age at the last birthday before the accident (for example 207.98 at age 30)"],["Common law damages","Damages awarded at common law or under the Fatal Accidents Act for such injury are also indemnified, with defence costs incurred with the Company's consent"]]}},{"heading":"4. HOW THE PREMIUM IS WORKED OUT","rows":[{"label":"Earnings rated","lines":["Premium is charged on total earnings: wages, salary, overtime, bonus, the value of board and lodging (not less than 20% of pay where both are provided, 10% for one) and all other benefits in kind; not travelling allowance or the employer's provident fund or pension contributions.","Wages declared must not be less than the minimum wages notified by the State or Central Government for the employment, so that the compensation payable under the Act is fully insured."]},{"label":"Rate applied","lines":["The tariff rate for the occupation applies to each employee's earnings up to Rs. 15,000 per month; earnings above that are rated at 6.25% of the tariff rate, minimum 1.20 per mille.","Where several occupations are carried on by separate staff the wages may be rated separately; otherwise the highest rate applies to the total wages."]},{"label":"Occupational diseases","lines":["Diseases listed in Part C of Schedule III of the Act are covered only when opted, at an additional premium of 50% of the book rate."]},{"label":"Contractors' employees","lines":["The insured's liability for employees of contractors can be included at the rate for the work contracted: on the full contract value for labour-only contracts, on at least 75% of the contract price for labour and material, and on at least 50% where equipment is also supplied, subject to a return of the actual wages."]},{"label":"Period, minimum premium and joint policies","lines":["Policies are issued for 12 months, or for the full period of a specific contract; premium is paid in advance and instalments are not permitted. The minimum premium is Rs. 150 for a single-rate risk and Rs. 250 where more than one rate applies.","A joint policy in favour of more than one employer for the same employees carries 25% additional premium unless waived (parent and subsidiary companies, public authorities)."]},{"label":"Table A and Table B","lines":["Table A covers legal liability to all employees under the Employees' Compensation Act, the Fatal Accidents Act 1855 and at common law, and is the basis of this quotation. Table B covers common-law and Fatal Accidents Act liability only and cannot be issued for employees who are workmen under the Act."]}]},{"heading":"5. MEDICAL EXTENSION - PREMIUM PER EMPLOYEE","table":{"head":["Sum insured per employee","Premium per employee"],"rows":[["Rs. 50,000","Occupation tariff rate x 10, minimum Rs. 80"],["Rs. 75,000","Occupation tariff rate x 10, minimum Rs. 125"],["Rs. 1,00,000","Occupation tariff rate x 12.5, minimum Rs. 160"],["Rs. 1,25,000","Occupation tariff rate x 12.5, minimum Rs. 200"],["Rs. 1,50,000","Occupation tariff rate x 15, minimum Rs. 240"],["Rs. 2,00,000","Occupation tariff rate x 15, minimum Rs. 300"],["Rs. 2,50,000","Occupation tariff rate x 17, minimum Rs. 350"],["Rs. 5,00,000","Occupation tariff rate x 20, minimum Rs. 480"]]}},{"heading":"6. WHAT IS NOT COVERED","rows":[{"label":"Exceptions","lines":["Injury by accident or disease directly attributable to war, invasion, act of foreign enemy, hostilities (whether war be declared or not), civil war, mutiny, insurrection, rebellion, revolution or military or usurped power.","The insured's liability to employees of contractors to the insured, unless such employees are declared and rated.","Liability that attaches only by virtue of an agreement and would not have attached in its absence.","Any sum the insured would have been entitled to recover from another party but for an agreement between them.","Compensation for the occupational diseases listed in Part C of Schedule III of the Act, unless covered by paying additional premium.","Interest and / or penalty imposed on the insured for failure to comply with the requirements of the Act (endorsement)."],"tint":"red","numbered":true}]},{"heading":"7. CONDITIONS","rows":[{"label":"Contract and notices","lines":["The policy and the schedule are read together as one contract, and any word given a specific meaning in either bears that meaning throughout.","Every notice or communication under the policy must be given to the Company in writing."]},{"label":"Precautions","lines":["The insured must take reasonable precautions to prevent accidents and disease and must comply with all statutory obligations."]},{"label":"Claims","lines":["On any occurrence that may give rise to a claim, give the Company notice as soon as possible with full particulars. Every letter, claim, writ, summons and process must be forwarded to the Company immediately on receipt, and the Company must be told at once of any impending prosecution, inquest or fatal enquiry.","No admission, offer, promise or payment may be made by or on behalf of the insured without the Company's consent. The Company may take over and conduct, in the insured's name, the defence or settlement of any claim, or pursue any claim for indemnity or damages, and the insured must give all information and assistance required."]},{"label":"Premium adjustment","lines":["The premium is regulated by the wages, salaries and other earnings paid during each period of insurance. Every employee's name and earnings must be properly recorded and open to inspection; a correct account must be supplied within one month of expiry, and any difference in premium is paid or refunded proportionately."]},{"label":"Cancellation","lines":["The Company may cancel the policy for fraud, moral hazard, misrepresentation or non-cooperation by notice to the insured's last known address; the premium is adjusted under the premium-adjustment condition and the pro-rata premium for the unexpired period refunded.","The insured may cancel at any time; provided no claim has occurred up to the date of cancellation, the Company retains premium on the short-period scale below and refunds the balance."]},{"label":"Arbitration","lines":["A dispute only about the amount payable (liability being otherwise admitted) is referred to a sole arbitrator agreed in writing, or, failing agreement within 30 days, to a panel of three arbitrators under the Arbitration and Conciliation Act, 1996. No dispute is referable to arbitration where the Company has disputed or not accepted liability. Obtaining the award is a condition precedent to any suit.","If the Company disclaims liability for a claim and the claim is not made the subject of a suit within 12 calendar months of the disclaimer, it is deemed abandoned and is not recoverable."]},{"label":"Due observance","lines":["Compliance with the terms, conditions and endorsements, and the truth of the statements and answers in the proposal, are conditions precedent to any liability of the Company.","No alteration of the insurance or endorsement is valid unless initialled by an official of the Company; renewal receipts are valid only on the printed office form under authorised signature."]}]},{"heading":"8. SHORT-PERIOD SCALE (CONDITION 7)","table":{"head":["Period on risk","Premium to be charged"],"rows":[["Up to 1 month","1/4 of the annual rate"],["Up to 3 months","1/2 of the annual rate"],["Up to 6 months","3/4 of the annual rate"],["Exceeding 6 months","Full annual rate"]]}},{"heading":"9. DOCUMENTS FOR A CLAIM","rows":[{"label":"Usually required","lines":["Claim form and written notice of the accident; wage register or salary record of the injured employee; accident report and, where applicable, the first information report; medical certificate of disablement or the post-mortem report and death certificate; the Employees' Compensation Commissioner's order or deposit challan where compensation is deposited; bills and receipts for a Medical Extension claim."]}]}]};
   function drawWcCoverPages(doc, q){
     if(typeof makeCoverPainter !== 'function') return;
     const D = WC_COVER_DATA;
@@ -6288,8 +6344,9 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
             ? 'Full annual rate' : q.periodFactor.label],
         ['Total Employees', String(q.headcount)],
         ['Wage Ceiling (E.C. Act)', 'Rs. 15,000 per month'],
-        ['Medical Extension', q.medSI ? ('Opted \u2013 ' + OICPDF.fmtIN(q.medSI) + ' per employee') : 'Not Opted']
-      ]},
+        ['Medical Extension', q.medSI ? ('Opted \u2013 ' + OICPDF.fmtIN(q.medSI) + ' per employee') : 'Not Opted'],
+        ['Occupational Diseases (Part C)', q.occDisease ? 'Covered' : 'Not covered']
+      ].concat(q.location ? [{ label:'Place / nature of employment: ' + q.location }] : [])},
       // Label-only rows render full width. A {label,value} pair here collided:
       // the occupation descriptions on this card run to 120+ characters and
       // overprinted the value column.
@@ -6327,11 +6384,14 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
       value: R(g.amount)
     }));
     if(q.periodFactor.factor !== 1)
-      basicRows.push({ label:'Short period \u2013 ' + q.periodFactor.label, value:'applied', sub:true });
+      basicRows.push({ label:q.periodFactor.label, value:'applied', sub:true });
+    if(q.occLoad)
+      basicRows.push({ label:'Add: Occupational diseases, Part C (50% of book rate)', value:R(q.occLoad) });
     basicRows.push({ label:'Basic Cover \u2013 WC (A)', value:R(q.basic), total:true });
-    if(q.discBasic > 0){
-      basicRows.push({ label:'Less: Flexi Discount ('+q.discBasicPct+'%)', value:'- '+R(q.discBasic) });
-      basicRows.push({ label:'Net Basic Cover', value:R(q.basic-q.discBasic), total:true });
+    if(q.discBasic > 0 || q.minAdj > 0){
+      if(q.discBasic > 0) basicRows.push({ label:'Less: Flexi Discount ('+q.discBasicPct+'%)', value:'- '+R(q.discBasic) });
+      if(q.minAdj > 0) basicRows.push({ label:'Add: minimum premium adjustment', value:R(q.minAdj) });
+      basicRows.push({ label:'Net Basic Cover', value:R(q.basic-q.discBasic+q.minAdj), total:true });
     }
     right.push({ sub:'Section A \u2013 Basic Cover (Employees Compensation)', rows:basicRows });
 
@@ -6359,7 +6419,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
     const notes = [
       'Premium is provisional. Condition 6 of the policy requires the premium to be adjusted against the actual wages, salaries and other earnings paid during the period of insurance; a correct account must be supplied within one month of expiry.',
       'Wages up to Rs. 15,000 per month (the Employees Compensation Act ceiling) are rated at the tariff rate for the occupation; wages above the ceiling are rated at the reduced excess-wages rate shown, on the separate schedule.',
-      'Medical Extension cannot be issued as a standalone cover and no discount is permitted on its rate.',
+      'Medical Extension cannot be issued as a standalone cover; any discount on it is within the same office authority as the basic premium.',
       'Above premium is subject to acceptance of the risk as per Underwriting Guidelines. Insurance is the subject matter of the solicitation.',
       'This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.'
     ];
@@ -6368,6 +6428,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
     const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const dStr = String(now.getDate()).padStart(2,'0')+months[now.getMonth()]+now.getFullYear();
 
+    (q.flags||[]).forEach(function(f){ notes.splice(Math.max(0, notes.length-1), 0, 'Referral: ' + f); });
     const out = OICPDF.render({
       subtitle: "Quotation Worksheet For Employees' Compensation Insurance \u2013 EMPLOYERS LIABILITY",
       quoteNumber: String(Math.floor(now.getTime()/1000)).slice(-5),
@@ -22631,7 +22692,7 @@ window.FIRE = {shareImage: (typeof shareImage==='function'? shareImage : functio
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v69 · WC calculation types (short period / pro-rata / annual) and policy conditions schedule on the quote · 04-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v70 · WC underwriting-manual rules: Part C diseases, minimum premium, CR-8743 discount authority, compensation table on the schedule · 04-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
