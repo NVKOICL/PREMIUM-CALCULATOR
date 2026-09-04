@@ -4579,11 +4579,13 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
     if(medSI && WC_MED[medSI]){
       const [mult, min] = WC_MED[medSI];
       groups.forEach(g=>{
-        const perEmp = Math.max(Math.round(g.rate * mult), min);
-        const amt = perEmp * g.employees;
+        const raw = g.rate * mult, atMin = raw < min;
+        // INLIAS rounds once, after multiplying by the headcount (R/432702/48/2026/256: 72.95 x 12.5 x 6 = 5,471.25 -> 5,471)
+        const amt = atMin ? min * g.employees : Math.round(raw * g.employees);
+        const perEmp = atMin ? min : Math.round(raw);
         med += amt;
         medRows.push({ code:g.code, perEmployee:perEmp, employees:g.employees,
-          amount:amt, atMinimum: Math.round(g.rate*mult) < min });
+          amount:amt, atMinimum: atMin });
       });
     }
 
@@ -4594,7 +4596,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 
     const total = basic - discBasic + med - discMed;
     const cgst = Math.round(total * 0.09), sgst = Math.round(total * 0.09);
-    const stamp = Math.ceil(total / 1000);   // Re.1 per Rs.1,000, shown separately
+    const stamp = Math.round(total / 1000);  // Re.1 per Rs.1,000, nearest rupee as INLIAS prints it (1,18,341 -> 118)
 
     return { groups, medRows, headcount, perCapitaWarn, periodFactor:pf,
       medSI, basic, med, discBasicPct, discMedPct, discBasic, discMed,
