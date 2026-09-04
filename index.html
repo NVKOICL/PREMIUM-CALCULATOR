@@ -7002,19 +7002,21 @@ const RATES = {
     engineProtect:{ name:'Engine Protection',        type:'percent', rate:0.03,  rateTable:'engineProtect',
                     hideFor:['commercial','pccv','misc'] },
     rti:          { name:'Return to Invoice',        type:'percent', rate:0.003, maxAgeYears:3, idvBased:true },
-    consumables:  { name:'Consumables Cover',        type:'percent', rate:0.04,  rateTable:'consumables' },
+    consumables:  { name:'Consumables Cover',        type:'percent', rate:0.04,  rateTable:'consumables',
+                    hideFor:['twoWheeler','twoWheelerHire','misc'], maxAgeYears:5 },   // wording: Private Car and PCCV / GCCV, up to 5 years
     keyReplace:   { name:'Key Replacement',          type:'keyReplace',
-                    hideFor:['commercial','pccv','misc'] },
+                    hideFor:['commercial','pccv','misc'], maxAgeYears:5 },   // wording: up to 5 years
     tyreProtect:  { name:'Tyre & Rim Protect',       type:'tyreProtect', rate:0.002,
                     hideFor:['commercial','pccv','misc'] },
     batteryProtect:{ name:'Battery Protect — Without Co-Pay', type:'batteryProtect', variant:'standard',
                     fuelOnly:['electric','hybrid'], vehicleOnly:['twoWheeler','privateCar'], maxAgeYears:5 },
     batteryProtectCoPay:{ name:'Battery Protect — With Co-Pay', type:'batteryProtect', variant:'copay',
                     fuelOnly:['electric','hybrid'], vehicleOnly:['twoWheeler'], maxAgeYears:5 },
-    emiProtect:    { name:'EMI Protection',           type:'emiProtect',     maxAgeYears:5 },
+    emiProtect:    { name:'EMI Protection',           type:'emiProtect',     maxAgeYears:7,
+                    hideFor:['twoWheeler','twoWheelerHire'] },   // wording: Private Car and PCCV / GCCV / Misc-D, up to 7 years
     altCar:        { name:'Alternative Car Benefit',  type:'altCar',
-                    hideFor:['commercial','pccv','misc'] },
-    personalEffects:{ name:'Personal Effects Cover', type:'personalEffects' },
+                    vehicleOnly:['privateCar'] },   // wording: Private Car only
+    personalEffects:{ name:'Personal Effects Cover', type:'personalEffects', vehicleOnly:['privateCar'] },   // wording: Private Car only
     towingMax:    { name:'Towing Charges (class maximum)', type:'towingFlat', towingPremium:75 },
     towing1500:   { name:'Towing Charges (≤₹1,500)', type:'towing', towingLimit:1500,  towingPremium:75,  },
     towing10k:    { name:'Towing Charges (≤₹10,000)',type:'towing', towingLimit:10000, towingPremium:500, },
@@ -10618,6 +10620,9 @@ function calculate(silent=false){
       }
 
       if(a.maxAgeYears && ageYears > a.maxAgeYears) continue;
+      /* class restriction is enforced here too, so a selection left over from another vehicle class is never charged */
+      if(a.hideFor && a.hideFor.includes(data.vehicleType)) continue;
+      if(a.vehicleOnly && !a.vehicleOnly.includes(data.vehicleType)) continue;
 
       // ── Key Replacement ────────────────────────────────────────
       if(a.type === 'keyReplace'){
@@ -11890,7 +11895,7 @@ const MOTOR_ADDON_WORDINGS = {
   engineProtect: {
     title: "Engine Protect Add-on Cover",
     scope: "Private Car (Bundled, SAOD, Package) and Two-Wheeler (Bundled, SAOD)",
-    maxAge: { _all: 5 },
+    maxAge: { privateCar: 10, twoWheeler: 5, twoWheelerHire: 5 },   // private car rate chart runs to 10 years; the 5-year cap is the two-wheeler filing
     covers: [
       "Consequential loss or damage to the internal parts of the Engine / Gear box / Transmission or Differential Assembly arising out of ingress of water into the engine and / or leakage of lubricating oil from the engine / gear box / transmission / differential due to accidental causes.",
       "Pays for (1) repair or replacement of the internal parts of the Engine / Gear box / Transmission / Differential Assembly and (2) labour cost of repair / overhaul of the damaged assembly."
@@ -18728,7 +18733,7 @@ function ohCalc(){
       base+=amt;
     });
     const hffBasePrem=base;   // Basic Premium (members only) - LHSB is charged as a % of this
-    const rst=$('ohRestore').value;
+    const rst=(plan==='Silver'||plan==='Gold') ? $('ohRestore').value : '0';   // not offered on Diamond / Platinum
     if(rst!=='0' && HFF_RESTORE[si]){ const pc=HFF_RESTORE[si][rst==='50'?0:1];
       const amt=Math.round(base*pc/100);
       rows.push({label:'Add: Restoration of SI \u2014 '+rst+'% option ('+pc+'%)',amt:amt}); base+=amt; }
@@ -19109,7 +19114,7 @@ function ohSyncUI(){
   const show=(id,on)=>{ const e=$(id); if(e) e.style.display=on?'':'none'; };
   show('ohFreqWrap', p==='OMP'); show('ohZoneWrap', p==='HFF'); show('ohPlanWrap', p==='HFF');
   show('ohCoPayWrap', p==='OMP'); show('ohDiscWrap', p==='OMP');
-  show('ohRestoreWrap', p==='HFF'); show('ohWaiverWrap', p==='HFF');
+  show('ohRestoreWrap', p==='HFF' && ($('ohPlan').value==='Silver' || $('ohPlan').value==='Gold')); show('ohWaiverWrap', p==='HFF');
   ['omiPlanWrap','omiTierWrap','omiTripWrap','omiDaysWrap','omiSIWrap','omiDiscWrap']
     .forEach(id=>show(id, p==='OMI'));
   if(p==='OMI' && $('omiTrip')) show('omiDaysWrap', $('omiTrip').value==='single');
@@ -22570,7 +22575,7 @@ window.FIRE = {shareImage: (typeof shareImage==='function'? shareImage : functio
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v66 · Super Health Top-Up, health cover schedules, IMT 23 wording, non-payable items · 04-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v67 · add-on availability matches the wordings (class, age); HFF restoration Silver / Gold only · 04-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
