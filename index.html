@@ -4529,6 +4529,8 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 
   // E.C. Act monthly wage ceiling for compensation purposes.
   const WC_WAGE_CAP_MONTHLY = 15000;
+  const WC_EXCESS_RATE_FLOOR = 1.2;   // per mille, on wages above the ceiling
+  function wcExcessRate(rate){ return Math.max(rate / 16, WC_EXCESS_RATE_FLOOR); }
 
   /* Condition 7 short-period scale. Applies when the policy runs for less than
      a full year (verified on worksheet R/432706/48/2025/19, a 1-month policy
@@ -4558,18 +4560,20 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
       if(occ.rate === null){ perCapitaWarn = true; return; }
       const monthly = g.monthlyWage || 0;
       const aboveCap = monthly > WC_WAGE_CAP_MONTHLY;
-      // Rating earnings: the E.C. Act caps wages at Rs.15,000 p.m. unless the
-      // insured opts to rate on full declared earnings (the "*120 times" cover
-      // seen on policy 432702/48/2027/29).
-      const ratingMonthly = (aboveCap && !g.rateOnFullWages)
-        ? WC_WAGE_CAP_MONTHLY : monthly;
-      const annual = Math.round(ratingMonthly * 12);
-      const perEmp = annual * occ.rate / 1000;
+      /* INLIAS two-tier rule (proposals R/432702/48/2026/256 and /257, 4 Sep 2026): each
+         employee's wages up to the E.C. Act ceiling of Rs.15,000 p.m. are rated at the tariff
+         rate; wages above the ceiling at the reduced "excess wages" rate = tariff rate / 16,
+         subject to a floor of 1.20 per mille (97.30 -> 6.08125, 72.95 -> 4.55938, 12.15 -> 1.20). */
+      const annual = Math.round(monthly * 12);
+      const capAnnual = WC_WAGE_CAP_MONTHLY * 12;
+      const excessAnnual = Math.max(0, annual - capAnnual);
+      const excessRate = wcExcessRate(occ.rate);
+      const perEmp = Math.min(annual, capAnnual) * occ.rate / 1000 + excessAnnual * excessRate / 1000;
       const amount = Math.round(perEmp * g.employees * pf.factor);
       basic += amount; headcount += g.employees;
       groups.push({ code:occ.code, desc:occ.desc, rate:occ.rate,
         employees:g.employees, monthlyWage:monthly, aboveCap,
-        rateOnFullWages:!!g.rateOnFullWages, annualEarnings:annual,
+        annualEarnings:annual, cappedEarnings:Math.min(annual, capAnnual), excessEarnings:excessAnnual, excessRate,
         perEmployee:Math.round(perEmp), amount });
     });
 
@@ -4625,10 +4629,26 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
     { label:'WC \u2014 WC_197 Electric Cables, all work away from shop = 60.80\u2030',
       check:()=>wcOccByCode('WC_197').rate, expect:60.8 },
     { label:'WC \u2014 E.C. Act monthly wage ceiling Rs.15,000',
-      check:()=>WC_WAGE_CAP_MONTHLY, expect:15000 }
+      check:()=>WC_WAGE_CAP_MONTHLY, expect:15000 },
+    { label:'WC \u2014 INLIAS R/432702/48/2026/257: 15 x WC_488 (97.30) at 3L p.a. + 10 x WC_242 (12.15) at 2.5L p.a., ME 1L = 2,73,656 + 22,710 basic, 18,244 + 1,600 medical, stamp 316',
+      check:()=>{ const q=wcCalculate({ from:'2026-09-04', to:'2027-09-03',
+          groups:[{code:'WC_488', employees:15, monthlyWage:25000},{code:'WC_242', employees:10, monthlyWage:250000/12}],
+          medSI:100000, discBasic:0, discMed:0 });
+        return [q.groups[0].amount,q.groups[1].amount,q.medRows[0].amount,q.medRows[1].amount,q.total,q.stamp].join('/'); },
+      expect:'273656/22710/18244/1600/316210/316' },
+    { label:'WC \u2014 INLIAS R/432702/48/2026/257 (WC_488 swapped for a 12.15 occupation): 15 x 3L p.a. = 34,965; WC_451 excess-wages floor 1.20 per mille',
+      check:()=>{ const q=wcCalculate({ from:'2026-09-04', to:'2027-09-03',
+          groups:[{code:'WC_451', employees:15, monthlyWage:25000}], medSI:100000 });
+        return q.groups[0].amount+'/'+q.med+'/'+wcExcessRate(12.15)+'/'+wcExcessRate(72.95); },
+      expect:'34965/2400/1.2/4.559375' },
+    { label:'WC \u2014 INLIAS R/432702/48/2026/256: 4 x WC_451 at 9.48L p.a. = 12,434; 6 x WC_236 (72.95) at 9.48L p.a. = 99,796; ME 640 + 5,471',
+      check:()=>{ const q=wcCalculate({ from:'2026-09-04', to:'2027-09-03',
+          groups:[{code:'WC_451', employees:4, monthlyWage:79000},{code:'WC_236', employees:6, monthlyWage:79000}], medSI:100000 });
+        return [q.groups[0].amount,q.groups[1].amount,q.medRows[0].amount,q.medRows[1].amount,q.gst,q.stamp].join('/'); },
+      expect:'12434/99796/640/5471/21302/118' }
   ];
 
-  window.WC = { calculate:wcCalculate, occ:WC_OCC, byCode:wcOccByCode,
+  window.WC = { calculate:wcCalculate, occ:WC_OCC, byCode:wcOccByCode, excessRate:wcExcessRate,
     med:WC_MED, wageCap:WC_WAGE_CAP_MONTHLY, periodFactor:wcPeriodFactor,
     VERIFIED:WC_VERIFIED_CASES };
 })();
@@ -6016,9 +6036,8 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
             : '<span class="wc-flag lo">Up to \u20b915,000</span> Within the E.C. Act ceiling.')
           : 'Enter the monthly wage to set the E.C. Act band.') +
       '</div>' +
-      (above ? '<div class="field" style="margin-top:8px"><label class="lbl" style="display:flex;gap:8px;align-items:flex-start;font-weight:500;font-size:12.5px">' +
-        '<input type="checkbox" class="wc-full" data-gid="'+g.id+'" '+(g.rateOnFullWages?'checked':'')+' style="width:auto;margin-top:2px" />' +
-        '<span>Rate on <b>full declared earnings</b> instead of the \u20b915,000 ceiling (the &ldquo;total annual wages &times;120 times&rdquo; cover)</span></label></div>' : '') +
+      (above ? '<div class="hint" style="margin-top:6px">Wages up to \u20b915,000 a month are rated at the tariff rate; the part above it at the reduced excess-wages rate' +
+        (g.code && WC.byCode(g.code) && WC.byCode(g.code).rate !== null ? ' ('+WC.excessRate(WC.byCode(g.code).rate).toFixed(5).replace(/0+$/,'').replace(/\.$/,'')+'\u2030)' : '') + '.</div>' : '') +
     '</div>';
   }
 
@@ -6031,7 +6050,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
   }
 
   function addGroup(){
-    groups.push({ id:++seq, code:'', query:'', employees:'', monthlyWage:'', rateOnFullWages:false });
+    groups.push({ id:++seq, code:'', query:'', employees:'', monthlyWage:'' });
     render();
   }
 
@@ -6062,7 +6081,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
       discBasic: parseFloat(($('wcDiscBasic')||{}).value) || 0,
       discMed: parseFloat(($('wcDiscMed')||{}).value) || 0,
       groups: groups.map(g=>({ code:g.code, employees:parseInt(g.employees,10)||0,
-        monthlyWage:parseFloat(g.monthlyWage)||0, rateOnFullWages:!!g.rateOnFullWages }))
+        monthlyWage:parseFloat(g.monthlyWage)||0 }))
     };
   }
 
@@ -6077,8 +6096,8 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
     let h = '<div class="card"><div class="section-label">Premium</div>';
     h += '<div class="wc-row"><span>Basic Cover \u2014 WC</span><span class="v">'+fmt(q.basic)+'</span></div>';
     q.groups.forEach(g=>{
-      h += '<div class="wc-row sub"><span>'+g.code+' \u00b7 '+g.employees+' \u00d7 '+fmt(g.annualEarnings)+' @ '+g.rate.toFixed(2)+'\u2030' +
-           (g.aboveCap ? (g.rateOnFullWages?' \u00b7 full wages':' \u00b7 capped at \u20b915,000') : '') +
+      h += '<div class="wc-row sub"><span>'+g.code+' \u00b7 '+g.employees+' \u00d7 '+fmt(g.cappedEarnings)+' @ '+g.rate.toFixed(2)+'\u2030' +
+           (g.aboveCap ? ' + '+fmt(g.excessEarnings)+' @ '+g.excessRate.toFixed(5).replace(/0+$/,'').replace(/\.$/,'')+'\u2030 (above \u20b915,000)' : '') +
            '</span><span class="v">'+fmt(g.amount)+'</span></div>';
     });
     if(q.periodFactor.factor !== 1)
@@ -6123,20 +6142,13 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
       const wasAbove=(parseFloat(g.monthlyWage)||0)>WC.wageCap;
       g.monthlyWage=t.value;
       const isAbove=(parseFloat(t.value)||0)>WC.wageCap;
-      if(wasAbove!==isAbove){ if(!isAbove) g.rateOnFullWages=false; render(); }
+      if(wasAbove!==isAbove) render();
     }
     else if(t.id==='wcDiscMed'){
       const w=$('wcDiscMedWarn'); if(w) w.style.display = (parseFloat(t.value)>0) ? 'block' : 'none';
     }
   });
 
-  document.addEventListener('change', e=>{
-    const t=e.target; if(!t.closest || !t.closest('#sectionWc')) return;
-    if(t.classList.contains('wc-full')){
-      const g=groups.find(x=>x.id===parseInt(t.dataset.gid,10));
-      if(g) g.rateOnFullWages=t.checked;
-    }
-  });
 
   document.addEventListener('click', e=>{
     const t=e.target; if(!t.closest) return;
@@ -6253,7 +6265,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
       { bar:'Rating Earnings per Workman', rows: q.groups.map((g,i)=>[
           (i+1)+'. '+g.code,
           OICPDF.fmtIN(g.annualEarnings) + ' p.a.'
-            + (g.aboveCap ? (g.rateOnFullWages ? '  (full wages)' : '  (capped)') : '')
+            + (g.aboveCap ? '  (' + OICPDF.fmtIN(g.cappedEarnings) + ' at ' + g.rate.toFixed(2) + ' per mille + ' + OICPDF.fmtIN(g.excessEarnings) + ' at ' + g.excessRate.toFixed(2) + ' per mille)' : '')
         ])
       },
       { bar:'Documents Required', rows:[
@@ -6305,7 +6317,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
 
     const notes = [
       'Premium is provisional. Condition 6 of the policy requires the premium to be adjusted against the actual wages, salaries and other earnings paid during the period of insurance; a correct account must be supplied within one month of expiry.',
-      'The Employees Compensation Act caps monthly wages at Rs. 15,000 for compensation purposes. Employees earning above that are listed on a separate schedule and, where opted, rated on full declared earnings.',
+      'Wages up to Rs. 15,000 per month (the Employees Compensation Act ceiling) are rated at the tariff rate for the occupation; wages above the ceiling are rated at the reduced excess-wages rate shown, on the separate schedule.',
       'Medical Extension cannot be issued as a standalone cover and no discount is permitted on its rate.',
       'Above premium is subject to acceptance of the risk as per Underwriting Guidelines. Insurance is the subject matter of the solicitation.',
       'This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.'
@@ -22577,7 +22589,7 @@ window.FIRE = {shareImage: (typeof shareImage==='function'? shareImage : functio
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v67 · add-on availability matches the wordings (class, age); HFF restoration Silver / Gold only · 04-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v68 · WC two-tier wages: tariff rate up to Rs.15,000 p.m., excess-wages rate above (INLIAS-verified) · 04-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
