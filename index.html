@@ -4535,22 +4535,30 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
   /* Condition 7 short-period scale. Applies when the policy runs for less than
      a full year (verified on worksheet R/432706/48/2025/19, a 1-month policy
      rated at exactly 1/4). */
-  function wcPeriodFactor(fromISO, toISO){
-    if(!fromISO || !toISO) return { factor:1, label:'Annual' };
+  /* calcType: 'short' (Condition 7 scale, default), 'prorata' (days / 365), 'annual' (full annual rate) */
+  function wcPeriodFactor(fromISO, toISO, calcType){
+    calcType = calcType || 'short';
+    if(calcType === 'annual') return { factor:1, label:'Annual \u2014 full annual rate', type:'annual' };
+    if(!fromISO || !toISO) return { factor:1, label:'Annual', type:calcType };
     const a=new Date(fromISO), b=new Date(toISO);
-    if(isNaN(a) || isNaN(b) || b<=a) return { factor:1, label:'Annual' };
+    if(isNaN(a) || isNaN(b) || b<=a) return { factor:1, label:'Annual', type:calcType };
+    const days=Math.round((b-a)/(1000*60*60*24))+1;
+    if(calcType === 'prorata'){
+      const f = Math.min(days/365, 1);
+      return { factor: f, days, label: days >= 365 ? 'Annual \u2014 full annual rate' : 'Pro-rata \u2014 '+days+' days / 365 of the annual rate', type:'prorata' };
+    }
     const months=(b-a)/(1000*60*60*24*30.4375);
-    if(months<=1.02)  return { factor:0.25, label:'Up to 1 month \u2014 \u00bc of annual rate' };
-    if(months<=3.05)  return { factor:0.50, label:'Up to 3 months \u2014 \u00bd of annual rate' };
-    if(months<=6.10)  return { factor:0.75, label:'Up to 6 months \u2014 \u00be of annual rate' };
-    return { factor:1, label:'Exceeding 6 months \u2014 full annual rate' };
+    if(months<=1.02)  return { factor:0.25, days, label:'Short period, up to 1 month \u2014 \u00bc of annual rate', type:'short' };
+    if(months<=3.05)  return { factor:0.50, days, label:'Short period, up to 3 months \u2014 \u00bd of annual rate', type:'short' };
+    if(months<=6.10)  return { factor:0.75, days, label:'Short period, up to 6 months \u2014 \u00be of annual rate', type:'short' };
+    return { factor:1, days, label:'Exceeding 6 months \u2014 full annual rate', type:'short' };
   }
 
   function wcOccByCode(code){ return WC_OCC.find(o=>o.code===code) || null; }
 
   /* ── core rating ──────────────────────────────────────────────────────── */
   function wcCalculate(input){
-    const pf = wcPeriodFactor(input.from, input.to);
+    const pf = wcPeriodFactor(input.from, input.to, input.calcType);
     const groups = [];
     let basic = 0, headcount = 0, perCapitaWarn = false;
 
@@ -4645,7 +4653,10 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
       check:()=>{ const q=wcCalculate({ from:'2026-09-04', to:'2027-09-03',
           groups:[{code:'WC_451', employees:4, monthlyWage:79000},{code:'WC_236', employees:6, monthlyWage:79000}], medSI:100000 });
         return [q.groups[0].amount,q.groups[1].amount,q.medRows[0].amount,q.medRows[1].amount,q.gst,q.stamp].join('/'); },
-      expect:'12434/99796/640/5471/21302/118' }
+      expect:'12434/99796/640/5471/21302/118' },
+    { label:'WC \u2014 calculation types: pro-rata 4 Sep to 3 Dec 2026 = 91/365; short period same dates = \u00bd; annual = 1; cover schedule has 7 sections',
+      check:()=>[wcPeriodFactor('2026-09-04','2026-12-03','prorata').factor.toFixed(4), wcPeriodFactor('2026-09-04','2026-12-03','short').factor, wcPeriodFactor('2026-09-04','2026-12-03','annual').factor, (window.WCPDF && WCPDF.coverData ? WCPDF.coverData.sections.length : 0)].join('/'),
+      expect:'0.2493/0.5/1/7' }
   ];
 
   window.WC = { calculate:wcCalculate, occ:WC_OCC, byCode:wcOccByCode, excessRate:wcExcessRate,
@@ -4673,7 +4684,15 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
           <input type="date" id="wcTo" />
         </div>
       </div>
-      <div class="hint" id="wcPeriodHint">Short-period scale (Condition 7): up to 1 month &frac14;, up to 3 months &frac12;, up to 6 months &frac34;, beyond 6 months full annual rate.</div>
+      <div class="field">
+        <label class="lbl" for="wcCalcType">Premium calculation type</label>
+        <select id="wcCalcType">
+          <option value="short">Short Period &mdash; Condition 7 scale (&frac14; / &frac12; / &frac34; / full)</option>
+          <option value="prorata">Pro-Rata &mdash; days on risk / 365</option>
+          <option value="annual">Normal / Annual &mdash; full annual rate</option>
+        </select>
+      </div>
+      <div class="hint" id="wcPeriodHint">Short-period scale (Condition 7): up to 1 month &frac14;, up to 3 months &frac12;, up to 6 months &frac34;, beyond 6 months full annual rate. Pro-rata charges the annual premium in proportion to the days on risk.</div>
 
       <div class="section-label mt">Worker Groups</div>
       <p class="hint" style="margin-bottom:12px">Add one group per occupation / wage band. The E.C. Act caps monthly wages at &#8377;15,000 for compensation; workers above that are shown on a separate schedule and may be rated on full earnings.</p>
@@ -6077,6 +6096,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
       insured: ($('wcInsured')||{}).value || '',
       from: ($('wcFrom')||{}).value || '',
       to: ($('wcTo')||{}).value || '',
+      calcType: ($('wcCalcType')||{}).value || 'short',
       medSI: parseInt(($('wcMedSI')||{}).value,10) || 0,
       discBasic: parseFloat(($('wcDiscBasic')||{}).value) || 0,
       discMed: parseFloat(($('wcDiscMed')||{}).value) || 0,
@@ -6144,6 +6164,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
       const isAbove=(parseFloat(t.value)||0)>WC.wageCap;
       if(wasAbove!==isAbove) render();
     }
+    else if(t.id==='wcCalcType'){ if(window.wcLastQuote) calc(); }
     else if(t.id==='wcDiscMed'){
       const w=$('wcDiscMedWarn'); if(w) w.style.display = (parseFloat(t.value)>0) ? 'block' : 'none';
     }
@@ -6216,6 +6237,26 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
       + p(now.getHours())+p(now.getMinutes());
   }
 
+
+  /* ── customer-facing schedule: policy scope, exceptions, conditions, medical extension (from the policy wording and CR-7005) ── */
+  const WC_COVER_DATA = {"title":"Employees' Compensation Insurance Policy","intro":"This schedule summarises what the quoted Employees' Compensation (Workmen's Compensation) policy covers, what it does not, the conditions that apply and how the premium is worked out, so the employer knows the scope before proposal. The policy wording prevails in case of any difference.","sections":[{"heading":"1. POLICY OVERVIEW","rows":[{"label":"What the policy does","lines":["Indemnifies the insured employer against all sums it becomes legally liable to pay as compensation to its employees for personal injury by accident or disease arising out of and in the course of their employment in the business described in the schedule, either under the Employees' Compensation Act, 1923 (with amendments) or at common law.","Also pays the costs and expenses incurred with the Company's consent in defending any claim for such compensation."]},{"label":"Who is covered","lines":["Employees in the insured's immediate service in the business described in the schedule, for the period of insurance. Every employee's name and wages must be recorded and the records made available to the Company."]},{"label":"Change in law","lines":["If the law is changed or replaced during the policy the cover continues, but the Company's liability is limited to what it would have paid had the law remained unaltered."]},{"label":"Basis of premium","lines":["The premium is provisional. It is regulated by the wages, salaries and other earnings actually paid during the period of insurance; the insured must supply a correct account of all such earnings within one month of expiry, and the difference is paid to or refunded by the Company (Condition 6).","Each employee's wages up to Rs. 15,000 per month are rated at the tariff rate for the occupation; the part of the wages above that ceiling is rated at the reduced excess-wages rate shown on the quotation."]}]},{"heading":"2. WHAT IS COVERED","rows":[{"label":"Compensation under the Act","lines":["Death, permanent total disablement, permanent partial disablement and temporary disablement of an employee caused by an accident arising out of and in the course of employment, as payable under the Employees' Compensation Act.","Occupational diseases listed in Parts A and B of Schedule III of the Act, contracted in the course of employment."]},{"label":"Common law liability","lines":["Damages the employer is held liable to pay at common law for such injury or disease, together with defence costs incurred with the Company's consent."]},{"label":"Medical Extension add-on (where opted)","lines":["Reasonable medical, surgical and hospital expenses, including the cost of conveyance to hospital, incurred by the insured in connection with an injury by accident arising out of and in the course of employment to which the policy indemnity applies, or would have applied had the disablement exceeded three days.","The Company's liability under the extension is limited to the sum insured per employee shown on the quotation for any one case of injury. The extension cannot be issued on its own and no discount is allowed on its premium."],"tint":"green"}]},{"heading":"3. MEDICAL EXTENSION - PREMIUM PER EMPLOYEE","table":{"head":["Sum insured per employee","Premium per employee"],"rows":[["Rs. 50,000","Occupation tariff rate x 10, minimum Rs. 80"],["Rs. 75,000","Occupation tariff rate x 10, minimum Rs. 125"],["Rs. 1,00,000","Occupation tariff rate x 12.5, minimum Rs. 160"],["Rs. 1,25,000","Occupation tariff rate x 12.5, minimum Rs. 200"],["Rs. 1,50,000","Occupation tariff rate x 15, minimum Rs. 240"],["Rs. 2,00,000","Occupation tariff rate x 15, minimum Rs. 300"],["Rs. 2,50,000","Occupation tariff rate x 17, minimum Rs. 350"],["Rs. 5,00,000","Occupation tariff rate x 20, minimum Rs. 480"]]}},{"heading":"4. WHAT IS NOT COVERED","rows":[{"label":"Exceptions","lines":["Injury by accident or disease directly attributable to war, invasion, act of foreign enemy, hostilities (whether war be declared or not), civil war, mutiny, insurrection, rebellion, revolution or military or usurped power.","The insured's liability to employees of contractors to the insured, unless such employees are declared and rated.","Liability that attaches only by virtue of an agreement and would not have attached in its absence.","Any sum the insured would have been entitled to recover from another party but for an agreement between them.","Compensation for the occupational diseases listed in Part C of Schedule III of the Act, unless covered by paying additional premium.","Interest and / or penalty imposed on the insured for failure to comply with the requirements of the Act (endorsement)."],"tint":"red","numbered":true}]},{"heading":"5. CONDITIONS","rows":[{"label":"Contract and notices","lines":["The policy and the schedule are read together as one contract, and any word given a specific meaning in either bears that meaning throughout.","Every notice or communication under the policy must be given to the Company in writing."]},{"label":"Precautions","lines":["The insured must take reasonable precautions to prevent accidents and disease and must comply with all statutory obligations."]},{"label":"Claims","lines":["On any occurrence that may give rise to a claim, give the Company notice as soon as possible with full particulars. Every letter, claim, writ, summons and process must be forwarded to the Company immediately on receipt, and the Company must be told at once of any impending prosecution, inquest or fatal enquiry.","No admission, offer, promise or payment may be made by or on behalf of the insured without the Company's consent. The Company may take over and conduct, in the insured's name, the defence or settlement of any claim, or pursue any claim for indemnity or damages, and the insured must give all information and assistance required."]},{"label":"Premium adjustment","lines":["The premium is regulated by the wages, salaries and other earnings paid during each period of insurance. Every employee's name and earnings must be properly recorded and open to inspection; a correct account must be supplied within one month of expiry, and any difference in premium is paid or refunded proportionately."]},{"label":"Cancellation","lines":["The Company may cancel the policy for fraud, moral hazard, misrepresentation or non-cooperation by notice to the insured's last known address; the premium is adjusted under the premium-adjustment condition and the pro-rata premium for the unexpired period refunded.","The insured may cancel at any time; provided no claim has occurred up to the date of cancellation, the Company retains premium on the short-period scale below and refunds the balance."]},{"label":"Arbitration","lines":["A dispute only about the amount payable (liability being otherwise admitted) is referred to a sole arbitrator agreed in writing, or, failing agreement within 30 days, to a panel of three arbitrators under the Arbitration and Conciliation Act, 1996. No dispute is referable to arbitration where the Company has disputed or not accepted liability. Obtaining the award is a condition precedent to any suit.","If the Company disclaims liability for a claim and the claim is not made the subject of a suit within 12 calendar months of the disclaimer, it is deemed abandoned and is not recoverable."]},{"label":"Due observance","lines":["Compliance with the terms, conditions and endorsements, and the truth of the statements and answers in the proposal, are conditions precedent to any liability of the Company.","No alteration of the insurance or endorsement is valid unless initialled by an official of the Company; renewal receipts are valid only on the printed office form under authorised signature."]}]},{"heading":"6. SHORT-PERIOD SCALE (CONDITION 7)","table":{"head":["Period on risk","Premium to be charged"],"rows":[["Up to 1 month","1/4 of the annual rate"],["Up to 3 months","1/2 of the annual rate"],["Up to 6 months","3/4 of the annual rate"],["Exceeding 6 months","Full annual rate"]]}},{"heading":"7. DOCUMENTS FOR A CLAIM","rows":[{"label":"Usually required","lines":["Claim form and written notice of the accident; wage register or salary record of the injured employee; accident report and, where applicable, the first information report; medical certificate of disablement or the post-mortem report and death certificate; the Employees' Compensation Commissioner's order or deposit challan where compensation is deposited; bills and receipts for a Medical Extension claim."]}]}]};
+  function drawWcCoverPages(doc, q){
+    if(typeof makeCoverPainter !== 'function') return;
+    const D = WC_COVER_DATA;
+    const sub = (q.insured || '') + '   |   ' + q.headcount + ' employees   |   ' + (q.periodFactor && q.periodFactor.label ? q.periodFactor.label : 'Annual').replace(/—/g,'-').replace(/¼/g,'1/4').replace(/½/g,'1/2').replace(/¾/g,'3/4');
+    const P = makeCoverPainter(doc, "EMPLOYEES' COMPENSATION - SCOPE OF COVER & CONDITIONS", sub,
+      'The Oriental Insurance Company Limited   \u00b7   Summary from the policy wording; the policy wording prevails', 'Cover Schedule');
+    doc.addPage(); P.header();
+    P.note(D.intro); P.gap(8);
+    D.sections.forEach(function(sec){
+      if(/MEDICAL EXTENSION - PREMIUM/.test(sec.heading) && !q.med) return;   // grid only when the extension is quoted
+      P.section(sec.heading);
+      if(sec.table) P.table2(sec.table.head, sec.table.rows, 0.4);
+      else (sec.rows || []).forEach(function(r){ P.block(r.label, r.lines, { numbered: !!r.numbered, tint: r.tint }); });
+      P.gap(8);
+    });
+    P.footer();
+  }
   function buildWcPDF(returnBlob){
     const q = window.wcLastQuote;
     if(!q){ alert('Please calculate the premium first.'); return; }
@@ -6342,6 +6383,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
       filename: 'Oriental_WC_Quote_' + safeName + '_' + dStr + '.pdf'
     });
 
+    try{ drawWcCoverPages(out.doc, q); }catch(e){ console.error('WC cover pages skipped:', e); }
     if(returnBlob) return new Blob([out.doc.output('arraybuffer')], {type:'application/pdf'});
     out.doc.save(out.filename);
   }
@@ -6414,7 +6456,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
     else if(t.id==='wcNewBtn'){ if(window.WCUI) WCUI.reset(); window.wcLastQuote=null; }
   });
 
-  window.WCPDF = { build:buildWcPDF, pdf:wcPDF, share:wcShare };
+  window.WCPDF = { build:buildWcPDF, pdf:wcPDF, share:wcShare, coverData:WC_COVER_DATA };
 })();
 </script>
 
@@ -22589,7 +22631,7 @@ window.FIRE = {shareImage: (typeof shareImage==='function'? shareImage : functio
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v68 · WC two-tier wages: tariff rate up to Rs.15,000 p.m., excess-wages rate above (INLIAS-verified) · 04-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v69 · WC calculation types (short period / pro-rata / annual) and policy conditions schedule on the quote · 04-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
