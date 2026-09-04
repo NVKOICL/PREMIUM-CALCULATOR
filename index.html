@@ -4598,8 +4598,12 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
     const medSI = input.medSI || 0;
     if(medSI && WC_MED[medSI]){
       const [mult, min] = WC_MED[medSI];
+      /* INLIAS (R/432702/48/2026/256, 4 Sep 2026): the Medical Extension is pro-rated by days under the
+         Pro-Rata type (5,471 -> 1,364 for 91 days) but not under the short-period scale; the per-employee
+         minimum applies after pro-rating (4 x 160 = 640 in both) */
+      const medFactor = (pf.type === 'prorata') ? pf.factor : 1;
       groups.forEach(g=>{
-        const raw = g.rate * mult, atMin = raw < min;
+        const raw = g.rate * mult * medFactor, atMin = raw < min;
         // INLIAS rounds once, after multiplying by the headcount (R/432702/48/2026/256: 72.95 x 12.5 x 6 = 5,471.25 -> 5,471)
         const amt = atMin ? min * g.employees : Math.round(raw * g.employees);
         const perEmp = atMin ? min : Math.round(raw);
@@ -4682,6 +4686,12 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
     { label:'WC \u2014 calculation types: pro-rata 4 Sep to 3 Dec 2026 = 91/365; short period same dates = \u00bd; annual = 1; cover schedule has 9 sections',
       check:()=>[wcPeriodFactor('2026-09-04','2026-12-03','prorata').factor.toFixed(4), wcPeriodFactor('2026-09-04','2026-12-03','short').factor, wcPeriodFactor('2026-09-04','2026-12-03','annual').factor, (window.WCPDF && WCPDF.coverData ? WCPDF.coverData.sections.length : 0)].join('/'),
       expect:'0.2493/0.5/1/9' },
+    { label:'WC — INLIAS R/432702/48/2026/256 for 04-09-2026 to 03-12-2026: short period = 6,217 + 49,898 basic, medical 640 + 5,471 unchanged, stamp 62; pro-rata 91/365 = 3,100 + 24,881 basic, medical 640 (minimum) + 1,364, stamp 30',
+      check:()=>{ const mk=(t)=>wcCalculate({ from:'2026-09-04', to:'2026-12-03', calcType:t,
+          groups:[{code:'WC_451', employees:4, monthlyWage:79000},{code:'WC_236', employees:6, monthlyWage:79000}], medSI:100000 });
+        const a=mk('short'), b=mk('prorata');
+        return [a.groups[0].amount,a.groups[1].amount,a.medRows[0].amount,a.medRows[1].amount,a.stamp,b.groups[0].amount,b.groups[1].amount,b.medRows[0].amount,b.medRows[1].amount,b.stamp].join('/'); },
+      expect:'6217/49898/640/5471/62/3100/24881/640/1364/30' },
     { label:'WC \u2014 UW guidelines: Part C occupational diseases +50% of book rate; minimum premium Rs.150 / Rs.250; CR-8743 discount authority BO 90 / KBO 95 / RO 98 with referral flags',
       check:()=>{ const a=wcCalculate({ from:'2026-03-05', to:'2027-03-04', groups:[{code:'WC_090', employees:8, monthlyWage:15000}], medSI:0, occDisease:true });
         const b=wcCalculate({ from:'2026-03-05', to:'2027-03-04', groups:[{code:'WC_118', employees:1, monthlyWage:1000}], medSI:0 });
@@ -22692,7 +22702,7 @@ window.FIRE = {shareImage: (typeof shareImage==='function'? shareImage : functio
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v70 · WC underwriting-manual rules: Part C diseases, minimum premium, CR-8743 discount authority, compensation table on the schedule · 04-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v71 · WC medical extension pro-rated under Pro-Rata (INLIAS-verified for all three calculation types) · 04-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
