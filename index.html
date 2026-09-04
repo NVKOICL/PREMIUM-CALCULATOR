@@ -653,29 +653,57 @@ var OIC_WORD_AR  = 640/103;
     var goldH = 34, urlH = 24, noteHdrH = 18, noteGap = 12;
     var noteBodyH = Math.max(40, noteLines.length * 9.6 + 12);
     var bottomH = noteHdrH + noteBodyH + noteGap + goldH + urlH;
-    var availLast = PH - 26 - bottomH - colTop;   // usable column height on final page
+    var availLast = PH - 30 - bottomH - colTop;   // usable column height on final page
     var availFull = PH - 40 - colTop;             // usable column height on other pages
+
+    /* balance the columns: a quote whose left column is far taller than the right one
+       (CAR / EAR: eight blocks against one) moves its trailing left blocks - documents
+       required, flags, excess - under the premium breakup while that shortens the page */
+    if (!spec.noBalance) {
+      left = left.slice(); right = right.slice();
+      var insAt = right.length;   /* moved blocks keep their original order below the premium breakup */
+      while (left.length > 2) {
+        var lastB = left[left.length - 1];
+        var hl0 = colH(left, 1), hr0 = colH(right, 1), hb0 = blockH(lastB, 1);
+        if (hr0 + hb0 < hl0 - 4) { right.splice(insAt, 0, lastB); left.pop(); } else break;
+      }
+    }
 
     /* choose a vertical scale that fills a single page when possible */
     var natural = Math.max(colH(left, 1), colH(right, 1), 1);
     VS = availLast / natural;
-    VS = Math.max(0.86, Math.min(1.55, VS));
+    /* compress rows down to 0.74 before giving up on a single page; a quote that still
+       does not fit is paginated at a comfortable 0.86 */
+    VS = Math.max(0.74, Math.min(1.55, VS));
     var onePage = colH(left, VS) <= availLast && colH(right, VS) <= availLast;
     if (!onePage) VS = 0.86;
 
-    /* paginate each column independently: a column keeps its x position across pages */
-    function paginate(blocks) {
-      var pages = [[]], y = 0, limit = onePage ? availLast : availFull;
+    /* paginate each column independently: a column keeps its x position across pages.
+       Every page but the last may use the full height; the last page must leave room for
+       the Important Note, the Total Premium banner and the footer (bottomH), so the page
+       count is settled iteratively - a long quote gets its bottom block on a later page
+       instead of running off the bottom edge. */
+    function paginate(blocks, nGuess) {
+      var pages = [[]], y = 0;
       blocks.forEach(function (b) {
         var h = blockH(b, VS);
+        var limit = (pages.length < nGuess) ? availFull : availLast;
         if (y + h > limit && y > 0) { pages.push([]); y = 0; }
         pages[pages.length - 1].push(b);
         y += h;
       });
       return pages;
     }
-    var pgLeft = paginate(left), pgRight = paginate(right);
-    var nPages = Math.max(pgLeft.length, pgRight.length, 1);
+    var nPages = 1, pgLeft, pgRight;
+    for (var it = 0; it < 6; it++) {
+      pgLeft = paginate(left, nPages); pgRight = paginate(right, nPages);
+      var got = Math.max(pgLeft.length, pgRight.length, 1);
+      if (got <= nPages) break;
+      nPages = got;
+    }
+    /* a column that still overruns the last page's limit pushes the bottom block to a fresh page */
+    function lastH(pages){ var h = 0; (pages[nPages - 1] || []).forEach(function (b) { h += blockH(b, VS); }); return h; }
+    var bottomOnOwnPage = (lastH(pgLeft) > availLast || lastH(pgRight) > availLast);
 
     /* ---------- painters ---------- */
     function seal(x, yc, r) {
@@ -712,13 +740,17 @@ var OIC_WORD_AR  = 640/103;
         text('PRITHVI, AGNI, JAL, AAKASH  \u00B7  Sab Ki Suraksha Hamare Paas', W / 2, 44,
              { size: 7.5, color: C.mute, align: 'center' });
       }
+      /* a long subtitle shrinks to stay on one line rather than wrapping into the quote-number row */
+      var subT = pdfSafe(spec.subtitle || 'Quotation Worksheet'), subS = 9.5;
+      doc.setFont('helvetica', 'bolditalic');
+      while (subS > 7.2) { doc.setFontSize(subS); if (doc.getTextWidth(subT) <= CW - 80) break; subS -= 0.25; }
       text(spec.subtitle || 'Quotation Worksheet', W / 2, 66,
-           { bold: true, italic: true, size: 9.5, color: C.blue, align: 'center', maxWidth: CW - 80 });
+           { bold: true, italic: true, size: subS, color: C.blue, align: 'center', maxWidth: CW - 80 });
 
       var topY = 82;
       var qn = 'Quote Number: ' + (spec.quoteNumber || spec.quoteId || '');
       text(qn, M, topY, { bold: true, size: 10, color: C.ink });
-      if (spec.costCode) {
+      if (spec.costCode && !/^[0\-\s]*$/.test(String(spec.costCode))) {   /* an all-zero placeholder code is not printed */
         doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
         var w = doc.getTextWidth(pdfSafe(qn));
         text(spec.costCode, M + w + 8, topY, { size: 5.5, color: C.mute });
@@ -776,7 +808,7 @@ var OIC_WORD_AR  = 640/103;
 
     function bottomBlock(contentBottom) {
       var blockTop = PH - 26 - urlH - (noteHdrH + noteBodyH + noteGap + goldH);
-      var by = Math.max(contentBottom + Math.round(14 * VS), blockTop);
+      var by = Math.min(Math.max(contentBottom + Math.round(10 * VS), blockTop), blockTop + 8);
 
       rect(M, by, CW, noteHdrH, C.blueLt, null, 0);
       text('Important Note:', M + 9, by + noteHdrH * 0.68, { bold: true, size: 9.5, color: C.blue });
@@ -811,7 +843,10 @@ var OIC_WORD_AR  = 640/103;
       header(p + 1);
       var lb = drawColumn(pgLeft[p] || [], LX);
       var rb = drawColumn(pgRight[p] || [], RX);
-      if (p === nPages - 1) bottomBlock(Math.max(lb, rb));
+      if (p === nPages - 1) {
+        if (bottomOnOwnPage) { doc.addPage(); header(p + 2); bottomBlock(colTop); }
+        else bottomBlock(Math.max(lb, rb));
+      }
     }
 
     return { doc: doc, filename: spec.filename || 'Oriental_Quote.pdf' };
@@ -11511,9 +11546,16 @@ function generatePDF(q, docOverride){
     const h=Math.round(18.5*VS);
     const neg = typeof value==='string' && value.trim().startsWith('-');
     rect(x,yy,w,h, o.total?C.blueLt:(o.zebra?C.zebra:C.white), C.borderLt);
-    text(trunc(label,40),x+9,yy+h*0.64,{bold:!!o.total,size:o.total?9.5:9,color:o.total?C.blueDk:C.ink});
-    const val = (value==null||value==='')?'\u2014':value;
-    text(val,x+w-9,yy+h*0.64,{bold:!!o.total,size:o.total?9.7:9.1,color:o.total?C.blueDk:(neg?C.red:C.ink),align:'right'});
+    const lbl = trunc(label,40);
+    text(lbl,x+9,yy+h*0.64,{bold:!!o.total,size:o.total?9.5:9,color:o.total?C.blueDk:C.ink});
+    let val = String((value==null||value==='')?'\u2014':value);
+    /* fit the value in the space left of the label: shrink first, then truncate */
+    doc.setFont('helvetica', o.total?'bold':'normal'); doc.setFontSize(o.total?9.5:9);
+    const maxW = w - 18 - doc.getTextWidth(lbl) - 8;
+    let vs = o.total?9.7:9.1; doc.setFontSize(vs);
+    while(doc.getTextWidth(val) > maxW && vs > 6.6){ vs -= 0.3; doc.setFontSize(vs); }
+    if(doc.getTextWidth(val) > maxW){ while(val.length > 2 && doc.getTextWidth(val + '\u2026') > maxW) val = val.slice(0,-1); val += '\u2026'; }
+    text(val,x+w-9,yy+h*0.64,{bold:!!o.total,size:vs,color:o.total?C.blueDk:(neg?C.red:C.ink),align:'right'});
     return yy+h;
   }
 
@@ -11686,9 +11728,9 @@ function generatePDF(q, docOverride){
     }
     if(addonList.length>0||addonExtra>0||epAmt>0){
       ry=subBar(RX,ry,colW,'Section III \u2013 Add-on Covers'); rz=false;
-      if(epItem){ const _epNm=(epItem.name||'Engine Protection').replace(/\s*\(.*?\)\s*/g,'').trim()||'Engine Protection';
+      if(epItem){ const _epNm=(epItem.name||'Engine Protection').replace(/\s*\([\s\S]*$/,'').trim()||'Engine Protection';
                   ry=row(RX,ry,colW,_epNm,R(epAmt),{zebra:rz}); rz=!rz; }
-      addonList.forEach(a=>{ const nm=(a.name||'').replace(/\s*\(.*?\)\s*/g,'').trim()||a.name; ry=row(RX,ry,colW,nm,R(a.amount),{zebra:rz}); rz=!rz; });
+      addonList.forEach(a=>{ const nm=(a.name||'').replace(/\s*\([\s\S]*$/,'').trim()||a.name; ry=row(RX,ry,colW,nm,R(a.amount),{zebra:rz}); rz=!rz; });
       if(llItem){ ry=row(RX,ry,colW,'LL Paid Driver', R(llItem.amount), {zebra:rz}); rz=!rz; }
       if(paUnItem){ ry=row(RX,ry,colW,'PA Unnamed Passenger', R(paUnItem.amount), {zebra:rz}); rz=!rz; }
       ry=row(RX,ry,colW,'Total Add-on Premium', R(addonTotal), {total:true});
@@ -11721,6 +11763,15 @@ function generatePDF(q, docOverride){
     const blockH = noteTotalH + noteGap + goldH;       // note + gap + gold
     const blockTop = PH - 26 - urlH - blockH;          // leave room for url + bottom margin
     let by = Math.max(Math.max(ly,ry)+Math.round(14*VS), blockTop);
+    if(!MEASURE && by + blockH + urlH + 4 > PH){
+      /* the columns filled the page even at the smallest scale: notes, total and footer go on a continuation page */
+      doc.addPage();
+      let drewWm=false;
+      try{ const wordW=258, wordH=wordW/OIC_WORD_AR; doc.addImage(OIC_WORD_PNG,'PNG',(W-wordW)/2,12,wordW,wordH,'oicWord','FAST'); drewWm=true; }catch(e){}
+      if(!drewWm) text('THE ORIENTAL INSURANCE COMPANY LTD.', W/2, 30, {bold:true,size:15.5,color:C.blue,align:'center'});
+      text('Quotation Worksheet (continued)', W/2, 62, {bold:true,size:9.5,color:C.blue,align:'center'});
+      by = 78;
+    }
 
     // Important Note
     rect(M,by,CW,noteHdrH,C.blueLt,null,0);
@@ -11755,7 +11806,7 @@ function generatePDF(q, docOverride){
   const natH = Math.max(1, m.colBottomNat - m.colTop);
   const reserve = 14 + 96 + 12 + 34 + 50;   // gap + note (18 hdr + 78 body) + gap + gold + url/margin
   VS = (PH - reserve - m.colTop) / natH;
-  VS = Math.max(0.95, Math.min(1.6, VS));
+  VS = Math.max(0.88, Math.min(1.6, VS));
   // PASS 2 — draw
   build();
 
@@ -22090,7 +22141,6 @@ function buildFirePDF(returnBlob){
       ['Burglary Rate', q.burgOn ? (q.burgRate + (q.burgUnit === 'pct' ? ' percent' : ' per mille')) : '\u2014']
     ]},
     { bar:'Policy Excess / Deductible', rows:[
-      ['Applicable Clause', exRef],
       ['Sum Insured Band', exBand],
       ['Excess', '5% of claim, min ' + exMin]
     ].concat(specialDed ? [{ label:'Special deductible (top-location SI > Rs. 500 Cr): MD 5% of claim, min Rs. 1.25 Cr' }, { label:'FLOP 30 days of SGP; MLOP 45 days of SGP' }] : [])},
@@ -22244,7 +22294,7 @@ window.FIRE = {shareImage: (typeof shareImage==='function'? shareImage : functio
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v64 · cover-page tables wrap; covered / not-covered headers · 04-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v65 · quote pages never overflow: bottom block paginates, values fit their rows · 04-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
