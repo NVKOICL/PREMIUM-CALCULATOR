@@ -5500,7 +5500,7 @@ function readDiscInputs(mode){const g=id=>{const el=$(id);return el?Math.max(0,p
 function getCombinedDisc(){const d=readDiscInputs(currentMode);return Math.min(MAX_COMBINED_DISC,d.ex+d.vol+d.sp);}
 function updateFlags(si,months,secIGross){const flags=[];const siCr=si/1e7;const exDisc=currentMode==='ear'?(parseFloat($('disc-excess-ear').value)||0):(parseFloat($('disc-excess').value)||0);const volDisc=currentMode==='ear'?(parseFloat($('disc-volume-ear').value)||0):(parseFloat($('disc-volume').value)||0);const spDisc=currentMode==='ear'?(parseFloat($('disc-special-ear').value)||0):(parseFloat($('disc-special').value)||0);const combined=exDisc+volDisc+spDisc;if(combined>MAX_COMBINED_DISC){flags.push({t:'Combined Section I discount capped at '+MAX_COMBINED_DISC+'% (entered '+combined+'%)',d:'Discount on basic / minimum CAR-EAR rates is permitted up to 99.99% (Business Office as per SIP rules, otherwise RO authority). The premium above uses the capped figure.',r:'NIC F&E rating circular w.e.f. 10.09.2026 §2.1(c)'});}
 if(siCr>1500){flags.push({t:'Sum Insured exceeds Rs.1500 Crores — Out of TAC Tariff',d:'Projects with SI above Rs.1500 Crores are outside the CAR/EAR tariff. Rating must be done on the basis of reinsurance quotes only. TAC minimum deductibles are increased '+(siCr>2500?'15':'10')+'× at this sum insured (Annexure E §2.1).',r:'TAC General Regulations · NIC F&E rating circular w.e.f. 10.09.2026 Annexure E'});}
-if(siCr>100&&siCr<=1500&&volDisc===0){flags.push({t:'Project SI > Rs.100 Crores — Volume discount available (Annexure I)',d:'Volume discount: 10% (Rs.100–350 Cr) · 15% (Rs.350–700 Cr) · 22.5% (Rs.700–1500 Cr). Discount up to 99.99% on basic / minimum rates is permitted under SIP rules / RO authority.',r:'TAC Annexure I · NIC F&E rating circular w.e.f. 10.09.2026 §2.1(c)'});}
+if(siCr>100&&siCr<=1500&&volDisc===0){flags.push({t:'Project SI > Rs.100 Crores — Volume discount available',d:'Volume discount: 10% (Rs.100–350 Cr) · 15% (Rs.350–700 Cr) · 22.5% (Rs.700–1500 Cr). Discount up to 99.99% on basic / minimum rates is permitted under SIP rules / RO authority.',r:'TAC Annexure I · NIC F&E rating circular w.e.f. 10.09.2026 §2.1(c)'});}
 if(currentMode==='ear'){const earCodesToCheck=[];if(splitActive&&splitSegments.length>0){splitSegments.forEach(s=>{if(s.earCode)earCodesToCheck.push(s.earCode);});}else if(selectedEARCode){earCodesToCheck.push(selectedEARCode);}
 const hcRisk=earCodesToCheck.map(c=>EAR_DATA.find(r=>r.c===c)).find(r=>r&&r.hc);if(hcRisk){flags.push({t:'Hydrocarbon Endorsement required (ENGG/END-109)',d:'This risk involves hydrocarbon processing. Policy must carry the Hydrocarbon Endorsement. Excess during hydrocarbon phase = 5% of claim amount, minimum Rs.5,00,000.',r:'ENGG/END-109 — EAR Tariff'});}
 if(1+earExtraTesting()>12){flags.push({t:'Testing period cannot exceed 12 months',d:'In no case shall the duration of the testing period under EAR/SCE exceed 12 months.',r:'EAR General Regulations para 27'});}}
@@ -5512,7 +5512,7 @@ if(currentMode==='ear'){if(splitActive&&splitSegments.length>0){splitSegments.fo
 const nameStr=riskNames.join(' | ');const locEl=$('eq-loc-input');const loc=(locEl&&locEl.value||'').toLowerCase();
 const HIMALAYA_RE=/jammu|kashmir|srinagar|ladakh|leh|kargil|himachal|shimla|uttarakhand|dehradun|sikkim|gangtok|darjeeling|kalimpong|assam|guwahati|arunachal|itanagar|meghalaya|shillong|manipur|imphal|mizoram|aizawl|tripura|agartala/;
 const isRoad=currentMode==='car'&&selectedCode&&CAR_DATA[selectedCode]&&CAR_DATA[selectedCode].road;
-if(isRoad)flags.push({t:'Road risk — rated per NIC circular §2.1(a)',d:'Minimum rate for the first 3 months (townships 0.60 · plain 0.75 · hilly/ghat 0.90‰) plus additional rate per month beyond 3 months (0.0075 · 0.009 · 0.012‰). Deductibles: AOG / major perils / design defect 10% of claim min ₹25 lakh; other perils 10% min ₹5 lakh.',r:'NIC F&E rating circular w.e.f. 10.09.2026 §2.1(a), §2.4'});
+if(isRoad)flags.push({t:'Road risk — rated at the road-risk minimum rate scale',d:'Minimum rate for the first 3 months (townships 0.60 · plain 0.75 · hilly/ghat 0.90‰) plus additional rate per month beyond 3 months (0.0075 · 0.009 · 0.012‰). Deductibles: AOG / major perils / design defect 10% of claim min ₹25 lakh; other perils 10% min ₹5 lakh.',r:'NIC F&E rating circular w.e.f. 10.09.2026 §2.1(a), §2.4'});
 if(siCr>500)flags.push({t:'Sum Insured exceeds ₹500 Crores — beyond RO/CBO acceptance limit',d:'Project insurances (MCE / SCE / EAR / CAR) up to ₹500 Cr SI are within Regional Office / CBO authority; beyond that the proposal must be referred to Head Office.',r:'NIC F&E rating circular w.e.f. 10.09.2026 Annexure F'});
 if(/tunnel|cavern/i.test(nameStr))flags.push({t:'Tunnel / cavern project — Head Office acceptance authority',d:'All tunnel projects (including caverns), whether stand-alone or part of road / rail / water / HEP projects, are declined at BO/RO level and vest with Head Office.',r:'Declined-risk circular 29.07.2025 Annexure II, CAR Sl.1'});
 if(/hydro power|hydro electric/i.test(nameStr))flags.push({t:'Hydro-electric power project — Head Office acceptance authority',d:'All civil, hydro-mechanical and electro-mechanical works relating to construction of hydro electric power plants vest with Head Office.',r:'Declined-risk circular 29.07.2025 Annexure II, CAR/EAR Sl.2'});
@@ -5565,7 +5565,7 @@ secI.push({label:'Gross Section I Premium',value:R(q.grossPrem),bold:true});if(q
 right.push({sub:'Section I - Material Damage',rows:secI});
 const hasExt=q.extLines&&q.extLines.length>0;if(hasExt){const ext=[];q.extLines.forEach(l=>{const parts=String(l.label).replace(/‰/g,' per mille').replace(/\s*×\s*/g,' x ').split(/\s[—–-]\s/);const name=parts.shift();const detail=parts.join(' - ');ext.push({label:name,value:R(l.grossAmt||l.amt)});if(detail)ext.push({label:detail,sub:true});if(l.discAmt>0)ext.push({label:'Less: discount',value:'- '+R(l.discAmt),sub:true});});ext.push({label:'Total Extensions (B)',value:R(q.extTotal),total:true});right.push({sub:'Extensions & Add-on Covers',rows:ext});}
 right.push({sub:'Final Premium Summary',rows:[{label:'Net Premium before GST'+(hasExt?' [A + B]':' [A]'),value:R(q.totalNet)},{label:'GST @ 18%',value:R(q.gst)},{label:'Total Premium',value:R(q.grand),total:true}]});
-const notes=['Rates are as per the TAC All India Engineering Tariff (CAR / EAR) read with the Fire & Engineering rating methodology circular effective 10.09.2026 (road-risk rates, NATCAT rates, deductibles, discount authority). This is an indicative quotation - final premium, terms and conditions are subject to underwriting and acceptance of risk.',isEAR?'EAR / SCE: the Col. 4 base rate covers the first erection month and one testing month; testing cannot exceed 12 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.':'CAR: the minimum rate covers the first 3 months of the policy period and the additional monthly rate applies beyond 3 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.','Excess applies to each claim as shown in the Compulsory Excess table. Third Party Liability is not granted during extended maintenance. ALOP / DSU, if shown, is a separate section and is not included in the total above.','This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.'];
+const notes=['Rates are as per the All India Engineering Tariff for CAR / EAR together with the applicable road-risk, NATCAT, deductible and discount rules. This is an indicative quotation - final premium, terms and conditions are subject to underwriting and acceptance of risk.',isEAR?'EAR / SCE: the Col. 4 base rate covers the first erection month and one testing month; testing cannot exceed 12 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.':'CAR: the minimum rate covers the first 3 months of the policy period and the additional monthly rate applies beyond 3 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.','Excess applies to each claim as shown in the Compulsory Excess table. Third Party Liability is not granted during extended maintenance. ALOP / DSU, if shown, is a separate section and is not included in the total above.','This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.'];
 const safeName=String(q.insuredName||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);const mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const dStr=String(now.getDate()).padStart(2,'0')+mons[now.getMonth()]+now.getFullYear();
 const out=OICPDF.render({subtitle:isEAR?'Quotation Worksheet For Erection All Risks / SCE Insurance - EAR (TAC ENGINEERING TARIFF)':"Quotation Worksheet For Contractor's All Risks Insurance - CAR (TAC ENGINEERING TARIFF)",quoteNumber:String(Math.floor(now.getTime()/1000)).slice(-5),quoteId:q.quoteRef,dateStr:dateStr,costCode:'',agent:A,left:left,right:right,notes:notes,totalLabel:'Total Premium (incl. GST)',totalValue:R(q.grand),filename:'Oriental_'+(isEAR?'EAR':'CAR')+'_Quote_'+safeName+'_'+dStr+'.pdf'});
 try{ drawCarCoverPages(out.doc, q); }catch(e){ console.error('CAR/EAR cover pages skipped:', e); }
@@ -5816,7 +5816,7 @@ function drawCarCoverPages(doc, q){
     eq: { t:'Earthquake (fire & shock)', c:['Extends cover to loss or damage (including by fire) occasioned by earthquake, including landslide / rockslide resulting from it. Optional; it cannot be opted mid-term or for part of the project period, so it is charged for the total period including all extensions and re-worked for extensions beyond 12 months.',
           'First-loss option: limit of 20% of the Sum Insured at 50% of the EQ rate, or 10% at 40%, calculated on the total Sum Insured. Higher-excess discounts may be taken on the EQ premium alone.',
           'AOG excess applies to earthquake claims' + (isEAR ? '' : ' (tariff minimum Rs. 25,000 per claim in Zone I and Rs. 10,000 in Zone II, or the schedule excess if higher)') + '. The higher AOG excess applies to all AOG perils even where earthquake cover is not taken.'] },
-    stfi: { t:'Storm, tempest, flood & inundation (NAT-CAT)', c:['Storm, tempest, hurricane, typhoon, cyclone, flood and inundation are AOG perils under the tariff and are rated as a separate NAT-CAT add-on for the full project period per the Fire & Engineering rating circular. Claims from these perils carry the AOG excess; an incident ends only after seven consecutive days free of the peril.'] },
+    stfi: { t:'Storm, tempest, flood & inundation (NAT-CAT)', c:['Storm, tempest, hurricane, typhoon, cyclone, flood and inundation are AOG perils under the tariff and are rated as a separate NAT-CAT add-on for the full project period. Claims from these perils carry the AOG excess; an incident ends only after seven consecutive days free of the peril.'] },
     sp: { t:'Surrounding property of the Principal / Contractor', c:['Covers loss of or damage to property on or adjacent to the site belonging to, or in the care, custody or control of, the Principal(s) or Contractor(s), only if occurring directly due to the ' + (isEAR ? 'erection, construction or testing' : 'construction') + ' of the insured works during the period of cover, and only where a separate sum is entered in the schedule. Construction / erection machinery, plant and equipment are not surrounding property.',
           'Rated at 50% of the Section I rate on the limit selected; policy excesses apply; the limit can be reinstated after a claim on payment of additional premium.'] },
     dr: { t:'Clearance and removal of debris', c:['Reimburses the cost of clearance and removal of debris following an event giving rise to an admissible claim, up to the limit fixed in the schedule. Rated at the Section I rate on the limit; the policy excess (normal / AOG or testing) applies - no separate debris excess. Where no premium is paid for a debris limit, debris expenses are not indemnifiable.'] },
@@ -5833,10 +5833,10 @@ function drawCarCoverPages(doc, q){
   };
   const opted = Object.keys(EXT).filter(function(k){ return EXT[k] && EXT_STATE[k]; });
   section('5. Extensions included in this quotation', opted.length ? (opted.length + ' extension' + (opted.length>1?'s':'')) : 'None');
-  if(!opted.length) block('Extensions', ['No add-on covers other than those shown above are included. Earthquake, STFI, surrounding property, debris removal, escalation, air freight, CPM, terrorism and maintenance covers can be added at the tariff / circular rates.']);
+  if(!opted.length) block('Extensions', ['No add-on covers other than those shown above are included. Earthquake, STFI, surrounding property, debris removal, escalation, air freight, CPM, terrorism and maintenance covers can be added at the applicable rates.']);
   opted.forEach(function(k){ const e = EXT[k]; const line = (q.extLines||[]).find(function(l){ return new RegExp('^' + (k==='sp'?'Surrounding':k==='dr'?'Debris':k==='esc'?'Escalation':k==='af'?'Air Freight':k==='cpm'?'CPM':k==='terror'?'Terrorism':k==='stfi'?'STFI':k==='maint'?'Maintenance':'EQ'), 'i').test(l.label); });
     block(e.t + (line ? '  (' + R(line.amt) + ')' : ''), e.c, { bullet: e.c.length > 1 }); });
-  if(isEAR && alopActive) block('ALOP / DSU (separate section)', ['Advance Loss of Profits / Delay in Start-Up indemnifies the loss of gross profit from delay in start-up following insured physical damage. It is rated separately and not included in the total above. Time excess per the F&E circular: 30 days for the first year plus one day per erection month beyond 12 months, not exceeding 60 days (45 days for specialised risks and combined-cycle plants).']);
+  if(isEAR && alopActive) block('ALOP / DSU (separate section)', ['Advance Loss of Profits / Delay in Start-Up indemnifies the loss of gross profit from delay in start-up following insured physical damage. It is rated separately and not included in the total above. Time excess: 30 days for the first year plus one day per erection month beyond 12 months, not exceeding 60 days (45 days for specialised risks and combined-cycle plants).']);
   if(isEAR && q.risk && q.risk.hc) block('Hydrocarbon endorsement (ENGG/END-109)', ['Applies to this risk. The insured must give prior written notice of the date of initial start-up for testing. During any operation involving hydrocarbons or hydrogen (cleaning, purging, testing, commissioning) the excess is 5% of the claim, minimum Rs. 5,00,000. From the introduction of hydrocarbon / feedstock the Company is not liable for catalysts (unless separately endorsed), reforming-unit tubes overheating or cracking, overheating following an exothermic reaction, or non-observance of prescribed techniques / cut-out of safety devices. Fire / explosion losses are indemnified only if adequate fire-fighting facilities are installed before machinery is stored or installed.'], { tint:'red' });
 
   /* ── 6. Conditions ── */
@@ -5847,7 +5847,7 @@ function drawCarCoverPages(doc, q){
     'Disputes on quantum only (liability admitted) go to arbitration under the Arbitration and Conciliation Act 1996; an award is a condition precedent to any suit. A fraudulent claim, or a rejected claim not pursued within three months, forfeits all benefits. Contribution applies where other insurance covers the same loss.'], { numbered:true });
   block('Cancellation', ['By the insured at any time, with refund of the appropriate premium only if the claims experience is below 60% of the reworked premium, the unexpired period is not less than 3 months or 25% of the policy period (whichever is less), and testing has not commenced. By the Company on 15 days\' notice with a rateable refund for the unexpired term.',
     'Early completion: refund is possible for policies of 18 months or more, with advance notice' + (isEAR ? ' (before commencement of testing, or within 7 days of it)' : '') + ', claims experience below 60%, a minimum refund period of 3 months and the policy period not exceeding the contract period.'], { bullet:true });
-  block('Rating notes', [(q.discPct ? 'Discount applied on this quote: ' + q.discPct + '%.  ' : '') + 'Higher-excess discount scale: 2x minimum excess 5%, 5x 10%, 10x 20%, 20x 30%, 30x 35%, 40x 40%, 50x 45%, 100x 50%, above 100x 55% (both normal and AOG / testing excesses raised together); the same scale may be applied to the earthquake premium alone. Volume discounts per Annexure I for large projects. Mid-term increase in Sum Insured is charged at the full applicable rate (no pro-rata, no volume discount). Extensions beyond the policy period are charged at the tariff extension scale (0.30 per mille for one month rising to 3.00 per mille for 24 months, plus pro-rata beyond).']);
+  block('Rating notes', [(q.discPct ? 'Discount applied on this quote: ' + q.discPct + '%.  ' : '') + 'Higher-excess discount scale: 2x minimum excess 5%, 5x 10%, 10x 20%, 20x 30%, 30x 35%, 40x 40%, 50x 45%, 100x 50%, above 100x 55% (both normal and AOG / testing excesses raised together); the same scale may be applied to the earthquake premium alone. Volume discounts apply for large projects. Mid-term increase in Sum Insured is charged at the full applicable rate (no pro-rata, no volume discount). Extensions beyond the policy period are charged at the tariff extension scale (0.30 per mille for one month rising to 3.00 per mille for 24 months, plus pro-rata beyond).']);
   note('Insurance is the subject matter of the solicitation. The policy wording, schedule and endorsements issued with the policy govern the cover; this schedule is a summary for the proposer.');
   footer();
 }
@@ -6241,7 +6241,7 @@ window.CAR={shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updat
     const notes = [
       'Premium is provisional. Condition 6 of the policy requires the premium to be adjusted against the actual wages, salaries and other earnings paid during the period of insurance; a correct account must be supplied within one month of expiry.',
       'The Employees Compensation Act caps monthly wages at Rs. 15,000 for compensation purposes. Employees earning above that are listed on a separate schedule and, where opted, rated on full declared earnings.',
-      'Medical Extension is issued under Circular HO/MISC./2013/CR-7005 dated 16/06/2015 (UIN OIC-OT-A00-00-02-V01-15-16). It cannot be marketed as a standalone product and no discount is permitted on its rate without a reference to Head Office.',
+      'Medical Extension cannot be issued as a standalone cover and no discount is permitted on its rate.',
       'Above premium is subject to acceptance of the risk as per Underwriting Guidelines. Insurance is the subject matter of the solicitation.',
       'This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.'
     ];
@@ -12271,8 +12271,6 @@ function drawMotorAddonPages(doc, q){
     if(w.copayTable && !(p.key === 'batteryProtect' && p.item && p.item.key !== 'batteryProtectCoPay')) table(w.copayTable);
     block('Conditions', w.conditions, { numbered: true });
     block('Exclusions', w.exclusions, { numbered: true, tint:'red' });
-    const uins = (w.uin && (w.uin[vt] || w.uin._all)) || [];
-    if(uins.length) block('IRDAI UIN', uins, { bullet: uins.length > 1 });
     y += 8;
   });
   note('No Claim Bonus, cancellation and mid-term rules of each add-on are as stated above; where an add-on is silent, the base policy governs. Insurance is the subject matter of the solicitation.');
@@ -15212,7 +15210,6 @@ function drawOSSSBenefitPages(doc, selectedPlan, si, isFloater){
     doc.setFont('helvetica','normal'); doc.setFontSize(7.0);
     doc.setTextColor(197,217,242);
     doc.text(PLANS[selIdx].toUpperCase() + ' PLAN \u2014 BENEFIT SCHEDULE'
-      + '   |   UIN OICHLIP26035V012526'
       + (si ? '   |   Sum Insured Rs. ' + OICPDF.fmtIN(si) : ''),
       M+12, M+25);
     y = M + 34 + 8;
@@ -15331,7 +15328,7 @@ function drawOSSSBenefitPages(doc, selectedPlan, si, isFloater){
     setDraw(LINE); doc.setLineWidth(0.4);
     doc.line(M, H-26, W-M, H-26);
     setText(MUTE); doc.setFont('helvetica','normal'); doc.setFontSize(6.4);
-    doc.text('Oriental Sampoorna Swasthya Suraksha   \u00b7   UIN OICHLIP26035V012526   \u00b7   '
+    doc.text('Oriental Sampoorna Swasthya Suraksha   \u00b7   '
       + 'Benefit limits per prospectus; policy wording prevails', M, H-17);
     doc.setFont('helvetica','bold');
     doc.text('Benefit Schedule', W-M, H-17, {align:'right'});
@@ -15443,7 +15440,7 @@ function drawOSSSBenefitPages(doc, selectedPlan, si, isFloater){
       'Age up to 45: 1 Year\nAge above 45: 2 Years'], {zebra:true});
   row('PED buyback option', ['To 2 years or 1 year','To 1 year or 0 years','To 1 year or 0 years']);
   span('PED buyback is available on FRESH PROPOSALS ONLY \u2014 +20% premium to reduce the waiting by one year, +30% to reduce it to nil. '
-     + 'It does not apply to the Clause 5.2 specified diseases (cataract, hernia, knee replacement and the rest), whose waiting periods '
+     + 'It does not apply to the specified diseases listed in the policy (cataract, hernia, knee replacement and the rest), whose waiting periods '
      + 'apply regardless. Sum Insured enhanced at renewal carries a fresh PED waiting on the enhanced portion, with no buyback on it.');
   row('Moratorium \u2014 no contest after', ['5 Years continuous','5 Years continuous','5 Years continuous'], {zebra:true});
 
@@ -15525,7 +15522,7 @@ function drawOSSSBenefitPages(doc, selectedPlan, si, isFloater){
 
 
   section('I   WHO CAN BE COVERED \u2014 FAMILY COMPOSITION');
-  row('Members eligible under this plan\nProspectus clause 3.14 \u2014 composition differs by plan',
+  row('Members eligible under this plan\nComposition differs by plan',
       ['Self + Spouse + Dependent Children + Parents (2)',
        'Self + Spouse + Dependent Children + unmarried dependent siblings + Parents (2) or Parents-in-law (2)',
        'Grand Parents (2) + Grand Parents-in-law (2) + Parents (2) + Parents-in-law (2) + Self + Spouse + unmarried Children + unmarried dependent siblings'],
@@ -15540,7 +15537,7 @@ function drawOSSSBenefitPages(doc, selectedPlan, si, isFloater){
        'Brother up to 25 yrs \u00b7 sisters, divorced or widowed sisters']);
   row('Dependent children \u2014 natural or legally adopted',
       ['Day 1 to 18 years','Day 1 to 18 years','Day 1 to 18 years'], {zebra:true});
-  row('Minimum family size\nProspectus clause 6.29',
+  row('Minimum family size',
       ['2 persons','2 persons','2 persons']);
   span('The ROYAL plan is the only one that admits grandparents and grandparents-in-law. ELITE and ROYAL both admit unmarried '
      + 'dependent siblings and allow a cross combination of parents and parents-in-law; PREMIUM does not.');
@@ -15582,7 +15579,7 @@ function drawOSSSBenefitPages(doc, selectedPlan, si, isFloater){
   span('DISCLOSURE AND FRAUD. The policy is void and all premium forfeited on misrepresentation, mis-description or non-disclosure of '
      + 'any material fact. Where a claim is fraudulent, all benefits are forfeited and any amount already paid is repayable jointly and '
      + 'severally by everyone named on the policy schedule. Existing Happy Family Floater and Individual Mediclaim policyholders may '
-     + 'migrate into this product carrying their accrued continuity benefits (clause 6.7).');
+     + 'migrate into this product carrying their accrued continuity benefits.');
 
   var WP = [
     ['All new illnesses (initial waiting)','30 days'],
@@ -15646,10 +15643,10 @@ function drawOSSSBenefitPages(doc, selectedPlan, si, isFloater){
      + 'DIFFERENT period on each plan \u2014 36 months on PREMIUM, 24 months on ELITE and 12 months on ROYAL for members below 45 '
      + '\u2014 see section D for the period that applies to this quotation.');
 
-  section('N   SPECIFIC EXCLUSIONS \u2014 SAMPOORNA SWASTHYA SURAKSHA (Clauses 5.19 \u2013 5.38)');
+  section('N   SPECIFIC EXCLUSIONS \u2014 SAMPOORNA SWASTHYA SURAKSHA');
   for(var xb=0; xb<OSSS_SPECIFIC_EXCLUSIONS.length; xb++)
     exclRow(OSSS_SPECIFIC_EXCLUSIONS[xb][0], OSSS_SPECIFIC_EXCLUSIONS[xb][1], OSSS_SPECIFIC_EXCLUSIONS[xb][2], xb%2===1);
-  span('This policy has NO permanent-exclusion clause: the exclusions end at 5.38 and no condition is excluded for life. Every '
+  span('This policy has NO permanent-exclusion clause: no condition is excluded for life. Every '
      + 'exclusion above either applies throughout or, in the case of Excl01 to Excl03, falls away once its waiting period has run.');
 
   space(56);
@@ -15657,8 +15654,8 @@ function drawOSSSBenefitPages(doc, selectedPlan, si, isFloater){
   setFill(GOLD); doc.rect(M, y+8, 3, 42, 'F');
   setText(INK); doc.setFont('helvetica','normal'); doc.setFontSize(FS-0.6);
   var nt = doc.splitTextToSize(
-    'Benefit limits above are reproduced from the Oriental Sampoorna Swasthya Suraksha prospectus (UIN OICHLIP26035V012526) and, for the '
-  + 'Medical Extension, Circular HO/MISC./2013/CR-7005. They are a summary for comparison only \u2014 the policy wording prevails in all cases. '
+    'Benefit limits above are summarised from the Oriental Sampoorna Swasthya Suraksha policy prospectus and the '
+  + 'Medical Extension wording. They are a summary for comparison only \u2014 the policy wording prevails in all cases. '
   + 'Premium shown on the quotation page is subject to underwriting. Individual health insurance is exempt from GST w.e.f. 22.09.2025.', CW-18);
   for(var n2=0;n2<nt.length;n2++) doc.text(nt[n2], M+PADX+5, y+21+n2*(LH-0.6));
 
@@ -15707,7 +15704,6 @@ function generateHealthPDF(r, hStateSnap){
     ]},
     { bar:'Plan Details', rows:[
       ['Product', 'Oriental Sampoorna Swasthya Suraksha'],
-      ['UIN', 'OICHLIP26035V012526'],
       ['Plan', plan + ' Plan'],
       ['Sum Insured', siLabel],
       ['Zone', 'Zone ' + zone],
@@ -15763,7 +15759,7 @@ function generateHealthPDF(r, hStateSnap){
     notes: [
       'Premium is computed on the OSSSP premium chart for the selected plan, sum insured and zone. Members marked * have had the entry-age loading waived.',
       (r.pedLoad > 0
-        ? 'PED waiting-period buyback is priced above as a loading on the basic premium. It is available on FRESH PROPOSALS ONLY and does not shorten the Clause 5.2 specified-disease waiting periods.'
+        ? 'PED waiting-period buyback is priced above as a loading on the basic premium. It is available on FRESH PROPOSALS ONLY and does not shorten the specified-disease waiting periods.'
         : 'Cumulative bonus accrual is not auto-priced here \u2014 please confirm with the underwriter before issuance.'),
       'No GST is payable \u2014 individual health insurance is exempt from GST w.e.f. 22.09.2025. The amount shown is the full premium payable.',
       'Insurance is the subject matter of the solicitation. This is a system generated quote and does not require signature; premium and risk period may change at the time of issuance of the policy.'
@@ -15838,7 +15834,6 @@ function drawYECBenefitPages(doc, selectedPlan, si, isFamily){
     doc.setFont('helvetica','normal'); doc.setFontSize(7.0);
     doc.setTextColor(197,217,242);
     doc.text(PLANS[selIdx].toUpperCase() + ' PLAN \u2014 BENEFIT SCHEDULE'
-      + '   |   UIN OICHLIP24034V012324'
       + (si ? '   |   Sum Insured Rs. ' + OICPDF.fmtIN(si) : ''),
       M+12, M+25);
     y = M + 34 + 8;
@@ -15952,7 +15947,7 @@ function drawYECBenefitPages(doc, selectedPlan, si, isFamily){
     setDraw(LINE); doc.setLineWidth(0.4);
     doc.line(M, H-26, W-M, H-26);
     setText(MUTE); doc.setFont('helvetica','normal'); doc.setFontSize(6.4);
-    doc.text('Oriental Youth Eco Care   \u00b7   UIN OICHLIP24034V012324   \u00b7   '
+    doc.text('Oriental Youth Eco Care   \u00b7   '
       + 'Benefit limits per prospectus; policy wording prevails', M, H-17);
     doc.setFont('helvetica','bold');
     doc.text('Benefit Schedule', W-M, H-17, {align:'right'});
@@ -16293,11 +16288,11 @@ function drawYECBenefitPages(doc, selectedPlan, si, isFamily){
   span('Exclusions 6.17 (sterility and infertility, Excl17) and 6.18 (maternity, Excl18) DO NOT APPLY under the Premium Plan, where '
      + 'Assisted Reproduction Treatment and Maternity are covered to the limits shown in section F.');
 
-  section('N   SPECIFIC EXCLUSIONS \u2014 YOUTH ECO CARE (Clauses 6.19 \u2013 6.38)');
+  section('N   SPECIFIC EXCLUSIONS \u2014 YOUTH ECO CARE');
   for(var xb=0; xb<YEC_SPECIFIC_EXCLUSIONS.length; xb++)
     exclRow(YEC_SPECIFIC_EXCLUSIONS[xb][0], YEC_SPECIFIC_EXCLUSIONS[xb][1], YEC_SPECIFIC_EXCLUSIONS[xb][2], xb%2===1);
 
-  section('O   PERMANENTLY EXCLUDED DISEASES \u2014 CLAUSE 6.39');
+  section('O   PERMANENTLY EXCLUDED DISEASES (DECLARED PRE-EXISTING CONDITIONS)');
   span('Where a pre-existing condition is DECLARED by the insured and noted on the policy schedule with their consent, the following '
      + 'ICD-coded conditions are PERMANENTLY excluded for that member \u2014 no waiting period will bring them into cover. This applies '
      + 'only to conditions actually declared and recorded on the schedule.');
@@ -16336,9 +16331,9 @@ function drawYECBenefitPages(doc, selectedPlan, si, isFamily){
   setFill(GOLD); doc.rect(M, y+8, 3, 52, 'F');
   setText(INK); doc.setFont('helvetica','normal'); doc.setFontSize(FS-0.6);
   var nt = doc.splitTextToSize(
-    'Benefit limits above are reproduced from the Oriental Youth Eco Care prospectus (UIN OICHLIP24034V012324). They are a summary '
-  + 'for comparison only \u2014 the policy wording prevails in all cases. Where a pre-existing condition is declared and accepted under '
-  + 'Clause 6.39, the fifteen listed ICD-coded diseases are permanently excluded for that member. Premium shown on the quotation page '
+    'Benefit limits above are summarised from the Oriental Youth Eco Care policy prospectus. They are a summary '
+  + 'for comparison only \u2014 the policy wording prevails in all cases. Where a pre-existing condition is declared and accepted, the '
+  + 'fifteen listed ICD-coded diseases are permanently excluded for that member. Premium shown on the quotation page '
   + 'is subject to underwriting. Individual health insurance is exempt from GST w.e.f. 22.09.2025.', CW-18);
   for(var n2=0;n2<nt.length;n2++) doc.text(nt[n2], M+PADX+5, y+21+n2*(LH-0.6));
 
@@ -16381,7 +16376,6 @@ function generateYecPDF(r, yStateSnap){
     ]},
     { bar:'Plan Details', rows:[
       ['Product', 'Oriental Youth Eco Care Policy'],
-      ['UIN', 'OICHLIP24034V012324'],
       ['Plan', plan + ' Plan'],
       ['Sum Insured', siLabel],
       ['Basis of Cover', basisLabel],
@@ -18705,8 +18699,7 @@ function ohGeneratePDF(){
   // ── selected inputs, for the left column ──
   const val = function(id){ const e = document.getElementById(id); return e ? (e.selectedIndex >= 0 && e.options ? e.options[e.selectedIndex].textContent.trim() : e.value) : ''; };
   const planRows = [
-    ['Product', PRODUCT[key] || 'Health Quotation'],
-    ['UIN', UIN[key] || '\u2014']
+    ['Product', PRODUCT[key] || 'Health Quotation']
   ];
   if(key !== 'OMI') planRows.push(['Sum Insured', val('ohSI')]);
   if(key === 'HFF'){ planRows.push(['Plan', val('ohPlan')], ['Zone', val('ohZone')]); }
@@ -21419,7 +21412,7 @@ function calculate(){
   let policyLabel;
   if(currentPolicy === 'sookshma') policyLabel = 'Bharat Sookshma Udyam Suraksha (NBSUS)';
   else if(currentPolicy === 'laghu') policyLabel = 'Bharat Laghu Udyam Suraksha (NBLUS)';
-  else policyLabel = 'SFSP / IAR · NIC base rates (F&E circular w.e.f. 10.09.2026)';
+  else policyLabel = 'Standard Fire & Special Perils (SFSP) / IAR';
   const policyShort = policyShortFor(currentPolicy);
 
   // ── Quote details (top summary) ──
@@ -21832,7 +21825,6 @@ function drawFireCoverPages(doc, q){
   const safe = function(s){ return String(s == null ? '' : s).replace(/₹\s*/g,'Rs. ').replace(/‰/g,' per mille').replace(/[≤]/g,'<=').replace(/[≥]/g,'>=').replace(/[^\x00-\xFF]/g,''); };
   const R = function(n){ return 'Rs. ' + Math.round(Number(n)||0).toLocaleString('en-IN'); };
   const title = isSFSP ? 'STANDARD FIRE & SPECIAL PERILS POLICY' : (mode === 'laghu' ? 'BHARAT LAGHU UDYAM SURAKSHA' : 'BHARAT SOOKSHMA UDYAM SURAKSHA');
-  const uin = isSFSP ? 'Erstwhile AIFT wording' : (mode === 'laghu' ? 'UIN IRDAN556RP0013V01202021' : 'UIN IRDAN556RP0012V01202021');
 
   let y = 0, pageNo = 0;
   function setFill(c){ doc.setFillColor(c[0],c[1],c[2]); } function setText(c){ doc.setTextColor(c[0],c[1],c[2]); } function setDraw(c){ doc.setDrawColor(c[0],c[1],c[2]); }
@@ -21842,7 +21834,7 @@ function drawFireCoverPages(doc, q){
     setText(WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(11.5); doc.setCharSpace(0.55);
     doc.text('FIRE INSURANCE — SCOPE OF COVER & CONDITIONS', M+12, M+14); doc.setCharSpace(0);
     doc.setFont('helvetica','normal'); doc.setFontSize(7.0); doc.setTextColor(197,217,242);
-    doc.text(safe(title + '   |   ' + uin + '   |   Sum Insured ' + R(q.si) + '   |   ' + (q.insured || '')), M+12, M+25);
+    doc.text(safe(title + '   |   Sum Insured ' + R(q.si) + '   |   ' + (q.insured || '')), M+12, M+25);
     y = M + 34 + 8;
   }
   function footer(){
@@ -21951,7 +21943,7 @@ function drawFireCoverPages(doc, q){
   /* 4. covers on this quote */
   section((isSFSP ? '3' : '4') + '. Covers on this quotation');
   const stfiTxt = isSFSP ? 'Storm, tempest, flood and inundation are standard perils of the SFSP policy' : 'STFI is an in-built insured peril (item 5 of the peril list) of the ' + (mode === 'laghu' ? 'Laghu' : 'Sookshma') + ' policy';
-  block('STFI', [q.stfiOn ? (stfiTxt + '. Rated at ' + q.stfiRateUsed + ' per mille on the Sum Insured.') : (stfiTxt + '. Not rated separately on this quote - confirm the basis with the issuing office; deletion of NATCAT perils is not permitted under the rating circular.')], { tint: q.stfiOn ? 'green' : undefined });
+  block('STFI', [q.stfiOn ? (stfiTxt + '. Rated at ' + q.stfiRateUsed + ' per mille on the Sum Insured.') : (stfiTxt + '. Not rated separately on this quote - confirm the basis with the issuing office; deletion of NATCAT perils is not permitted.')], { tint: q.stfiOn ? 'green' : undefined });
   const eqZone = (q.eqLabelText || '').split('·')[0].trim();
   block('Earthquake (fire and shock)', [q.eqOn ? ((isSFSP ? 'Endorsement 8 - loss (including by fire) occasioned by earthquake including landslide / rockslide; flood from earthquake included as STFI is not deleted. Special conditions: excess 5% of each claim, minimum Rs. 10,000; the entire property at the location must be extended with identical Sum Insured (except plinth and foundations); the insured must prove the loss was occasioned by earthquake if required.' : 'Earthquake, volcanic eruption and other convulsions of nature are in-built insured perils (item 4) of the policy.') + ' Rated at ' + q.eqRate + ' per mille (' + eqZone + ').') : (isSFSP ? 'Not opted. Earthquake, volcanic eruption and other convulsions of nature are excluded under SFSP unless the earthquake endorsement is taken.' : 'In-built insured peril (item 4). Not rated separately on this quote.')], { tint: q.eqOn ? 'green' : undefined });
   if(q.terrorOn && q.terrorNet > 0){
@@ -22046,9 +22038,9 @@ function buildFirePDF(returnBlob){
     { bar:'Risk Details', rows:[
       ['Occupancy', q.occ || ''],
       ['Occupancy Code / Category', (q.nicCode || '\u2014') + (q.nicCat ? '  \u00b7  Category ' + q.nicCat : '')],
-      ['Rating Basis', q.isTreaty ? ('Treaty Rate' + (q.treatyCat ? ' \u2013 ' + q.treatyCat : '')) : (q.policyMode === 'sookshma' ? 'BSU schedule (product guidelines)' : 'NIC base rate \u2013 F&E circular w.e.f. 10.09.2026')],
+      ['Rating Basis', q.isTreaty ? ('Treaty Rate' + (q.treatyCat ? ' \u2013 ' + q.treatyCat : '')) : (q.policyMode === 'sookshma' ? 'Bharat Sookshma Udyam rate schedule' : 'Standard fire base rate')],
       ['Occupancy Rate', (q.occRate != null ? q.occRate + ' per mille' : '')],
-      ['Risk Tier (Annexure B)', tierLabel],
+      ['Risk Tier', tierLabel],
       ['Policy', q.policyLabel || ''],
       ['Policy Period', q.period + ' Year' + (q.period > 1 ? 's' : '')]
     ]},
@@ -22063,7 +22055,7 @@ function buildFirePDF(returnBlob){
       ['Burglary Sum Insured', q.burgOn ? OICPDF.fmtIN(q.burgSI) : '\u2014'],
       ['Burglary Rate', q.burgOn ? (q.burgRate + (q.burgUnit === 'pct' ? ' percent' : ' per mille')) : '\u2014']
     ]},
-    { bar:'Policy Excess / Deductible (Annexure E)', rows:[
+    { bar:'Policy Excess / Deductible', rows:[
       ['Applicable Clause', exRef],
       ['Sum Insured Band', exBand],
       ['Excess', '5% of claim, min ' + exMin]
@@ -22139,11 +22131,11 @@ function buildFirePDF(returnBlob){
   ]});
 
   const notes = [
-    'FLEXA rates as per the NIC base rates (Annexure A\u2013D) and STFI / EQ rates as per \u00a71.3 of the Fire & Engineering rating methodology circular w.e.f. 10.09.2026; discounts within the authority of the issuing office. This is an indicative quotation \u2014 final premium, terms and conditions are subject to insurer underwriting and acceptance of risk.',
-    'Deletion of NATCAT perils is not permitted. Policy excess as per Annexure E (minimum deductibles) shown above.'
+    'Rates applied are the standard fire rates for the occupancy, with STFI / earthquake rates as applicable; discounts are within the authority of the issuing office. This is an indicative quotation \u2014 final premium, terms and conditions are subject to insurer underwriting and acceptance of risk.',
+    'Deletion of NATCAT perils is not permitted. Policy excess (minimum deductibles) as shown above.'
   ];
   if(q.isTreaty){
-    notes.push('This occupancy is a notified category under the Fire Treaty Endorsement (25.02.2019). The FLEXA rate is fixed per Annexure 1 and no discount is allowed on that rate; NATCAT rates apply additionally for cessions to the treaty.');
+    notes.push('This occupancy is a notified treaty category. The FLEXA rate is fixed and no discount is allowed on that rate; NATCAT rates apply additionally.');
   }
   notes.push('Cheque / DD payable to: The Oriental Insurance Company Limited. This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.');
 
@@ -22218,7 +22210,7 @@ window.FIRE = {shareImage: (typeof shareImage==='function'? shareImage : functio
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v62 · seal removed (wordmark kept), single-page quote image sharing · 03-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v63 · customer-facing PDFs without circular / UIN citations · 03-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
