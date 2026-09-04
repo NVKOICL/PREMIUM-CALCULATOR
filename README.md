@@ -27,3 +27,5 @@ office computation sheets. A green result means nothing has moved since the last
 - Internal circulars and pre-merge backups are intentionally not committed (see `.gitignore`).
 
 App design and build by NeelamVinod Krishna.
+
+Health products: OSSS, Youth Eco Care, Oriental Mediclaim (Individual), Mediclaim (Group), Happy Family Floater, Overseas Mediclaim, Super Health Top-Up. Health, Motor, Fire and CAR/EAR quote PDFs append customer-facing cover schedules summarised from the product prospectuses and endorsement wordings.

@@ -2591,6 +2591,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
       <option value="GRP">Mediclaim (Group) 2024</option>
       <option value="HFF">Happy Family Floater (HFFP) 2024</option>
       <option value="OMI">Overseas Mediclaim (Business &amp; Holiday)</option>
+      <option value="STU">Super Health Top-Up 2024</option>
       <option value="YEC">Youth Eco Care</option>
     </select>
   </section>
@@ -2599,7 +2600,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
   <section class="card h-calc-card" id="otherHealthCard">
     <div class="section-label" id="ohHeading">Premium <span style="font-weight:400;font-size:10px;color:var(--mute);text-transform:none;letter-spacing:0">(2024 chart)</span></div>
     <select id="ohProduct" onchange="ohSyncUI()" style="display:none">
-      <option value="OMP">OMP</option><option value="GRP">GRP</option><option value="HFF">HFF</option><option value="OMI">OMI</option>
+      <option value="OMP">OMP</option><option value="GRP">GRP</option><option value="HFF">HFF</option><option value="OMI">OMI</option><option value="STU">STU</option>
     </select>
     <div class="field" id="ohPlanWrap" style="display:none">
       <label class="lbl">Plan</label>
@@ -2612,6 +2613,24 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
       <select id="ohZone" onchange="ohSyncUI()" style="width:100%;padding:11px">
         <option value="I">Zone 1</option><option value="II" selected>Zone 2</option>
       </select>
+    </div>
+    <div class="field" id="stuBasisWrap" style="display:none">
+      <label class="lbl">Plan basis</label>
+      <select id="ohStuBasis" onchange="ohCalc()" style="width:100%;padding:11px">
+        <option value="individual">Individual &mdash; each member has own Sum Insured</option>
+        <option value="floater">Family Floater &mdash; one Sum Insured for the family</option>
+      </select>
+    </div>
+    <div class="field" id="stuDedWrap" style="display:none">
+      <label class="lbl">Deductible / threshold</label>
+      <select id="ohStuDed" onchange="ohSyncUI()" style="width:100%;padding:11px"></select>
+      <div class="hint">The policy pays only after the year's medical expenses, all claims together, cross this threshold.</div>
+    </div>
+    <div class="field" id="stuOptWrap" style="display:none">
+      <label class="lbl"><input type="checkbox" id="ohStuRoom" onchange="ohCalc()" /> Remove room rent limits (loading 20% / 10% / 5% by deductible)</label>
+      <label class="lbl" style="margin-top:6px"><input type="checkbox" id="ohStuLoyalty" onchange="ohCalc()" /> Loyalty discount 10% (member already holds an Oriental retail health policy)</label>
+      <label class="lbl" style="margin-top:6px"><input type="checkbox" id="ohStuStaff" onchange="ohCalc()" /> Staff discount 33% (serving / retired employee and family)</label>
+      <label class="lbl" style="margin-top:6px"><input type="checkbox" id="ohStuPortal" onchange="ohCalc()" /> Portal discount 10%, max &#8377;2,000 (online, no intermediary, new policy)</label>
     </div>
     <div class="field" id="ohFreqWrap">
       <label class="lbl">Payment frequency</label>
@@ -11928,6 +11947,26 @@ const MOTOR_ADDON_WORDINGS = {
       }
     }
   },
+  imt23: {
+    title: "IMT 23 - Cover for Lamps, Tyres / Tubes, Mudguards, Bonnet / Side Parts, Bumpers, Headlights and Paintwork of Damaged Portion Only",
+    scope: "Commercial vehicles - goods carrying, passenger carrying and miscellaneous class (India Motor Tariff endorsement)",
+    covers: [
+      "In consideration of the additional premium, and notwithstanding anything to the contrary in the policy, loss of or damage (excluding theft under any circumstances) to lamps, tyres / tubes, mudguards, bonnet / side parts, bumpers, headlights and the paintwork of the damaged portion only is covered, provided the vehicle is also damaged at the same time.",
+      "Without this endorsement the standard commercial-vehicle policy does not pay for these parts unless the whole vehicle is damaged; the endorsement restores that cover subject to the conditions below."
+    ],
+    table: { head: ["Premium basis", "Rate"], rows: [["Additional premium", "15% of the Own Damage premium (the OD discount applies on this amount in the same way as on the basic OD)"]] },
+    conditions: [
+      "Depreciation applies as per the schedule provided in Section 1 of the policy. In respect of paintwork of the damaged portion, the depreciation schedule of Section 1 applies in the same way.",
+      "In addition to any amount the insured may be required to bear under condition 1, the insured shall also bear 50% of the assessed loss in respect of each and every claim under this endorsement.",
+      "No deductible other than those mentioned in conditions 1 and 2 shall be applicable in respect of a claim which becomes payable under this endorsement.",
+      "Subject otherwise to the terms, conditions, limitations and exceptions of the policy."
+    ],
+    exclusions: [
+      "Theft of the listed parts under any circumstances.",
+      "Loss of or damage to the listed parts when the vehicle itself is not damaged at the same time."
+    ],
+    uin: {}
+  },
   rti: {
     title: "Return to Invoice Add-on Cover",
     scope: "All types of vehicle",
@@ -12199,6 +12238,9 @@ function drawMotorAddonPages(doc, q){
     if(!k || seen[k]) return;
     seen[k] = true; picks.push({ key:k, item:it });
   });
+  /* IMT 23 is a tariff endorsement carried as a liability-section extra, not an add-on item */
+  const imt = ((q && q.extras && q.extras.items) || []).find(function(e){ return /^IMT 23/.test(e.name || ''); });
+  if(imt && !seen.imt23){ seen.imt23 = true; picks.push({ key:'imt23', item:{ key:'imt23', amount: imt.amount, name: imt.name } }); }
   if(!picks.length) return;
 
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
@@ -12238,12 +12280,18 @@ function drawMotorAddonPages(doc, q){
   function space(need){ if(y + need > H - 34){ footer(); doc.addPage(); header(); } }
 
   function section(title, right){
-    space(48);
-    setFill(BLUELT); doc.rect(M, y, CW, 18, 'F'); setFill(NAVY); doc.rect(M, y, 3.2, 18, 'F');
+    /* a long heading (IMT 23) wraps inside the bar and leaves room for the premium label on the right */
+    doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    const rightW = right ? doc.getTextWidth(safe(right)) + 16 : 0;
+    doc.setFontSize(8.4);
+    const tl = doc.splitTextToSize(safe(title).toUpperCase(), (CW - 2*PADX - 6 - rightW) * 0.94);
+    const hh = 18 + (tl.length - 1) * 10;
+    space(hh + 30);
+    setFill(BLUELT); doc.rect(M, y, CW, hh, 'F'); setFill(NAVY); doc.rect(M, y, 3.2, hh, 'F');
     setText(NAVY); doc.setFont('helvetica','bold'); doc.setFontSize(8.4); doc.setCharSpace(0.3);
-    doc.text(safe(title).toUpperCase(), M+PADX+2, y+12); doc.setCharSpace(0);
+    tl.forEach(function(l, k){ doc.text(l, M+PADX+2, y+12+k*10); }); doc.setCharSpace(0);
     if(right){ doc.setFont('helvetica','bold'); doc.setFontSize(8); setText(GREENINK); doc.text(safe(right), W-M-PADX, y+12, {align:'right'}); }
-    y += 18;
+    y += hh;
   }
   /* label cell on the left, wrapped (optionally numbered) lines on the right */
   function block(label, lines, opts){
@@ -15841,6 +15889,7 @@ function generateHealthPDF(r, hStateSnap){
      full plan comparison behind it, in the same format as the printed sheet. */
   try{ drawOSSSBenefitPages(__out.doc, plan, si, (hStateSnap.basis !== 'individual')); }
   catch(e){ console.error('OSSS benefit pages skipped:', e); }
+  try{ drawHealthExcludedItems(__out.doc, 'Oriental Sampoorna Swasthya Suraksha'); }catch(e){ console.error('excluded-items page skipped:', e); }
   return __out;
 }
 
@@ -16504,6 +16553,7 @@ function generateYecPDF(r, yStateSnap){
      quoted plan's full cover behind it, SI-banded limits already resolved. */
   try{ drawYECBenefitPages(__out.doc, plan, si, mr.length > 1); }
   catch(e){ console.error('YEC benefit pages skipped:', e); }
+  try{ drawHealthExcludedItems(__out.doc, 'Oriental Youth Eco Care Policy'); }catch(e){ console.error('excluded-items page skipped:', e); }
   return __out;
 }
 
@@ -18163,7 +18213,7 @@ const VERIFIED_CASES = [
     check:()=>[seatingCapacityLabel({data:{vehicleType:'commercial',llGccvCount:3,paxCount:1}}),seatingCapacityLabel({data:{vehicleType:'pccv',paxCount:3}}),seatingCapacityLabel({data:{vehicleType:'privateCar',paxCount:1,switches:{}}})].join('|') },
   { label:'In-built CNG (Pvt Car 1001-1500cc, Zone B, 6-10y, IDV 3L): OD 10,053 − SIP 80% 8,042 → CNG 5% of net = 101; CNG TP load Rs.60 (INLIAS sheet 432702/31/2027/639)', expect:'8042/101/60/10053',
     check:()=>{ const r=cngInbuiltLoading(10053,80); return r.disc+'/'+r.cng+'/'+RATES.fuelConfig.cng.tpAdd+'/'+Math.round(300000*RATES.od.privateCar.s2['6-10'].B/100); } },
-  { label:'Motor add-on schedule: wordings present for every add-on key (Nil Dep, Engine Protect, RTI, Consumables, Key, Tyre, Battery, EMI, Alt Car, Personal Effects, Towing, IMT-47)', expect:'12/towing/batteryProtect',
+  { label:'Motor add-on schedule: wordings present for every add-on key (Nil Dep, Engine Protect, RTI, Consumables, Key, Tyre, Battery, EMI, Alt Car, Personal Effects, Towing, IMT-47, IMT-23)', expect:'13/towing/batteryProtect',
     check:()=>Object.keys(MOTOR_ADDON_WORDINGS).length+'/'+motorAddonWordingKey('towing10k')+'/'+motorAddonWordingKey('batteryProtectCoPay') },
   // ── INLIAS worksheet R/161600/31/2027/453 (GCCV KA22D9540, 19/08/2026) ──
   // reg 01/08/2022, inception 19/08/2026 = 4y0m -> must sit in the `0-5` band.
@@ -18290,6 +18340,15 @@ const VERIFIED_CASES = [
     expect:'35/30/30' },
   { label:'CR-8811 s1 - Overseas Mediclaim 30%, Health Group 7.5%',
     check:()=>getOHCommissionPct('OMI',70)+'/'+getOHCommissionPct('GRP',70), expect:'30/7.5' },
+  { label:'Super Health Top-Up chart: age 30 ded 3L SI 5L = 2,720; age 50 ded 10L SI 15L = 3,316; age 65 ded 20L SI 30L = 7,712 (prospectus s.37)',
+    check:()=>[stuPremium(30,300000,500000),stuPremium(50,1000000,1500000),stuPremium(65,2000000,3000000)].join('/'), expect:'2720/3316/7712' },
+  { label:'Super Health Top-Up floater: eldest 100%, second 50%, others 40% of their own age rate (ages 40/38/10, ded 5L SI 7L)',
+    check:()=>stuQuote([10,40,38],500000,700000,'floater',{}).base, expect:2491+Math.round(2491*0.5)+Math.round(1990*0.4) },
+  { label:'Super Health Top-Up: room-rent removal loading 20/10/5% by deductible; 66-70 entry loading 10%; family discount 10% on individual plan',
+    check:()=>[stuRoomLoadPct(500000),stuRoomLoadPct(1000000),stuRoomLoadPct(1500000),stuQuote([68],300000,300000,'individual',{}).base,stuQuote([30,32],300000,300000,'individual',{}).base].join('/'),
+    expect:'20/10/5/'+(7385+Math.round(7385*0.1))+'/'+(1977*2-Math.round(1977*2*0.1)) },
+  { label:'Motor schedule carries the IMT 23 endorsement wording; health PDFs carry the non-payable items list (68 items)',
+    check:()=>(MOTOR_ADDON_WORDINGS.imt23 && MOTOR_ADDON_WORDINGS.imt23.conditions.length)+'/'+HEALTH_EXCLUDED_ITEMS.length+'/'+Object.keys(HEALTH_COVER_DATA).sort().join(','), expect:'4/68/HFF,OMI,OMP,STU' },
   { label:'Tractor >6HP IS a Misc-D pickable slab (Vinod 31-Aug-2026)',
     check:()=>RATES.slabs.misc.some(x=>x.key==='agriTractorGt6HP'), expect:true },
   { label:'Tractor >6HP TP == Other Misc. class TP (Vinod 31-Aug-2026)',
@@ -18484,6 +18543,44 @@ const HFF={"Silver":{"I":{"100000":[1391,2305,2714,3304,3481,5767,7391,9401,1120
 const HFF_RESTORE={100000:[15,25],200000:[12,22],300000:[12,22],400000:[12,22],
   500000:[10,18],600000:[10,18],700000:[10,18],800000:[10,18],900000:[10,18],1000000:[10,18]};
 const HFF_WAIVER={Silver:[20,null],Gold:[15,30],Diamond:[15,25],Platinum:[15,25]};
+/* ── ORIENTAL SUPER HEALTH TOP-UP 2024 — premium chart (individual basis, without GST) ──
+   Deductible -> Sum Insured -> premium by completed-age band 0-35 / 36-45 / 46-60 / 61+.
+   Floater: eldest 100%, second eldest 50%, all others 40% of their own age rate. */
+const STU_BANDS=['0-35','36-45','46-60','61+'];
+function stuBandIdx(a){ return a<=35?0:a<=45?1:a<=60?2:3; }
+const STU_RATES={
+  300000:{300000:[1977,2865,4059,7385],500000:[2720,3837,5166,9209]},
+  500000:{500000:[1693,2153,2758,4589],700000:[1990,2491,3211,5744]},
+  600000:{600000:[1554,1898,2568,4589],800000:[1834,2216,2939,5566]},
+  800000:{800000:[1542,1745,2480,5160],1000000:[1840,2067,3248,6000]},
+  1000000:{1000000:[1566,1734,2323,5160],1500000:[2281,2526,3316,6751]},
+  1500000:{1000000:[1474,1611,2173,3859],1500000:[2188,2401,3166,5160]},
+  1800000:{1000000:[1452,1598,2187,3368],1200000:[1737,1914,2585,3859]},
+  2000000:{1000000:[1439,1592,2201,3108],2000000:[2786,3097,4094,5447],3000000:[4060,4532,5903,7712]}
+};
+function stuRoomLoadPct(ded){ return ded<=500000?20:(ded<=1000000?10:5); }
+function stuPremium(age, ded, si){ const t=STU_RATES[ded]; return (t&&t[si])? t[si][stuBandIdx(age)] : null; }
+/* pure quote (also used by the self-test): loadings first, then the discounts one after another */
+function stuQuote(ages, ded, si, basis, opts){
+  opts=opts||{}; const rows=[]; let base=0; const notes=[];
+  const sorted=ages.slice().sort((a,b)=>b-a);
+  sorted.forEach((a,i)=>{
+    const full=stuPremium(a,ded,si); if(full==null) return;
+    const pct=(basis==='floater')?(i===0?100:i===1?50:40):100;
+    const amt=Math.round(full*pct/100);
+    rows.push({label:(basis==='floater'?(i===0?'Eldest member':i===1?'Second eldest':'Member '+(i+1)):'Member '+(i+1))
+      +' (age '+a+', band '+STU_BANDS[stuBandIdx(a)]+')'+(basis==='floater'?' \u00b7 '+pct+'%':''),amt:amt});
+    base+=amt;
+    if(a>65&&a<=70){ const ld=Math.round(amt*0.10); rows.push({label:'Add: entry-age loading 10% (66-70 yrs, age '+a+')',amt:ld}); base+=ld; }
+    if(a>70) notes.push('Age '+a+' exceeds the maximum entry age of 70 - this member cannot be covered.');
+  });
+  if(opts.room){ const pc=stuRoomLoadPct(ded); const ld=Math.round(base*pc/100); rows.push({label:'Add: removal of room rent limits ('+pc+'%)',amt:ld}); base+=ld; }
+  if(basis!=='floater' && ages.length>1){ const d=Math.round(base*0.10); rows.push({label:'Less: Family discount 10% (two or more members on the Individual plan)',amt:-d}); base-=d; }
+  if(opts.loyalty){ const d=Math.round(base*0.10); rows.push({label:'Less: Loyalty discount 10%',amt:-d}); base-=d; }
+  if(opts.staff){ const d=Math.round(base*0.33); rows.push({label:'Less: Staff discount 33%',amt:-d}); base-=d; }
+  if(opts.portal){ const d=Math.min(Math.round(base*0.10),2000); rows.push({label:'Less: Portal discount 10% (max \u20b92,000)',amt:-d}); base-=d; }
+  return {rows:rows, base:base, notes:notes};
+}
 
 
 /* ── OVERSEAS MEDICLAIM POLICY (Business & Holiday) ─────────────────────
@@ -18608,6 +18705,15 @@ function ohCalc(){
     if($('omiStaff').checked){ const d=Math.round(base*0.33); rows.push({label:'Less: Staff discount 33% (GIPSA Mediclaim members / dependents)',amt:-d}); base-=d; }
     if($('omiDigital').checked){ const d=Math.round(base*0.05); rows.push({label:'Less: Digital / Portal discount 5% (first-time online customer)',amt:-d}); base-=d; }
 
+  } else if(prod==='STU'){
+    const ded=parseInt($('ohStuDed').value,10)||0;
+    if(!STU_RATES[ded]||!STU_RATES[ded][si]){ out.innerHTML='<div class="hint">That deductible / sum insured combination is not in the chart.</div>'; return; }
+    const basis=$('ohStuBasis').value;
+    if(basis==='floater' && ages.length<2) notes.push('\u26a0 Family Floater needs at least two members - a single member takes the Individual plan.');
+    const sq=stuQuote(ages,ded,si,basis,{room:$('ohStuRoom').checked,loyalty:$('ohStuLoyalty').checked,staff:$('ohStuStaff').checked,portal:$('ohStuPortal').checked});
+    rows=sq.rows; base=sq.base; sq.notes.forEach(n=>notes.push('\u26a0 '+n));
+    notes.push((basis==='floater'?'Family Floater':'Individual')+' plan \u00b7 Deductible \u20b9'+ohFmt(ded)+' \u00b7 Sum Insured \u20b9'+ohFmt(si)+'. The policy pays once the year\'s aggregate medical expenses exceed the deductible.');
+
   } else {
     const zk=(plan==='Silver')?zone:'ALL';
     const T=(HFF[plan]||{})[zk];
@@ -18720,6 +18826,166 @@ function ohShareImage(){
   OICIMG.shareViaBuilder(function(){ ohGeneratePDF(); }, 'Oriental_Health_Quote.png', 'Health Insurance Quote',
     'Oriental Insurance health quote \u2014 ' + AGENT.name + ' \u00b7 ' + AGENT.phone).then(function(){ if(typeof toast==='function') toast('Quote image ready'); });
 }
+
+/* ══════════ HEALTH — SCOPE OF COVER PAGES + NON-PAYABLE ITEMS ANNEXURE ══════════
+   Customer-facing schedules summarised from the product prospectuses (Mediclaim
+   Individual, Happy Family Floater, Overseas Mediclaim, Super Health Top-Up) and the
+   standard list of items for which coverage is not available. Same painter as the
+   Fire / CAR schedules: label + wrapped value rows, two-column tables, page breaks. */
+const HEALTH_COVER_DATA = {"OMP":{"key":"OMP","title":"Oriental Mediclaim Insurance Policy (Individual) 2024","intro":"A one-year individual health insurance policy that pays for hospitalisation and home treatment taken in India for you and your family, with an optional worldwide personal accident cover.","sections":[{"heading":"1. POLICY OVERVIEW","rows":[{"label":"Eligibility","lines":["Proposer aged 18 to 65 years; entry up to 70 allowed with a 10% premium loading on every renewal.","Family: spouse, dependent children (0 days to 18 years; son to 25 if a dependent student, daughter until married), parents or parents-in-law, dependent unmarried siblings."]},{"label":"Sum Insured options","lines":["Rs. 1 lakh to Rs. 5 lakh in steps of Rs. 50,000; Rs. 5 lakh to Rs. 10 lakh in steps of Rs. 1 lakh; then Rs. 12, 15, 18, 20, 25, 30, 40 and 50 lakh.","Each member may have a different sum insured. A person joining after age 65 can take a maximum of Rs. 5 lakh."]},{"label":"Medical check-up","lines":["No medical examination up to age 55. Above 55, listed tests are needed at your cost; 50% is reimbursed if a fresh proposal is accepted."]},{"label":"Premium and discounts","lines":["Premium depends on age band and sum insured; payable yearly or half-yearly. No loading at renewal for your own claims.","Family discount 10%. Voluntary co-payment of 10% or 20% earns a matching discount (sum insured Rs. 2 lakh and above). Online purchase 10% off (max Rs. 2,000); no TPA 5.5% off."]},{"label":"Adding members and raising cover","lines":["Newly wed spouse (within 90 days) and newborn (from day 1) can be added mid-term on pro-rata premium.","Sum insured can be raised at renewal without a medical exam: any slab up to age 45, two slabs at 46 to 60, one slab at 61 to 65; one slab with exam above 65."]}]},{"heading":"2. WHAT IS COVERED","rows":[{"label":"In-patient hospitalisation","lines":["Medically necessary treatment of illness or injury in India for admission of 24 hours or more, up to the sum insured.","Room and nursing, ICU, doctor and surgeon fees, anaesthesia, blood, oxygen, operation theatre, medicines, diagnostics, dialysis, chemotherapy, radiotherapy, pacemaker and artificial limbs."]},{"label":"Pre and post hospitalisation","lines":["Medical expenses for the same condition up to 30 days before admission and up to 60 days after discharge."]},{"label":"Day care, modern treatments and AYUSH","lines":["Listed day care procedures under 24 hours; robotic surgery, oral chemotherapy, immunotherapy and other advanced treatments within the sub-limits in section 3.","In-patient AYUSH treatment (Ayurveda, Yoga, Naturopathy, Unani, Siddha, Homeopathy) up to the sum insured; mental illness hospitalisation and HIV treatment."]},{"label":"Domiciliary hospitalisation","lines":["Home treatment for more than 3 days when the patient cannot be moved or no hospital room is available, up to 20% of sum insured (maximum Rs. 50,000).","Not for asthma, bronchitis, diarrhoea, diabetes, epilepsy, hypertension, influenza, tonsillitis, arthritis or gout. Anti-rabies injections after animal bite up to Rs. 5,000."]},{"label":"Organ donor, ambulance and hospital cash","lines":["In-patient expenses of an organ donor when the transplant is for the insured person (cost of the organ excluded).","Road ambulance, daily hospital cash from the third day of continuous hospitalisation, telemedicine up to Rs. 2,000 a year."]},{"label":"Built-in benefits for higher sums insured","lines":["Sum insured Rs. 12 lakh and above: medical second opinion for 11 major illnesses, plus accidental death or permanent disability benefit of 10% of sum insured (adults only).","Sum insured Rs. 25 lakh and above: air ambulance, OPD dental and eye reimbursement, and an extra 10% of sum insured for listed critical illnesses once base cover is exhausted."]},{"label":"Optional personal accident (worldwide)","lines":["Sum insured in multiples of Rs. 2 lakh up to Rs. 10 lakh per adult (maximum Rs. 4 lakh below 18), at Rs. 132 per Rs. 2 lakh a year.","Pays 100% for accidental death, loss of two limbs or both eyes, or permanent total disablement; 50% for loss of one limb or one eye."]}]},{"heading":"3. LIMITS, SUB-LIMITS AND OPTIONAL COVERS","table":{"head":["Item","Limit / basis"],"rows":[["Room, boarding and nursing","Up to 1% of sum insured per day; a costlier room leads to proportionate deduction on associated expenses (not on medicines, implants or diagnostics)"],["ICU charges","Up to 2% of sum insured per day"],["Ambulance","Rs. 2,000 or 1% of sum insured, whichever is less, per hospitalisation; maximum Rs. 4,000 per policy period"],["Daily hospital cash","0.1% of sum insured per day from the third day, maximum 6 days per person per policy period"],["Domiciliary hospitalisation","20% of sum insured, maximum Rs. 50,000 per person, including anti-rabies injections up to Rs. 5,000"],["Telemedicine","Up to Rs. 2,000 per person per policy period"],["Medical second opinion (SI Rs. 12 lakh+)","Rs. 15,000 a year for SI up to Rs. 20 lakh; Rs. 25,000 above; once per illness in a lifetime"],["Air ambulance (SI Rs. 25 lakh+)","Up to 5% of sum insured for life-threatening cardiac, neurological or accident cases; once in a lifetime"],["OPD dental and eye (SI Rs. 25 lakh+)","Up to Rs. 5,000 in every block of three years"],["Critical illness top-up (SI Rs. 25 lakh+)","Additional 10% of sum insured for 22 listed critical illnesses after base sum insured is used up"],["Robotic surgery, stereotactic radiosurgery, bronchial thermoplasty","10% of SI, max Rs. 1 lakh (SI up to Rs. 10 lakh) or Rs. 2 lakh (SI Rs. 12 lakh+)"],["Deep brain stimulation, intra-vitreal injections, prostate laser, IONM, stem cell therapy","10% of SI, max Rs. 50,000 (SI up to Rs. 10 lakh) or Rs. 1.5 lakh (SI Rs. 12 lakh+)"],["Oral chemotherapy / immunotherapy","25% of SI, max Rs. 50,000 or Rs. 1.5 lakh / 50% of SI, max Rs. 2.5 lakh or Rs. 10 lakh, by SI slab"],["Uterine artery embolisation and HIFU / balloon sinuplasty","Up to Rs. 50,000 / up to Rs. 40,000 per policy period"]]}},{"heading":"4. WAITING PERIODS","table":{"head":["Condition / treatment","Waiting period"],"rows":[["Any illness (accidents excluded)","30 days from first policy start"],["Pre-existing diseases and their complications","36 months of continuous cover, if declared and accepted"],["Hypertension and diabetes","90 days"],["Benign ENT surgeries (tonsils, adenoids, mastoid, tympanoplasty); polycystic ovarian disease","1 year"],["Hernia, hydrocele, undescended testes, piles, fissure or fistula, pilonidal sinus","2 years"],["Cataract, sinusitis, benign prostate surgery, gallbladder and bile duct surgery, genito-urinary surgery (non-cancer)","2 years"],["Hysterectomy for menorrhagia, fibroids or prolapse; myomectomy","2 years"],["Non-infective arthritis, gout and rheumatism, stone diseases, varicose veins and ulcers, prolapsed disc surgery","2 years"],["Joint replacement due to degenerative condition; age-related osteoarthritis and osteoporosis","3 years"],["Increased sum insured or newly added members","Waiting periods apply afresh on the increase or from date of joining"],["Continuous cover elsewhere (portability)","Reduced to the extent of prior cover"]]}},{"heading":"5. WHAT IS NOT COVERED","rows":[{"label":"Key exclusions","tint":"red","numbered":true,"lines":["Admission only for investigation, evaluation or rest; custodial and hospice care; hospital stay that is not medically necessary.","Maternity, childbirth, miscarriage (unless accidental), termination of pregnancy; sterility, infertility, IVF; contraception and its reversal.","Cosmetic or plastic surgery (except after accident, burns or cancer), gender change, obesity surgery outside the BMI criteria, hormone replacement therapy.","Alcohol, drug or substance abuse; self-injury or attempted suicide; injury while committing a crime; professional hazardous or adventure sports.","Dental treatment (unless due to injury), spectacles, contact lenses, hearing aids, cochlear implants, eyesight correction below 7.5 dioptres.","Outpatient expenses, vaccinations (except anti-rabies), non-prescribed supplements, unproven treatments, durable equipment, personal comfort items, service charges.","Massage, spa and nature-cure stays; treatment outside India; war, nuclear, chemical or biological events; providers excluded by the company.","Declared diseases you have agreed to keep permanently excluded (for example cancer, epilepsy, chronic liver, kidney or heart disease) as listed in the schedule."]},{"label":"Personal accident exclusions","tint":"red","lines":["No PA benefit for suicide or self-injury, influence of liquor, hazardous activities, non-passenger air travel, insanity, crime, war, radioactivity or pregnancy."]}]},{"heading":"6. CLAIMS, RENEWAL AND OTHER CONDITIONS","rows":[{"label":"Cashless claims","lines":["At network hospitals through the company or TPA with the ID card, subject to pre-authorisation: decision within 1 hour, final bill within 3 hours.","If cashless is denied, take treatment and claim reimbursement within 15 days of discharge."]},{"label":"Reimbursement claims and timelines","lines":["Notify the company or TPA within 48 hours of admission and before discharge; submit original bills, reports and discharge summary within 15 days of discharge.","Claims settled or rejected within 15 days of the last document (45 days with investigation); delay attracts interest at 2% above bank rate."]},{"label":"Co-payment and multiple policies","lines":["If voluntary co-payment is chosen, you bear 10% or 20% of every admissible claim, uniformly for all members with sum insured Rs. 2 lakh and above.","With more than one health policy you may choose which insurer settles first and claim the balance from the others."]},{"label":"Renewal and portability","lines":["Lifelong renewal, not refused because of claims. Grace period 30 days (15 days for instalment mode); no cover during the break.","After 5 continuous years claims cannot be contested except for proven fraud. Migrate within Oriental 30 days before renewal, or port to another insurer 30 to 60 days before.","Health check-up after every 3 claim-free years: 1% of average sum insured or Rs. 5,000 per person, whichever is less."]},{"label":"Cancellation and free look","lines":["Free look of 30 days from receipt of a new policy; premium refunded less medical exam cost, stamp duty and proportionate risk premium.","You may cancel with 7 days' notice; proportionate premium for the unexpired period is refunded if no claim was made. Company may cancel with 15 days' notice for non-disclosure, without refund."]},{"label":"Other conditions","lines":["Non-disclosure or misrepresentation makes the policy void with premium forfeited; fraudulent claims forfeit all benefits. Nominate a person for claims on death.","While abroad on Oriental's Overseas Mediclaim Policy this policy stays inoperative and the proportionate premium is adjusted at renewal."]}]}]},"HFF":{"key":"HFF","title":"OICL Happy Family Floater Policy 2024","intro":"A one-year family floater health policy from The Oriental Insurance Company that pays hospitalisation expenses of the whole family under one shared Sum Insured, in four plans: Silver, Gold, Diamond and Platinum.","sections":[{"heading":"1. POLICY OVERVIEW","rows":[{"label":"Eligibility and family definition","lines":["Proposer must be 18 or above; at least two family members must be covered.","Family: spouse; dependent children from 1 day to 18 years; parents or parents-in-law (either set); unmarried dependent siblings.","A son stays covered to 25 if a dependent student; a daughter until marriage. Divorced or widowed daughters are covered at any age."]},{"label":"Entry age and medical check-up","lines":["Maximum entry age 65. Ages 66 to 70 can join Silver or Gold only, with a 20% co-payment on every claim at all renewals.","Pre-acceptance medical tests for new members aged 60 and above (Silver, Gold) or 55 and above (Diamond, Platinum); 50% of the cost is refunded if accepted."]},{"label":"Plans and Sum Insured options","lines":["Silver: Rs. 1 to 5 lakh. Gold: Rs. 6 to 10 lakh. Diamond: Rs. 12, 15, 18 or 20 lakh. Platinum: Rs. 25, 30, 40 or 50 lakh.","Silver premium is zone based (Zone I: Gujarat, Mumbai, Greater Mumbai, Delhi NCR; Zone II: rest of India). Other plans are priced the same across India."]},{"label":"Premium discounts","lines":["Family discount: third member pays 50% premium, every further member 40%.","5.5% discount if TPA services are not opted. 10% discount (max Rs. 2,000) for online purchase or renewal without an intermediary."],"tint":"green"},{"label":"Adding members and raising Sum Insured","lines":["A newly wed spouse (within 90 days) or newborn (from day 1) can be added mid-term on pro-rata premium.","Sum Insured can rise at renewal to the next slab (two if the family grows); two claim-free years allow a move to the next plan."]}]},{"heading":"2. WHAT IS COVERED","rows":[{"label":"In-patient hospitalisation","lines":["Room, nursing, ICU, doctors' and surgeons' fees, anaesthesia, blood, oxygen, operation theatre, medicines, diagnostics, dialysis, chemotherapy, radiotherapy, pacemaker, artificial limbs.","Paid at reasonable and customary charges, as per the entitled room category, for admission of 24 hours or more."]},{"label":"Pre and post hospitalisation","lines":["Medical expenses 30 days before admission and 60 days after discharge for the same condition."]},{"label":"Day care, modern treatments and AYUSH","lines":["Listed day care procedures needing less than 24 hours in hospital are covered.","Robotic surgery, oral chemotherapy, immunotherapy, deep brain stimulation, intravitreal injections, stem cell therapy for bone marrow transplant etc. within sub-limits (section 3).","In-patient AYUSH treatment (Ayurveda, Yoga, Naturopathy, Unani, Siddha, Homeopathy) in an AYUSH hospital up to the Sum Insured."]},{"label":"Domiciliary hospitalisation","lines":["Home treatment for more than three days when the patient cannot be moved or no bed is available: Silver 10% of SI up to Rs. 25,000; other plans up to Rs. 50,000 per year.","Not for asthma, bronchitis, diarrhoea, diabetes, epilepsy, hypertension, cough and cold, tonsillitis, arthritis. Anti-rabies injections paid up to Rs. 5,000 within this limit."]},{"label":"Maternity and new born","lines":["Maternity (Diamond and Platinum only): delivery or lawful termination up to 2.5% of SI, after 24 months of cover, two deliveries in a lifetime; not if two or more living children.","New born baby covered from day one under all plans up to the Sum Insured, on payment of premium.","Assisted reproduction (Platinum only): up to Rs. 2 lakh within SI, once in a lifetime, after 36 months, only if the couple has no living child."]},{"label":"Organ donor","lines":["Donor's in-patient expenses covered up to SI when the insured is the recipient (organ cost and screening excluded). Lump sum of 10% of SI when the insured donates an organ."]},{"label":"Other benefits","lines":["Ambulance; daily hospital cash and attendant allowance for a child aged 90 days to 10 years (Gold, Diamond, Platinum); medical second opinion for 11 major illnesses.","Telemedicine up to Rs. 2,000 per family per year; HIV/AIDS and mental illness hospitalisation; dental treatment and plastic surgery needed due to disease or injury.","Platinum only: air ambulance up to 5% of SI (once in lifetime); accidental death or total permanent disability 10% of SI; OPD dental and eye care Rs. 5,000 per 3 years; extra 10% SI for critical illness."]}]},{"heading":"3. PLAN-WISE LIMITS AND SUB-LIMITS","table":{"head":["Item","Silver / Gold / Diamond / Platinum"],"rows":[["Sum Insured","Rs. 1-5 lakh / Rs. 6-10 lakh / Rs. 12-20 lakh / Rs. 25-50 lakh"],["Room, boarding and nursing","1% of Sum Insured per day, all plans"],["ICU charges","2% of Sum Insured per day, all plans"],["Ambulance (per illness; per year)","Rs. 1,000; Rs. 3,000 / Rs. 2,000; Rs. 6,000 / Rs. 3,000; Rs. 8,000 / Rs. 5,000; Rs. 15,000 (yearly cap 1% of SI)"],["Daily hospital cash","Not available / 0.1% of SI per day, max 10 days per illness and 1.5% of SI per year (Gold, Diamond, Platinum)"],["Attendant allowance (child 90 days to 10 years)","Not available / Rs. 500 / Rs. 1,000 / Rs. 1,500 per day; max 10 days per illness, 15 days per year"],["Domiciliary hospitalisation","10% of SI up to Rs. 25,000 / Rs. 50,000 / Rs. 50,000 / Rs. 50,000 per year"],["Maternity","Not available / Not available / 2.5% of SI per delivery / 2.5% of SI per delivery"],["Medical second opinion","Rs. 5,000 / Rs. 10,000 / Rs. 15,000 / Rs. 25,000 per year"],["Compulsory co-payment","10% of every claim / Nil / Nil / Nil (20% for members joining at 66 to 70 under Silver or Gold)"],["Cataract","No separate money sub-limit; covered up to SI after the 2-year waiting period"],["Modern treatments, SI up to Rs. 10 lakh","Robotic surgery, stereotactic radiosurgery, bronchial thermoplasty: 10% of SI up to Rs. 1 lakh; other listed procedures 10% of SI up to Rs. 50,000"],["Modern treatments, SI Rs. 12 lakh and above","Robotic surgery, stereotactic radiosurgery, bronchial thermoplasty: 10% of SI up to Rs. 2 lakh; other listed procedures 10% of SI up to Rs. 1.5 lakh"],["Oral chemotherapy","25% of SI up to Rs. 50,000 (SI up to Rs. 10 lakh); up to Rs. 1.5 lakh (SI Rs. 12 lakh and above)"],["Uterine artery embolisation and HIFU; balloon sinuplasty","Up to Rs. 50,000; up to Rs. 40,000 per year (all plans)"]]}},{"heading":"4. OPTIONAL COVERS","table":{"head":["Optional cover","What it gives"],"rows":[["Restoration of Sum Insured (Silver and Gold only)","SI restored to the extent of a claim, up to 50% or 100% of SI as opted; any single claim is limited to the SI."],["Personal Accident (worldwide)","Capital SI in multiples of Rs. 1 lakh up to Rs. 5 / 10 / 15 / 20 lakh per adult by plan; children below 18 up to Rs. 3 / 5 / 10 / 10 lakh. Rs. 60 per lakh; 10% family discount."],["Personal Accident benefits","Accidental death 100% of CSI; loss of two limbs or eyes 100%; loss of one limb or one eye 50%; permanent total disablement 100%. Paid over and above SI; no co-payment."],["Life Hardship Survival Benefit","Lump sum on surviving a listed critical illness (cancer, heart attack, CABG, heart valve surgery, coma, kidney failure, stroke, organ transplant, paralysis, motor neuron disease, multiple sclerosis)."],["Life Hardship plans","Plan A: 15% of SI (5% after 180 days and 10% after 270 days of survival). Plan B: 25% of SI (10% and 15%). Once per disease in a lifetime; premium 3% or 5% of basic premium."],["Waiver of proportionate deduction","Room rent limit enhanced by 50% (Silver) or 50% or 100% (Gold, Diamond, Platinum) on extra premium."],["Waiver of 10% co-payment (Silver only)","The compulsory 10% co-payment is removed for 17% extra premium."],["Extension to SAARC countries","Free extension for visits to SAARC countries on written request before departure; reimbursement only, no cashless."]]}},{"heading":"5. WAITING PERIODS","table":{"head":["Condition / treatment","Waiting period"],"rows":[["Pre-existing diseases","36 months of continuous cover (reduced by prior cover under portability)"],["Any illness in the first policy","30 days, except accidents"],["Hypertension, diabetes","90 days (36 months if pre-existing)"],["Benign ENT disorders and surgeries (tonsils, adenoids, mastoid); polycystic ovarian disease","1 year"],["Hernia, hydrocele, undescended testes, piles, fissure or fistula in anus, pilonidal sinus","2 years"],["Cataract; sinusitis; benign prostate surgery; hysterectomy for menorrhagia, fibroids or prolapse","2 years"],["Gallbladder and bile duct surgery; genito-urinary surgery (non-cancer); stones (calculus)","2 years"],["Non-infective arthritis; gout and rheumatism; varicose veins; slipped disc surgery (unless from accident)","2 years"],["Joint replacement due to degenerative condition; age-related osteoarthritis and osteoporosis","3 years"],["Maternity (Diamond, Platinum)","24 months for both insured and spouse"],["Assisted reproduction (Platinum)","36 months for both spouses"],["Organ donor lump sum (insured as donor)","12 months"],["Increased Sum Insured or break in cover","Waiting periods apply afresh on the increased portion, or on the whole cover if continuity is broken"],["Moratorium","After 5 continuous years no claim can be contested except for proven fraud"]]}},{"heading":"6. WHAT IS NOT COVERED","rows":[{"label":"Key exclusions","lines":["Pre-existing and specified diseases, and any illness in the first 30 days, until the waiting periods are over.","Admission only for investigation; rest cure, rehabilitation or custodial care; hospital stay that is not medically necessary.","Obesity surgery unless strict medical conditions are met; change of gender treatment; hormone replacement therapy (except puberty and menopause disorders).","Cosmetic or plastic surgery, except reconstruction after accident, burns or cancer or to remove an immediate health risk.","Professional hazardous sports; breach of law with criminal intent; self-injury or attempted suicide; alcohol, drug or substance abuse.","Treatment at excluded providers (only emergency stabilisation is paid); nature cure clinics and spas; treatment outside India unless extended to SAARC countries.","Sterility, infertility, contraception, sterilisation and surrogacy (assisted reproduction allowed under Platinum within its limit); maternity under Silver and Gold.","Refractive error below 7.5 dioptres; spectacles, contact lenses, hearing aids, cochlear implants; dental treatment unless due to injury; OPD expenses (except the Platinum OPD benefit).","Unproven treatment; stem cell surgery except for bone marrow transplant; vaccination unless part of hospital treatment (anti-rabies excepted).","General debility, external congenital anomaly; circumcision unless due to disease or accident; massages, steam bath, acupuncture, acupressure, magnet therapy.","Non-prescription drugs and supplements; external or durable equipment (CPAP, walkers, braces, glucometer); comfort items, service and registration charges; home visit charges.","War, invasion, civil war, rebellion; nuclear, chemical or biological attack or radioactivity.","Diseases listed as permanently excluded in the policy schedule with the insured's consent (for example certain cancers, heart, kidney, liver and bowel diseases, epilepsy, hepatitis B)."],"tint":"red","numbered":true}]},{"heading":"7. CLAIMS, RENEWAL AND OTHER CONDITIONS","rows":[{"label":"Cashless claims","lines":["Available at network hospitals through the Company or TPA after pre-authorisation, given within one hour of request; final bill approval within three hours of discharge authorisation.","If cashless is denied, treatment can continue and be claimed as reimbursement within 15 days of discharge. Denial of cashless is not denial of the claim."]},{"label":"Claim notification and documents","lines":["Inform the Company or TPA within 48 hours of admission and before discharge, with policy number, ID card number, patient name, illness and hospital details.","Submit the claim form with original bills, discharge summary, prescriptions, reports and doctors' certificates within 15 days of discharge; post-hospitalisation papers within 15 days of that treatment ending."]},{"label":"Claim settlement","lines":["Settled or rejected within 30 days of the last document (45 days if investigation is needed); delay attracts interest at 2% above bank rate.","Treatment must be in India (except SAARC extension); claims paid in Indian rupees. With several policies the insured chooses which insurer settles."]},{"label":"Room rent and proportionate deduction","lines":["If a costlier room than the entitled 1% of SI per day is taken, doctors', surgeon's, nursing and OT charges are reduced in proportion. Medicines, consumables, implants and diagnostics are not reduced."]},{"label":"Renewal and portability","lines":["Renewable lifelong; renewal cannot be refused for making claims and there is no claim-based loading. Renewal notice is sent 30 days in advance.","Grace period of 30 days (15 days for monthly payment mode) keeps continuity, but there is no cover during the break and illness contracted in the break is treated as pre-existing.","Portability to another insurer: apply 30 to 60 days before renewal for the whole family, with continuity credit. Migration to another OICL product: apply at least 30 days before renewal.","No cumulative bonus. A No Claim Discount carried over from the older Happy Family Floater policy continues until a claim is made (PA claims do not affect it)."]},{"label":"Cancellation and free look","lines":["Free look: 30 days from receipt of the policy (new policies only); refund of premium less medical examination cost, stamp duty and proportionate risk premium for the period on cover.","The insured may cancel on 7 days' written notice; proportionate premium for the unexpired period is refunded only if no claim has been made or lodged.","The Company may cancel on 15 days' notice for misrepresentation or non-disclosure, without refund. Non-disclosure makes the policy void; fraudulent claims forfeit all benefits."]}]}]},"OMI":{"key":"OMI","title":"Overseas Mediclaim Policy - Business and Holiday","intro":"A travel policy for Indian residents going abroad on business or holiday. It pays for sudden illness or accident overseas, evacuation and repatriation, plus baggage, passport, personal accident, liability and trip disruption covers.","sections":[{"heading":"1. POLICY OVERVIEW","rows":[{"label":"Who can buy and trip duration","lines":["Individual or family plan for up to 7 persons (insured, spouse, dependent children, dependent parents), each with a separate sum insured.","Entry age 6 months and above. No medical check-up up to age 60 (75 for Schengen countries); above that a pre-policy health check is required.","Single trip: up to 180 days, extendable during the same trip by a further 180 days (360 in all) on extra premium and a health declaration.","Annual multi trip: any number of trips in the year, each limited to 30 or 45 days as chosen.","The journey must begin within 14 days of the first day of insurance."]},{"label":"Plans and geographical scope","lines":["Plan A: Worldwide excluding USA and Canada. Plan B: Worldwide including USA and Canada.","Silver: base sum insured USD 25,000, in steps of USD 5,000 up to (but not including) USD 100,000. Gold: base USD 100,000, in steps of USD 50,000 up to USD 1,000,000.","Cover runs from departure from India until return or policy expiry, whichever is earlier, for incidents anywhere outside India."]},{"label":"Premium bands and discounts","lines":["Premium is by age band (up to 40, 41 to 60, 61 to 70, above 70), plan, sum insured and trip length. 5% portal discount for first-time buyers; 33% for GIPSA Group Mediclaim members."]},{"label":"Automatic extension","lines":["If an airline delays your return by 6 hours or more with no alternative flight, the policy extends automatically for up to 7 days at no cost."]}]},{"heading":"2. MEDICAL EXPENSES COVER","rows":[{"label":"What is paid","lines":["Reasonable and customary expenses for sudden, unexpected illness or accident outside India, up to the sum insured chosen.","Doctor fees, outpatient treatment, hospital room and board, operating theatre, anaesthesia, X-rays and tests, medicines and ambulance.","Follow-up treatment in India if recommended by the assistance company, and emergency treatment abroad if you are unfit to travel at expiry, each for up to 90 days."]},{"label":"Deductible / excess","lines":["USD 100 per event on medical expenses under both plans, borne by you; it does not reduce the sum insured.","Any service costing more than USD 100 must be authorised in advance by the assistance company."]},{"label":"Pre-existing conditions","lines":["A condition diagnosed, advised or treated in the 12 months before the policy is pre-existing and is not covered, nor are its complications.","Exception: life-saving emergency measures or relief of acute pain from a pre-existing condition, up to USD 1,500 per policy."]},{"label":"Emergency dental","lines":["Up to USD 300 per occurrence (USD 100 deductible) for immediate relief of sudden acute pain in sound natural teeth; treatment must start within 24 hours. Not payable in India."]},{"label":"Evacuation and repatriation","lines":["Emergency evacuation to the nearest suitable hospital, or back to India when medically advised, within the medical sum insured; capped at USD 10,000 for two-wheeler accidents.","Repatriation of mortal remains to India (embalming, coffin, cremation, transport) up to USD 7,500, no deductible. Both must be arranged by the assistance company."]},{"label":"Limits to note","lines":["Pregnancy: only emergencies to save the life of mother or child, if you are under 38 and before the 30th week.","Orthopaedic, degenerative and cancer treatment: only life-saving measures or relief of acute pain. Treatment that can wait until return to India is not paid."]}]},{"heading":"3. PLAN-WISE BENEFITS AND LIMITS","table":{"head":["Benefit","Limit (by plan, as the document lists them)"],"rows":[["Medical expenses and evacuation","Silver: USD 25,000 to USD 95,000 in steps of USD 5,000. Gold: USD 100,000 to USD 1,000,000 in steps of USD 50,000. Deductible USD 100. Same under Plan A and B."],["Dental emergency expenses","USD 300 per occurrence; deductible USD 100"],["Assistance services","Medical, repatriation, evacuation and legal assistance - within the medical sum insured"],["Repatriation of remains","USD 7,500; no deductible"],["Personal accident","USD 30,000 for accidental death or permanent total disablement, scaled for partial losses; death benefit under age 18 capped at USD 2,000"],["Accidental death / dismemberment","Paid in addition to personal accident for accidents as a passenger in rail, bus, tram or aircraft"],["Loss of checked baggage","USD 1,000 for total loss of a bag checked with a carrier; 50% per bag if more than one bag is checked in"],["Delay of checked baggage","USD 100 for emergency purchases if baggage is delayed over 12 hours on the outbound flight from India"],["Loss of passport","USD 300 for emergency travel documents abroad; deductible USD 50"],["Personal liability","USD 200,000 for third-party death, injury or property damage; deductible USD 200"],["Automatic extension of policy","Up to 7 days"]]}},{"heading":"4. OPTIONAL AND ADDITIONAL COVERS","table":{"head":["Cover","What it gives"],"rows":[["Hospital daily allowance","USD 25 cash per day once a hospital stay exceeds 48 hours; maximum USD 150 (Silver) or USD 300 (Gold)"],["Hijack distress allowance","USD 125 per day beyond the first 12 hours of a hijack, up to USD 500 per person"],["Flight delay","Meals and lodging when a flight is delayed over 12 hours by weather, strike or equipment failure; USD 50 per 12 hours, up to USD 200"],["Trip cancellation / curtailment","USD 500 of lost deposits if sickness, injury or death of you, a companion or immediate family stops the trip; USD 500 (USD 100 deductible) if hijack, family death, disaster, strike or illness cuts it short"],["Missed connection","Up to USD 500 of extra meals and lodging when a weather, strike or equipment delay of 3 hours or more makes you miss a return connection"],["Bounced hotel / airline booking","Up to USD 500 less 10% deductible for a similar replacement room or ticket when a confirmed booking is refused for overbooking; bookings within 7 days of travel excluded"],["Financial emergency assistance","Up to USD 1,000 if your travel funds are stolen or robbed; report to police within 24 hours"],["Home burglary","Up to Rs. 15,00,000 for burglary at your home in India during the trip; first Rs. 5,000 of each claim borne by you; cash, jewellery and valuables excluded"],["Difference in air fare","Up to USD 500 extra fare when illness or accident forces an earlier or later return to India"],["Compassionate visit","If you are in hospital over 5 days, an economy return ticket and daily allowance for a relative, up to USD 5,000 (USD 100 deductible); prior approval needed"],["Loss of international driving licence","Up to USD 250 for a duplicate licence, abroad or within 30 days of return; police report within 24 hours"],["Laptop / tablet cover","Up to USD 1,500 (USD 100 deductible) for theft or damage abroad, at market value less 25% depreciation a year; breakdown and data loss excluded"],["Adventure sports","Medical expenses for injuries during adventure sports, up to the schedule limit; shown as already covered in the plan table"]]}},{"heading":"5. WHAT IS NOT COVERED","rows":[{"label":"Key exclusions","tint":"red","numbered":true,"lines":["Pre-existing conditions and their complications, except life-saving emergency measures up to USD 1,500.","Travelling against medical advice or to obtain treatment, being on a waiting list for treatment, or a terminal prognosis.","Suicide, attempted suicide, self-inflicted injury, sexually transmitted diseases, alcoholism, drunkenness or drug abuse.","War, invasion, civil war, rebellion, terrorism and nuclear, chemical or biological contamination.","Winter sports, skydiving, hang gliding, bungee jumping, scuba diving, mountaineering, racing, caving, white water rafting and professional or hazardous sports, unless endorsed.","Flying other than as a passenger on a licensed aircraft; criminal acts; needless exposure to danger.","Routine check-ups, cosmetic surgery, spa or convalescent stays, mental disorders, rehabilitation, physiotherapy, prosthetics, spectacles and hearing aids.","Baggage: valuables, electronics, cash, documents, items over USD 100 without proof of ownership, partial loss or damage.","Liability from your profession, vehicles, animals, contracts, or towards family and companions.","Treatment costing more than USD 100 not authorised in advance by the assistance company."]}]},{"heading":"6. CLAIMS AND ASSISTANCE","rows":[{"label":"How to claim abroad","lines":["Contact the assistance company immediately on any illness, accident or event likely to lead to a claim, quoting the policy number, hospital and doctor.","Cashless treatment, evacuation and repatriation are arranged and approved through the assistance company.","For baggage loss or delay get an airline report; for passport, cash or licence loss, report to police within 24 hours."]},{"label":"Claim documents and timelines","lines":["Notify the claim within 30 days of the end of the trip and file the claim form with evidence of loss within 30 days of the loss.","Submit original bills and receipts, prescriptions, medical reports, discharge summary, travel documents and any police or airline reports.","Admitted claims are paid in Indian rupees within 30 days of receiving all documents; late payment carries interest at bank rate plus 2%."]},{"label":"Extension, cancellation and refund","lines":["A single trip can be extended during the trip by up to 180 more days on extra premium, with a declaration of claims made and of no known health condition.","Cancellation only if the journey is not undertaken, on production of the passport, not less than 14 days after the first day of insurance; cancellation charges apply.","No refund if you return to India early. Annual multi-trip policies cancelled mid-term are refunded on a short-period scale if no trip or claim has occurred."]},{"label":"Free look","lines":["Annual multi-trip policies have a 15-day free look from receipt, provided no trip has started and no claim is made. No free look on single-trip policies.","Report any discrepancy in the policy schedule to the issuing office within 15 days of receipt."]}]},{"heading":"7. EMERGENCY ASSISTANCE AND CASHLESS TREATMENT ABROAD","table":{"head":["Assistance service (24 x 7 x 365)","Contact"],"rows":[["India (toll free)","1800 419 0133"],["United States (toll free)","1 888 881 1701"],["United Kingdom (toll free)","0808 304 5211"],["Canada (toll free)","1 888 519 2693"],["Singapore (toll free)","800 321 1710"],["Other countries","Country-specific numbers at www.mayfairwecare.com/contact"],["Emergency medical assistance and cashless","mayfairassist@mayfairwecare.com (24 x 7)"],["Pay-and-claim and policy queries","mayfair.claims@mayfairwecare.com (working days, 8 AM to 8 PM IST)"],["Escalations and grievances","info@mayfairwecare.com"],["Member portal / app","https://me.mayfairwecare.com"]]}},{"heading":"8. HOW CASHLESS WORKS","rows":[{"label":"Medical emergency","lines":["Call the local ambulance service and go to the nearest emergency department. Once stabilised, you or a companion contact the assistance service, which liaises with the hospital for cashless settlement of expenses already incurred and any further treatment."]},{"label":"Planned treatment","lines":["Notify the assistance service at least 48 hours before the appointment by phone, e-mail or the member app. A Guarantee of Payment (GOP) is issued to the hospital; carry a copy with you.","If the hospital is outside the network the assistance service contacts it to arrange direct billing on a best-effort basis. Forward any invoice you receive from a provider to the assistance e-mail immediately."]},{"label":"Information needed for a Guarantee of Payment","lines":["Patient name and date of birth, member ID, insurer name and policy number, current address abroad, hospital name, address and contact details, admission date, nature of illness and when symptoms first occurred, supporting quotes for in-patient treatment, your contact number with country code, and the treating doctor's details or medical report."]},{"label":"Validity","lines":["Cover is valid only for the coverage dates shown on the policy certificate."],"tint":"green"}]}]},"STU":{"key":"STU","title":"Oriental Super Health Top-Up 2024","intro":"A high-threshold top-up health policy that pays only after the total admissible hospital expenses of the insured (individual plan) or the family (floater plan) in a policy year cross the chosen threshold. It sits above an existing health policy or your own savings and pays up to the chosen Sum Insured over the threshold.","sections":[{"heading":"1. POLICY OVERVIEW","rows":[{"label":"How a top-up works","lines":["You choose a threshold (deductible) and a Sum Insured. All admissible hospital bills in the policy year are added up; once the total crosses the threshold, the policy pays the excess up to the Sum Insured.","One large claim or several smaller ones can cross the threshold; under the floater plan, claims of all members count together."]},{"label":"Eligibility and family","lines":["Maximum entry age 65 years; ages 66 to 70 accepted with a 10% loading that continues on renewal. Medical check-up needed above 55 or with adverse history (50% cost refunded on acceptance).","Family: self, spouse, parents or parents-in-law (either set) and dependent children from 1 day to 18 years, with no cap on numbers. Floater needs at least two persons."]},{"label":"Sum Insured and threshold options","lines":["Threshold Rs. 3 lakh: SI Rs. 3 or 5 lakh. Rs. 5 lakh: SI Rs. 5 or 7 lakh. Rs. 6 lakh: SI Rs. 6 or 8 lakh. Rs. 8 lakh: SI Rs. 8 or 10 lakh. Rs. 10 lakh: SI Rs. 10 or 15 lakh.","Threshold Rs. 15 lakh: SI Rs. 10 or 15 lakh. Rs. 18 lakh: SI Rs. 10 or 12 lakh. Rs. 20 lakh: SI Rs. 10, 20 or 30 lakh. Only these 17 combinations are offered.","Sum Insured may be changed at renewal; the threshold may be increased at renewal but never lowered."]},{"label":"Plans and premium basis","lines":["Individual plan: each member has own Sum Insured and threshold. Floater plan: one Sum Insured and threshold shared by the family.","Premium depends on completed age band (0-35, 36-45, 46-60, 61 and above), threshold and Sum Insured. Floater: eldest member 100% of rate, second eldest 50%, others 40%."]},{"label":"Discounts and loadings","lines":["Family discount 10% when two or more members take the individual plan. Loyalty discount 10% for a member who also holds an Oriental health policy. Portal discount 10% (max Rs. 2,000) on first online purchase.","Room rent limits are linked to the threshold and can be removed for extra premium: 20% for threshold up to Rs. 5 lakh, 10% for Rs. 6 to 10 lakh, 5% for Rs. 15 lakh and above. Loadings apply before discounts."]}]},{"heading":"2. WHAT IS COVERED","rows":[{"label":"In-patient hospitalisation","lines":["Reasonable and customary in-patient expenses for illness or injury arising during the policy period, including room, ICU, doctor fees, nursing, OT, medicines and diagnostics."]},{"label":"Pre and post hospitalisation","lines":["Medical expenses before admission and after discharge for the same condition, when the hospitalisation claim is admissible. Telemedicine consultations are payable as part of such claims."]},{"label":"Day care, AYUSH and modern treatments","lines":["180 listed day care procedures needing under 24 hours of admission. In-patient treatment under Ayurveda, Yoga, Naturopathy, Unani, Siddha and Homeopathy in a recognised AYUSH hospital.","Robotic surgery, stereotactic radiosurgery, oral chemotherapy, immunotherapy, intra-vitreal injections, deep brain stimulation, balloon sinuplasty, HIFU, laser prostate and stem cell therapy, within sub-limits."]},{"label":"Organ donor","lines":["When the insured receives an organ, the donor's in-patient expenses are covered if the transplant claim is admissible (not the organ cost, donor screening or donor pre/post expenses).","When the insured donates an organ, a lump sum of 10% of Sum Insured is paid after 24 months of continuous cover, even if the threshold has not been crossed."]},{"label":"Maternity and new born","lines":["Delivery (including caesarean) or lawful termination up to 10% of Sum Insured after 12 months of continuous cover for both spouses, two events in a lifetime; not for those with two living children.","A new born baby is covered from day one up to the Sum Insured once declared and premium paid."]},{"label":"Other benefits","lines":["Hospital cash and ambulance charges are included. HIV/AIDS treatment and hospitalisation for mental illness are covered. Treatment in SAARC countries is covered on reimbursement basis (no cashless abroad)."]}]},{"heading":"3. LIMITS AND SUB-LIMITS","table":{"head":["Item","Limit / basis"],"rows":[["Room rent","Eligible room category is linked to the threshold and shown in the schedule; removable by paying the extra premium in section 1"],["Higher room than eligible","Doctor, surgeon, nursing, OT and procedure charges reduced proportionately; medicines, implants, consumables and diagnostics not reduced"],["Co-payment","None. The only cost sharing is the chosen threshold"],["Organ donor lump sum (insured as donor)","10% of Sum Insured, after 24 months of continuous cover"],["Maternity","10% of Sum Insured; two events in a lifetime; no pre/post hospitalisation"],["Telemedicine","Rs. 2,000 per year for SI up to Rs. 20 lakh; Rs. 5,000 for SI up to Rs. 30 lakh"],["Uterine artery embolisation / HIFU; balloon sinuplasty","Rs. 50,000 and Rs. 40,000 per year respectively"],["Oral chemotherapy","SI Rs. 3-10 lakh: 25% of SI, max Rs. 50,000; SI Rs. 15-30 lakh: up to Rs. 1.5 lakh per year"],["Deep brain stimulation, immunotherapy, intra-vitreal injections, laser prostate, IONM, stem cell","SI Rs. 3-10 lakh: 10% of SI, max Rs. 50,000; SI Rs. 15-30 lakh: 10% of SI, max Rs. 1.5 lakh per year"],["Robotic surgery, stereotactic radiosurgery, bronchial thermoplasty","SI Rs. 3-10 lakh: 10% of SI, max Rs. 1 lakh; SI Rs. 15-30 lakh: 10% of SI, max Rs. 2 lakh per year"],["Network hospital bills","Payable at rates pre-agreed between insurer/TPA and hospital, cashless or reimbursement"],["Obesity surgery","Only if aged 18 or more with BMI 40 or more, or BMI 35 or more with a listed serious co-morbidity"]]}},{"heading":"4. WAITING PERIODS","table":{"head":["Condition / treatment","Waiting period"],"rows":[["Any illness (accidents excepted)","30 days from first policy start; waived after 12 months of continuous cover"],["Pre-existing diseases and complications","36 months of continuous cover; reduced by prior cover under portability"],["Hypertension, diabetes","90 days"],["Benign ENT surgeries (tonsils, adenoids, ear), polycystic ovarian disease","12 months"],["Hernia, hydrocele, cataract, piles, fissure or fistula, sinusitis, pilonidal sinus, stones","24 months"],["Gallbladder, genito-urinary and prostate surgery; hysterectomy for fibroids, bleeding or prolapse; undescended testes","24 months"],["Non-infective arthritis, gout and rheumatism, varicose veins, spinal disc surgery (non-accident)","24 months"],["Joint replacement for degenerative conditions; age-related osteoarthritis and osteoporosis","36 months"],["Maternity","12 months of continuous cover for both husband and wife"],["Organ donor lump sum (insured as donor)","24 months of continuous cover"],["Increase in Sum Insured; members added mid-term","Waiting periods apply afresh on the increased portion or from the date of inclusion"],["Moratorium","After 5 continuous years no claim can be contested except for proven fraud and permanent exclusions"]]}},{"heading":"5. WHAT IS NOT COVERED","rows":[{"label":"Key exclusions","tint":"red","numbered":true,"lines":["Expenses below the chosen threshold in a policy year; the policy pays only the amount above it.","Sixteen serious conditions present at proposal are permanently excluded, including cancers, epilepsy, heart and valve disease, stroke, chronic liver, kidney or pancreatic disease, hepatitis B and HIV/AIDS.","Admission only for investigation or diagnostics; rest cure, custodial and respite care; any stay without active treatment or for domestic reasons.","Cosmetic or plastic surgery (unless after accident, burns, cancer or certified medical necessity); gender change; obesity surgery outside the stated conditions.","Sterility, infertility, IVF, contraception, sterilisation and its reversal, surrogacy; voluntary termination in the first 12 weeks of pregnancy.","Alcohol, drug or substance abuse; mental retardation; counselling or psychotherapy not needing admission; professional hazardous sports; breach of law; war and nuclear, chemical or biological weapons.","Refractive error below 7.5 dioptres; spectacles, contact lenses and hearing aids; dental treatment; external congenital anomalies.","Unproven or experimental treatment; acupuncture, acupressure, magnetic therapy, RFQMR, ECP, EECP and hyperbaric oxygen; stem cell therapy other than bone marrow transplant.","Durable equipment such as CPAP, CAPD, infusion pumps, walkers, crutches, braces, glucometers and BP monitors; supplements bought without prescription.","Spas and nature cure clinics; excluded providers (except emergency stabilisation); service and registration charges, private nursing, home visits, OPD treatment; treatment outside India except SAARC countries."]}]},{"heading":"6. CLAIMS, RENEWAL AND OTHER CONDITIONS","rows":[{"label":"Claim notification","lines":["Inform the company or TPA within 48 hours of admission and before discharge, for planned and emergency admissions alike. Delay may be condoned in genuine hardship."]},{"label":"Cashless claims","lines":["Available at network hospitals through the TPA with pre-authorisation, issued within 48 hours of receiving details. Denial of cashless is not denial of the claim; you may claim reimbursement instead."]},{"label":"Reimbursement claims","lines":["For non-network hospitals, contact the TPA within 7 days of admission and submit the claim form with original bills, reports and certificates within 15 days of discharge.","Claims are settled or rejected within 15 days, or 45 days if investigated; delay attracts interest at 2% above bank rate. Amounts later recovered from another source must be refunded."]},{"label":"Renewal and portability","lines":["Renewable for life except for fraud, misrepresentation or non-disclosure. Renewal cannot be refused for having claimed, and no claim-based loading applies.","Port to another insurer with the whole family by applying 30 to 60 days before renewal, or migrate to another Oriental plan at least 30 days before renewal, keeping waiting-period credit."]},{"label":"Grace period","lines":["30 days from the due date (15 days for monthly mode) to renew without losing continuity. No cover during the grace period unless premium is paid in instalments. A break restarts all waiting periods."]},{"label":"Cancellation and free look","lines":["New policies carry a 30-day free look from receipt of the policy document (not on renewal or porting).","You may cancel any time on 7 days' written notice; the unexpired premium of an annual policy is refunded proportionately if no claim has been made. The insurer may cancel for fraud on 30 days' notice without refund."]},{"label":"Mid-term additions and other rules","lines":["A newly wed spouse (within 90 days of marriage) and a new born or adopted child can be added mid-term on pro-rata premium. Nomination is required at inception.","With more than one policy you may choose which insurer settles, and claim here amounts disallowed elsewhere. Premium qualifies for income tax benefit."]}]}]}};
+const HEALTH_EXCLUDED_ITEMS = ["Baby food","Baby utilities","Beauty services","Belts / braces","Buds","Cold pack / hot pack","Carry bags","E-mail / internet charges","Food charges (other than the patient's diet provided by the hospital)","Leggings","Laundry charges","Mineral water","Sanitary pad","Telephone charges","Guest services","Crepe bandage","Diaper of any type","Eyelet collar","Slings","Blood grouping and cross matching of donors' samples","Service charges where nursing charge is also charged","Television charges","Surcharges","Attendant charges","Extra diet of patient (other than that which forms part of bed charges)","Birth certificate","Certificate charges","Courier charges","Conveyance charges","Medical certificate","Medical records","Photocopy charges","Mortuary charges","Walking aids charges","Oxygen cylinder (for usage outside the hospital)","Spacer","Spirometer","Nebuliser kit","Steam inhaler","Arm sling","Thermometer","Cervical collar","Splint","Diabetic foot wear","Knee braces (long / short / hinged)","Knee immobiliser / shoulder immobiliser","Lumbo sacral belt","Nimbus bed or water or air bed charges","Ambulance collar","Ambulance equipment","Abdominal binder","Private nurses' charges - special nursing charges","Sugar free tablets","Creams, powders, lotions (toiletries are not payable; only prescribed medical pharmaceuticals are payable)","ECG electrodes","Gloves","Nebulisation kit","Any kit with no details mentioned (delivery kit, ortho kit, recovery kit etc.)","Kidney tray","Mask","Ounce glass","Oxygen mask","Pelvic traction belt","Pan can","Trolley cover","Urometer, urine jug","Ambulance","Vasofix safety"];
+
+function makeCoverPainter(doc, bannerTitle, bannerSub, footerLeft, footerRight){
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+  const M = 26, CW = W - 2*M;
+  const NAVY=[13,44,94], NAVY2=[18,50,95], BLUELT=[219,230,245], SOFT=[238,243,251], WHITE=[255,255,255], INK=[18,33,63],
+        MUTE=[110,125,150], LINE=[195,208,228], GREEN=[233,247,239], GOLD=[184,147,47], GOLDBG=[253,248,236], RED=[176,40,30], REDBG=[253,236,236], ZEBRA=[249,251,254];
+  const LBLW = 128, VALW = CW - LBLW, VALX = M + LBLW, PADX = 9, PADY = 6, FS = 8.2, LH = 10.6;
+  const safe = function(t){ return String(t == null ? '' : t).replace(/\u20b9\s*/g,'Rs. ').replace(/\u2030/g,' per mille').replace(/\u2264/g,'<=').replace(/\u2265/g,'>=').replace(/[^\x00-\xFF]/g,''); };
+  let y = 0, pageNo = 0;
+  function setFill(c){ doc.setFillColor(c[0],c[1],c[2]); } function setText(c){ doc.setTextColor(c[0],c[1],c[2]); } function setDraw(c){ doc.setDrawColor(c[0],c[1],c[2]); }
+  function header(){
+    pageNo++;
+    setFill(NAVY); doc.rect(M, M, CW, 34, 'F'); setFill(GOLD); doc.rect(M, M+34-3, CW, 3, 'F');
+    setText(WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(11.5); doc.setCharSpace(0.55);
+    doc.text(safe(bannerTitle), M+12, M+14); doc.setCharSpace(0);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.0); doc.setTextColor(197,217,242);
+    doc.text(safe(bannerSub), M+12, M+25);
+    y = M + 34 + 8;
+  }
+  function footer(){
+    setDraw(LINE); doc.setLineWidth(0.4); doc.line(M, H-26, W-M, H-26);
+    setText(MUTE); doc.setFont('helvetica','normal'); doc.setFontSize(6.4);
+    doc.text(safe(footerLeft), M, H-17);
+    doc.setFont('helvetica','bold'); doc.text(safe(footerRight + '  \u00b7  Page ' + pageNo), W-M, H-17, {align:'right'});
+  }
+  function space(need){ if(y + need > H - 34){ footer(); doc.addPage(); header(); } }
+  function section(t, right){
+    space(48);
+    setFill(BLUELT); doc.rect(M, y, CW, 18, 'F'); setFill(NAVY); doc.rect(M, y, 3.2, 18, 'F');
+    setText(NAVY); doc.setFont('helvetica','bold'); doc.setFontSize(8.4); doc.setCharSpace(0.3);
+    doc.text(safe(t).toUpperCase(), M+PADX+2, y+12); doc.setCharSpace(0);
+    if(right){ doc.setFont('helvetica','bold'); doc.setFontSize(8); setText([20,96,58]); doc.text(safe(right), W-M-PADX, y+12, {align:'right'}); }
+    y += 18;
+  }
+  function block(label, lines, opts){
+    opts = opts || {}; if(!lines || !lines.length) return;
+    doc.setFont('helvetica','normal'); doc.setFontSize(FS);
+    const wrapped = [];
+    lines.forEach(function(t, i){
+      const prefix = opts.numbered ? (i+1) + '.  ' : (opts.bullet ? '\u2022  ' : '');
+      doc.splitTextToSize(safe(prefix + t), VALW - 2*PADX).forEach(function(l){ wrapped.push({ t:l }); });
+      wrapped.push({ gap:true });
+    });
+    wrapped.pop();
+    let idx = 0;
+    while(idx < wrapped.length){
+      const avail = H - 34 - y - 2*PADY; const maxLines = Math.floor(avail / LH);
+      if(maxLines < 3 && y > M + 60){ footer(); doc.addPage(); header(); continue; }
+      const chunk = wrapped.slice(idx, idx + Math.max(3, maxLines));
+      let hRow = 2*PADY + chunk.reduce(function(a, w){ return a + (w.gap ? LH*0.35 : LH); }, 0);
+      if(idx === 0){ doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.6);
+        const nl = doc.splitTextToSize(safe(label), LBLW - 2*PADX).length;
+        hRow = Math.max(hRow, 2*PADY + nl*LH); doc.setFont('helvetica','normal'); doc.setFontSize(FS); }
+      setFill(opts.tint === 'red' ? REDBG : (opts.tint === 'green' ? GREEN : WHITE)); doc.rect(M, y, CW, hRow, 'F');
+      setFill(SOFT); doc.rect(M, y, LBLW, hRow, 'F'); setDraw(LINE); doc.setLineWidth(0.35); doc.rect(M, y, CW, hRow); doc.line(VALX, y, VALX, y+hRow);
+      if(idx === 0){ setText(opts.tint === 'red' ? RED : NAVY); doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.6);
+        doc.splitTextToSize(safe(label), LBLW - 2*PADX).forEach(function(l, k){ doc.text(l, M+PADX, y + PADY + LH*0.72 + k*LH); }); }
+      setText(INK); doc.setFont('helvetica','normal'); doc.setFontSize(FS);
+      let ty = y + PADY + LH*0.72;
+      chunk.forEach(function(w){ if(w.gap){ ty += LH*0.35; return; } doc.text(w.t, VALX+PADX, ty); ty += LH; });
+      y += hRow; idx += chunk.length;
+    }
+  }
+  function table2(head, rows, split, tint){
+    const c1 = Math.round(CW * (split || 0.42)), c2 = CW - c1;
+    function drawHead(){
+      doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.4);
+      const h0 = doc.splitTextToSize(safe(head[0]), c1 - 2*PADX), h1 = doc.splitTextToSize(safe(head[1]), c2 - 2*PADX);
+      const hl = LH - 1.4, hh = 6 + Math.max(h0.length, h1.length) * hl;
+      space(hh + 3);
+      setFill(NAVY2); doc.rect(M, y, c1, hh, 'F');
+      setFill(tint === 'red' ? RED : NAVY2); doc.rect(M+c1, y, c2, hh, 'F');
+      setDraw(WHITE); doc.setLineWidth(0.6); doc.line(M+c1, y, M+c1, y+hh);
+      setText(WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.4);
+      let ty = y + 3 + hl*0.72; h0.forEach(function(l){ doc.text(l, M+PADX, ty); ty += hl; });
+      ty = y + 3 + hl*0.72; h1.forEach(function(l){ doc.text(l, M+c1+PADX, ty); ty += hl; });
+      y += hh;
+    }
+    drawHead();
+    rows.forEach(function(r, i){
+      doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.3); const a = doc.splitTextToSize(safe(r[0]), c1 - 2*PADX);
+      doc.setFont('helvetica','normal'); doc.setFontSize(FS-0.3); const b = doc.splitTextToSize(safe(r[1]), c2 - 2*PADX);
+      const hRow = 2*PADY - 2 + Math.max(a.length, b.length) * (LH-1);
+      if(y + hRow > H - 34){ footer(); doc.addPage(); header(); drawHead(); }
+      setFill(i%2 ? ZEBRA : WHITE); doc.rect(M, y, CW, hRow, 'F');
+      if(tint === 'red' && r[1] !== '-'){ setFill(REDBG); doc.rect(M+c1, y, c2, hRow, 'F'); }
+      setDraw(LINE); doc.setLineWidth(0.3); doc.rect(M, y, CW, hRow); doc.line(M+c1, y, M+c1, y+hRow);
+      setText(NAVY); doc.setFont('helvetica','bold'); doc.setFontSize(FS-0.3); let ty = y + PADY - 1 + (LH-1)*0.72;
+      a.forEach(function(l){ doc.text(l, M+PADX, ty); ty += (LH-1); });
+      setText(r[1] === '-' ? MUTE : INK); doc.setFont('helvetica','normal'); ty = y + PADY - 1 + (LH-1)*0.72;
+      b.forEach(function(l){ doc.text(l, M+c1+PADX, ty); ty += (LH-1); });
+      y += hRow;
+    });
+  }
+  function note(text){
+    doc.setFont('helvetica','normal'); doc.setFontSize(FS-0.6);
+    const lines = doc.splitTextToSize(safe(text), CW - 2*PADX - 6); const hRow = 2*PADY - 1 + lines.length*(LH-0.8);
+    space(hRow + 6); doc.setFont('helvetica','normal'); doc.setFontSize(FS-0.6);
+    setFill(GOLDBG); doc.rect(M, y, CW, hRow, 'F'); setFill(GOLD); doc.rect(M, y, 2.6, hRow, 'F');
+    setDraw(LINE); doc.setLineWidth(0.35); doc.rect(M, y, CW, hRow); setText(INK);
+    let ty = y + PADY + (LH-0.8)*0.62; lines.forEach(function(l){ doc.text(l, M+PADX+4, ty); ty += (LH-0.8); }); y += hRow;
+  }
+  /* multi-column numbered list (for the non-payable items) */
+  function columns(items, nCols){
+    const colW = CW / nCols, perCol = Math.ceil(items.length / nCols);
+    doc.setFont('helvetica','normal'); doc.setFontSize(FS-0.4);
+    const cols = []; let maxLines = 0;
+    for(let c = 0; c < nCols; c++){
+      const lines = [];
+      items.slice(c*perCol, (c+1)*perCol).forEach(function(t, i){
+        doc.splitTextToSize((c*perCol + i + 1) + '.  ' + safe(t), colW - 2*PADX).forEach(function(l, k){ lines.push({ t:l, first:k===0 }); });
+      });
+      cols.push(lines); maxLines = Math.max(maxLines, lines.length);
+    }
+    const hRow = 2*PADY + maxLines * (LH-1.2);
+    space(Math.min(hRow, 60));
+    setFill(WHITE); doc.rect(M, y, CW, hRow, 'F'); setDraw(LINE); doc.setLineWidth(0.35); doc.rect(M, y, CW, hRow);
+    for(let c = 1; c < nCols; c++) doc.line(M + c*colW, y, M + c*colW, y + hRow);
+    setText(INK); doc.setFont('helvetica','normal'); doc.setFontSize(FS-0.4);
+    cols.forEach(function(lines, c){ let ty = y + PADY + (LH-1.2)*0.72; lines.forEach(function(l){ doc.text(l.t, M + c*colW + PADX, ty); ty += (LH-1.2); }); });
+    y += hRow;
+  }
+  return { header:header, footer:footer, space:space, section:section, block:block, table2:table2, note:note, columns:columns, gap:function(n){ y += n; } };
+}
+
+function drawHealthCoverPages(doc, key, productTitle){
+  const D = HEALTH_COVER_DATA[key]; if(!D) return;
+  const P = makeCoverPainter(doc, 'HEALTH INSURANCE - SCOPE OF COVER & CONDITIONS', (D.title || productTitle || ''),
+    'The Oriental Insurance Company Limited   \u00b7   Summary from the product prospectus; the policy wording prevails', 'Cover Schedule');
+  doc.addPage(); P.header();
+  P.note((D.intro ? D.intro + ' ' : '') + 'This schedule summarises what the quoted policy covers, its limits, waiting periods, exclusions and conditions so the customer knows the scope before proposal. The policy wording prevails in case of any difference.');
+  P.gap(8);
+  (D.sections || []).forEach(function(sec){
+    P.section(sec.heading || '');
+    if(sec.table){ P.table2(sec.table.head || ['Item','Details'], sec.table.rows || [], sec.split || 0.4, sec.tint); }
+    else (sec.rows || []).forEach(function(r){ P.block(r.label || '', r.lines || [], { numbered: !!r.numbered, bullet: !!r.bullet, tint: r.tint }); });
+    P.gap(8);
+  });
+  P.footer();
+}
+
+function drawHealthExcludedItems(doc, productTitle){
+  const P = makeCoverPainter(doc, 'ITEMS NOT PAYABLE UNDER THE POLICY', (productTitle || 'Health insurance') + '   |   List I - items for which coverage is not available',
+    'The Oriental Insurance Company Limited   \u00b7   Standard list of non-payable items; the policy wording prevails', 'Annexure');
+  doc.addPage(); P.header();
+  P.note('The following items, consumables and services are not payable under the policy even when billed by the hospital during an admissible hospitalisation. Charges for them are deducted from the claim.');
+  P.gap(8);
+  P.section('List I - Items for which coverage is not available in the policy');
+  P.columns(HEALTH_EXCLUDED_ITEMS, 2);
+  P.footer();
+}
+
 function ohGeneratePDF(){
   const out = document.getElementById('ohOut');
   if(!out || !out.querySelector('table')){ alert('Please calculate the premium first.'); return; }
@@ -18729,7 +18995,8 @@ function ohGeneratePDF(){
   const PRODUCT = { OMP:'Oriental Mediclaim Insurance Policy (Individual) 2024',
                     GRP:'Mediclaim Insurance Policy (Group) 2024',
                     HFF:'OICL Happy Family Floater Policy 2024',
-                    OMI:'Overseas Mediclaim Policy (Business & Holiday)' };
+                    OMI:'Overseas Mediclaim Policy (Business & Holiday)',
+                    STU:'Oriental Super Health Top-Up 2024' };
   const UIN = { OMP:'OICHLIP25048V052425', GRP:'OICHLGP25047V032425',
                 HFF:'OICHLIP25046V062425', OMI:'OICTIOP21581V022021' };
 
@@ -18772,6 +19039,7 @@ function ohGeneratePDF(){
   if(key !== 'OMI') planRows.push(['Sum Insured', val('ohSI')]);
   if(key === 'HFF'){ planRows.push(['Plan', val('ohPlan')], ['Zone', val('ohZone')]); }
   if(key === 'OMP'){ planRows.push(['Premium Frequency', val('ohFreq')], ['Co-Pay Option', val('ohCoPay')]); }
+  if(key === 'STU'){ planRows.push(['Plan Basis', val('ohStuBasis')], ['Deductible / Threshold', val('ohStuDed')]); }
   if(key === 'OMI'){
     planRows.push(['Plan', val('omiPlanType')], ['Tier', val('omiTier')],
                   ['Trip Type', val('omiTrip')], ['Sum Insured (USD)', val('omiSI')]);
@@ -18824,6 +19092,8 @@ function ohGeneratePDF(){
     totalValue: lastTotal.value,
     filename: 'Oriental_' + safe + '_' + quoteId + '.pdf'
   });
+  try{ drawHealthCoverPages(res.doc, key, PRODUCT[key] || ''); }catch(e){ console.error('health cover pages skipped:', e); }
+  try{ drawHealthExcludedItems(res.doc, PRODUCT[key] || ''); }catch(e){ console.error('excluded-items page skipped:', e); }
   res.doc.save(res.filename);
 }
 
@@ -18849,12 +19119,18 @@ function ohSyncUI(){
   // Personal Accident exists on the Individual Mediclaim and HFF charts only —
   // the Overseas (Business & Holiday) chart has no PA option, and the OMI pricing
   // branch never read the checkbox, so it sat there doing nothing.
-  show('ohPAWrap', p!=='GRP' && p!=='OMI');
+  show('ohPAWrap', p!=='GRP' && p!=='OMI' && p!=='STU');
+  ['stuBasisWrap','stuDedWrap','stuOptWrap'].forEach(id=>show(id, p==='STU'));
   if(p==='OMI'){ ohCalc(); return; }
   const sel=$('ohSI'); const cur=sel.value;
   let list=[];
   if(p==='OMP') list=Object.keys(OMP_Y).map(Number);
   else if(p==='GRP') list=Object.keys(GRP).map(Number);
+  else if(p==='STU'){
+    const dsel=$('ohStuDed');
+    if(!dsel.options.length) dsel.innerHTML=Object.keys(STU_RATES).map(Number).sort((a,b)=>a-b).map(v=>'<option value="'+v+'">\u20b9'+ohFmt(v)+'</option>').join('');
+    list=Object.keys(STU_RATES[parseInt(dsel.value,10)]||{}).map(Number);
+  }
   else { const zk=($('ohPlan').value==='Silver')?$('ohZone').value:'ALL';
          list=Object.keys((HFF[$('ohPlan').value]||{})[zk]||{}).map(Number); }
   list.sort((a,b)=>a-b);
@@ -18883,7 +19159,7 @@ function switchHealthProduct(which){
     if(inner){ inner.value=which; }
     const head=document.getElementById('ohHeading');
     if(head) head.innerHTML = ({OMP:'Oriental Mediclaim (Individual)',GRP:'Mediclaim (Group)',
-      HFF:'Happy Family Floater',OMI:'Overseas Mediclaim (Business & Holiday)'})[which] + ' <span style="font-weight:400;font-size:10px;color:var(--mute);text-transform:none;letter-spacing:0">(2024 chart)</span>';
+      HFF:'Happy Family Floater',OMI:'Overseas Mediclaim (Business & Holiday)',STU:'Super Health Top-Up'})[which] + ' <span style="font-weight:400;font-size:10px;color:var(--mute);text-transform:none;letter-spacing:0">(2024 chart)</span>';
     ohSyncUI();
   }
 }
@@ -22294,7 +22570,7 @@ window.FIRE = {shareImage: (typeof shareImage==='function'? shareImage : functio
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v65 · quote pages never overflow: bottom block paginates, values fit their rows · 04-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v66 · Super Health Top-Up, health cover schedules, IMT 23 wording, non-payable items · 04-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
