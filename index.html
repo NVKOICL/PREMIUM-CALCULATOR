@@ -3607,6 +3607,17 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
          Triggered by its OWN sum insured, not a switch: leave the SI blank
          and the cover is excluded entirely from the quote, the result card
          and the PDF. Rated on the burglary SI, never on the fire SI.       -->
+    <div class="section-label" style="margin-top:14px">Add-on Covers <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; rated as a percentage of the basic fire premium</span></div>
+    <div class="switch-row"><div><div class="t">Removal of Debris <span class="rate-pill">1% of basic</span></div><div class="s">Including external debris and ingressed water</div></div><div class="switch" id="addon-debris-switch" onclick="FIRE.toggleAddon('debris')"></div></div>
+    <div class="switch-row"><div><div class="t">Involuntary Betterment <span class="rate-pill">1% of basic</span></div><div class="s">Extra cost of a currently available equivalent when like-for-like replacement is not possible</div></div><div class="switch" id="addon-betterment-switch" onclick="FIRE.toggleAddon('betterment')"></div></div>
+    <div class="switch-row"><div><div class="t">Claim Preparation Clause <span class="rate-pill">1% of basic</span></div><div class="s">Reasonable professional fees for preparing and substantiating a claim</div></div><div class="switch" id="addon-claimPrep-switch" onclick="FIRE.toggleAddon('claimPrep')"></div></div>
+    <div class="switch-row"><div><div class="t">Brands and Trademarks Clause <span class="rate-pill">0.1% of basic</span></div><div class="s">Salvage of branded goods only after removal of brands / trademarks</div></div><div class="switch" id="addon-brands-switch" onclick="FIRE.toggleAddon('brands')"></div></div>
+    <div class="switch-row"><div><div class="t">Escalation Clause <span class="rate-pill">5% of basic</span></div><div class="s">Automatic increase of the Sum Insured during the policy period</div></div><div class="switch" id="addon-escalation-switch" onclick="FIRE.toggleAddon('escalation')"></div></div>
+    <div class="field" style="margin-top:8px">
+      <label class="lbl" for="addon-limit">Add-on limit (each) <span style="font-weight:400;color:var(--mute)">&mdash; blank = 10% of Sum Insured</span></label>
+      <input type="number" id="addon-limit" placeholder="e.g. 500000" min="0" step="1" inputmode="decimal">
+    </div>
+
     <div class="switch-row" style="cursor:default">
       <div class="info">
         <div class="t">Theft &amp; Burglary</div>
@@ -7543,6 +7554,7 @@ const state = {
   odDiscount: 0,
   loadingPct: 0,            // additional underwriting loading % on Net OD (before GST)
   nilDepDiscount: 0,
+  motorPreset: null,      // last quick-quote preset applied
   paUnSI: 100000,
   emiAmt: 5000,
   emiTenure: '1',           // '1' or '2' months
@@ -9636,13 +9648,41 @@ const MOTOR_PRESETS = [
   { key:'pkgBasic',  name:'Package basic',           desc:'OD + TP \u00b7 Owner PA \u00b7 unnamed PA \u00b7 paid driver',   policy:'comprehensive', sw:{ cpa:true,  paUn:true,  llDrv:true }, addons:[] },
   { key:'pkgNilDep', name:'Package + Nil Dep',       desc:'Basic package with Nil Depreciation',                            policy:'comprehensive', sw:{ cpa:true,  paUn:true,  llDrv:true }, addons:['nilDep'] },
   { key:'pkgCore',   name:'Package + core add-ons',  desc:'Nil Dep \u00b7 Engine \u00b7 Consumables \u00b7 Key \u00b7 Towing', policy:'comprehensive', sw:{ cpa:true,  paUn:true,  llDrv:true }, addons:['nilDep','engineProtect','consumables','keyReplace','towing'] },
+  { key:'pkgPlus',   name:'Package plus',            desc:'Nil Dep \u00b7 Engine \u00b7 Tyre \u00b7 Return to Invoice \u00b7 Towing \u00b7 Battery (EV)', policy:'comprehensive', sw:{ cpa:true,  paUn:true,  llDrv:true }, addons:['nilDep','engineProtect','tyreProtect','rti','towing','batteryProtect'] },
   { key:'pkgAll',    name:'Package + all add-ons',   desc:'Every add-on available for this vehicle',                        policy:'comprehensive', sw:{ cpa:true,  paUn:true,  llDrv:true }, addons:'all' }
 ];
+/* which add-on keys a preset would actually tick for the vehicle class / fuel / age on screen */
+function presetAddonKeys(p){
+  const isVisible = i => i.offsetParent !== null || (i.closest('label') && i.closest('label').offsetParent !== null);
+  const keys = []; let towingDone = false;
+  document.querySelectorAll('#addonsGrid input').forEach(i => {
+    const k = i.dataset.addon || ''; if(!(isVisible(i) && !i.disabled)) return;
+    if(/^towing/.test(k)){ if((p.addons === 'all' || p.addons.includes('towing')) && !towingDone){ keys.push(k); towingDone = true; } }
+    else if(p.addons === 'all'){ if(k !== 'batteryProtectCoPay') keys.push(k); }
+    else if(p.addons.includes(k)) keys.push(k);
+  });
+  return keys;
+}
+function presetShortName(k){
+  const n = { nilDep:'Nil Dep', engineProtect:'Engine', rti:'RTI', consumables:'Consumables', keyReplace:'Key', tyreProtect:'Tyre', batteryProtect:'Battery', batteryProtectCoPay:'Battery (co-pay)', emiProtect:'EMI', altCar:'Alt Car', personalEffects:'Personal Effects', imt47:'IMT-47' };
+  if(/^towing/.test(k)) return 'Towing';
+  return n[k] || k;
+}
 function renderMotorPresets(){
   const host = $('motorPresets'); if(!host) return;
-  host.innerHTML = MOTOR_PRESETS.map(p => '<button type="button" class="preset-chip" data-preset="'+p.key+'"><b>'+p.name+'</b><small>'+p.desc+'</small></button>').join('');
+  const cls = ({ privateCar:'private car', twoWheeler:'two-wheeler', twoWheelerHire:'two-wheeler (hire)', pccv:'passenger carrier', commercial:'goods carrier', misc:'misc. vehicle' })[state.vehicleType] || state.vehicleType;
+  host.innerHTML = MOTOR_PRESETS.map(p => {
+    let desc = p.desc;
+    if(p.policy === 'comprehensive'){
+      const keys = presetAddonKeys(p);
+      desc = (keys.length ? keys.map(presetShortName).join(' \u00b7 ') : 'no add-ons') + ' \u00b7 Owner PA \u00b7 unnamed PA \u00b7 paid driver';
+    }
+    return '<button type="button" class="preset-chip' + (state.motorPreset === p.key ? ' active' : '') + '" data-preset="'+p.key+'" title="for this ' + cls + (state.fuel ? ', ' + state.fuel : '') + '"><b>'+p.name+'</b><small>'+desc+'</small></button>';
+  }).join('');
   host.querySelectorAll('.preset-chip').forEach(b => b.addEventListener('click', () => applyMotorPreset(b.dataset.preset)));
 }
+/* keep the chips in step with the vehicle class / fuel / age: the add-on grid is redrawn on every such change */
+(function(){ const grid = $('addonsGrid'); if(grid && window.MutationObserver){ let t = null; new MutationObserver(() => { clearTimeout(t); t = setTimeout(renderMotorPresets, 30); }).observe(grid, { childList:true }); } })();
 function applyMotorPreset(key){
   const p = MOTOR_PRESETS.find(x => x.key === key); if(!p) return;
   const radio = document.querySelector('input[name="policy"][value="'+p.policy+'"]');
@@ -9664,6 +9704,15 @@ function applyMotorPreset(key){
     }
     if(i.checked !== want){ i.checked = want; i.dispatchEvent(new Event('change', { bubbles:true })); }
   });
+  state.motorPreset = key;
+  /* auto quotes with Nil Dep carry the maximum Nil Dep discount for the class - capped at 20% for
+     passenger and goods carriers unless the vehicle has NCB (then the class ceiling applies) */
+  const nilOn = !!document.querySelector('#addonsGrid input[data-addon="nilDep"]:checked');
+  if(nilOn && typeof nilDepDiscCapFor === 'function'){
+    let d = nilDepDiscCapFor(state.vehicleType);
+    if((state.vehicleType === 'pccv' || state.vehicleType === 'commercial') && !(state.ncbYears > 0)) d = Math.min(d, 20);
+    const ci = $('nilDepDiscCustom'); if(ci){ ci.value = d; nilDepDiscInput(ci); }
+  }
   document.querySelectorAll('#motorPresets .preset-chip').forEach(b => b.classList.toggle('active', b.dataset.preset === key));
   if(typeof calculate === 'function') calculate(false);
 }
@@ -21399,6 +21448,18 @@ document.addEventListener('click', e => {
 
 // ── SWITCHES ────────────────────────────────────────────────────────────
 function updateTerrorPill(){ const v = parseFloat(document.getElementById('terror-rate').value) || 0; const p = document.getElementById('terror-rate-pill'); if(p) p.textContent = v.toFixed(2) + '\u2030'; }
+/* Add-on covers priced as a percentage of the basic (FLEXA) fire premium, as rated by INLIAS on
+   R/432702/11/2027/67 (Sookshma, 4 Cr: 350 / 350 / 350 / 35 / 1,748 on a basic of 34,960) and
+   R/432702/11/2027/68 (Laghu, 12 Cr: 732 / 732 / 732 / 3,660 on 73,200). Each line is rounded to the rupee. */
+const FIRE_ADDONS = [
+  { key:'debris',     name:'Removal of Debris (including external debris and ingressed water)', pct:1 },
+  { key:'betterment', name:'Involuntary Betterment while reinstating the property',              pct:1 },
+  { key:'claimPrep',  name:'Claim Preparation Clause',                                           pct:1 },
+  { key:'brands',     name:'Brands and Trademarks Clause',                                       pct:0.1 },
+  { key:'escalation', name:'Escalation Clause',                                                  pct:5 }
+];
+function fireAddonOn(key){ const sw = document.getElementById('addon-' + key + '-switch'); return !!(sw && sw.classList.contains('on')); }
+function toggleAddon(key){ const sw = document.getElementById('addon-' + key + '-switch'); if(sw) sw.classList.toggle('on'); }
 function toggleSwitch(type){
   const sw = document.getElementById(type+'-switch');
   const wrap = document.getElementById(type+'-disc-wrap');
@@ -21897,7 +21958,13 @@ function calculate(){
   }
   const burgRateLabel = burgRate + (burgUnit === 'pct' ? '%' : '‰');
 
-  const totalNet = (flexaNet+stfiNet+eqNet+terrorNet+burgNet)*period;
+  // ── ADD-ON COVERS (% of the basic fire premium) ──
+  const addonLimitIn = Math.max(0, parseFloat((document.getElementById('addon-limit')||{}).value) || 0);
+  const addonLimit   = addonLimitIn || Math.round(si * 0.10);
+  const addonLines   = FIRE_ADDONS.filter(a => fireAddonOn(a.key)).map(a => ({ key:a.key, name:a.name, pct:a.pct, limit:(a.key === 'escalation' ? 0 : addonLimit), amount:Math.round(flexaGross * a.pct / 100) }));
+  const addonNet     = addonLines.reduce((t, a) => t + a.amount, 0);
+
+  const totalNet = (flexaNet+stfiNet+eqNet+terrorNet+burgNet+addonNet)*period;
   const gst   = totalNet*0.18;
   const grand = totalNet+gst;
 
@@ -21969,9 +22036,15 @@ function calculate(){
     html += `<div class="line net-line"><span class="k">Net Burglary Premium</span><span class="v">${fmtR(burgNet)}</span></div>`;
   }
 
+  if(addonLines.length){
+    html += `<div class="line section-divider"><span class="k">Add-on Covers · % of basic fire premium</span><span class="v"></span></div>`;
+    addonLines.forEach(a => { html += `<div class="line"><span class="k">${a.name} · ${a.pct}%</span><span class="v">${fmtR(a.amount)}</span></div>`; });
+    html += `<div class="line net-line"><span class="k">Net Add-on Premium</span><span class="v">${fmtR(addonNet)}</span></div>`;
+  }
+
   // Period multiplier
   if(period>1){
-    const oneYrNet = flexaNet+stfiNet+eqNet+terrorNet+burgNet;
+    const oneYrNet = flexaNet+stfiNet+eqNet+terrorNet+burgNet+addonNet;
     html += `<div class="line section-divider"><span class="k">Long Term Policy</span><span class="v"></span></div>
       <div class="line sub"><span class="k">Annual Net</span><span class="v">${fmtR(oneYrNet)}</span></div>
       <div class="line sub"><span class="k">× ${period} years</span><span class="v">${fmtR(totalNet)}</span></div>`;
@@ -22055,7 +22128,8 @@ function calculate(){
     // Theft & Burglary — rated on its own SI, present only when that SI is entered
     burgOn, burgSI, burgRate, burgUnit, burgRateLabel, burgDisc,
     burgGross, burgDiscAmt, burgNet,
-    oneYrNet: flexaNet+stfiNet+eqNet+terrorNet+burgNet,
+    oneYrNet: flexaNet+stfiNet+eqNet+terrorNet+burgNet+addonNet,
+    addonLines, addonNet, addonLimit,
     terrorOn, terrorRate, terrorDisc, terrorGross, terrorDiscAmt, terrorNet,
     totalNet, gst, grand,
     commRate: comm.rate, commAmt, commLabel: comm.label, commCategory: comm.category,
@@ -22238,7 +22312,11 @@ const FIRE_COVER_DATA = (function(){
   const addonsBSU = function(mode){
     const rows = [["Declaration policy for stocks (standard add-on)", "Takes care of frequent fluctuations in stocks / stock values, subject to the declaration conditions"]];
     if(mode === 'laghu') rows.push(["Floater cover (standard add-on)", "Stocks at more than one location under one Sum Insured, subject to the floater conditions"]);
-    rows.push(["Escalation clause", "Automatic increase in Sum Insured during the policy period, as under SFSP"]);
+    rows.push(["Escalation clause", "Automatic increase in Sum Insured during the policy period, as under SFSP; premium 5% of the basic fire premium"]);
+    rows.push(["Removal of debris (including external debris and ingressed water)", "Cost of removing debris of the insured property, debris of third parties that has entered the premises and water that has entered the premises, following an insured event; premium 1% of the basic fire premium"]);
+    rows.push(["Involuntary betterment", "Where damaged property cannot be replaced like for like, the extra cost of the nearest currently available equivalent, within the limit; premium 1% of the basic fire premium"]);
+    rows.push(["Claim preparation clause", "Reasonable professional fees incurred in preparing and substantiating a claim, within the limit; premium 1% of the basic fire premium"]);
+    rows.push(["Brands and trademarks clause", "Damaged branded goods are not sold as salvage until brands, labels and trademarks are removed, so the insured pays only for goods that cannot be de-branded; premium 0.1% of the basic fire premium"]);
     rows.push(["Adequacy of Sum Insured", "Waiver of underinsurance for claim amounts below Rs. 1 Cr"]);
     rows.push(["Accidental damage", "Loss or damage whilst in the insured premises due to accident from any fortuitous cause, including accidental discharge / leakage / overflow of water or steam from plumbing, tanks, cylinders, appliances, refrigerating and air-conditioning systems, and rain admitted through defective roofs, windows, doors or skylights"]);
     rows.push(["Incidental costs", "Where a loss is payable under the base policy, incidental costs associated with the insured property up to a fixed percentage of the admissible claim"]);
@@ -22475,7 +22553,7 @@ function drawFireCoverPages(doc, q){
   if(isSFSP){
     table2(['Endorsement', 'Scope'], D.endorsementsSFSP, 0.36);
   } else {
-    table2(['Add-on', 'Scope'], D.addonsBSU(mode), 0.36);
+    table2(['Add-on', 'Scope'], D.addonsBSU(mode).map(function(r){ const on = (q.addonLines||[]).some(function(a){ return r[0].toLowerCase().indexOf(a.name.split(' ')[0].toLowerCase()) === 0 && r[0].toLowerCase().indexOf(a.name.split(' (')[0].toLowerCase().slice(0, 12)) >= 0; }); return on ? [r[0] + '  -  OPTED', r[1]] : r; }), 0.36);
     note('Additional premium for all add-ons together shall not exceed 50% of the base premium. Kutcha construction is not excluded (an addition applies). Short-period policies are permitted only for specific reasons such as coinciding with the financial year or other renewals.');
   }
   y += 6;
@@ -22564,6 +22642,9 @@ function buildFirePDF(returnBlob){
       ['Burglary Sum Insured', q.burgOn ? OICPDF.fmtIN(q.burgSI) : '\u2014'],
       ['Burglary Rate', q.burgOn ? (q.burgRate + (q.burgUnit === 'pct' ? ' percent' : ' per mille')) : '\u2014']
     ]},
+    { bar:'Add-on Covers', rows: (q.addonLines && q.addonLines.length)
+        ? q.addonLines.map(a => [a.name.length > 44 ? a.name.slice(0, 44) + '\u2026' : a.name, (a.limit ? 'Limit ' + OICPDF.fmtIN(a.limit) + ' \u00b7 ' : '') + a.pct + '% of basic'])
+        : [['Add-on covers', 'Not Opted']] },
     { bar:'Policy Excess / Deductible', rows:[
       ['Sum Insured Band', exBand],
       ['Excess', '5% of claim, min ' + exMin]
@@ -22620,6 +22701,13 @@ function buildFirePDF(returnBlob){
     rows.push({ label:'Net Burglary Premium (' + burgKey + ')', value:R(q.burgNet), total:true });
     right.push({ sub:'Section ' + burgKey + ' \u2013 Theft & Burglary (Burglary & Housebreaking)', rows:rows });
   }
+  let addonKey = '';
+  if(q.addonLines && q.addonLines.length){
+    addonKey = String.fromCharCode(66 + (q.stfiOn ? 1 : 0) + (q.eqOn ? 1 : 0) + (terrorKey ? 1 : 0) + (burgKey ? 1 : 0));
+    const arows = q.addonLines.map(a => ({ label: a.name + ' @ ' + a.pct + '% of basic', value:R(a.amount) }));
+    arows.push({ label:'Net Add-on Premium (' + addonKey + ')', value:R(q.addonNet), total:true });
+    right.push({ sub:'Section ' + addonKey + ' \u2013 Add-on Covers', rows:arows });
+  }
   if(q.period > 1){
     right.push({ sub:'Long Term Policy \u2013 ' + q.period + ' Years', rows:[
       { label:'Annual Net Premium', value:R(q.oneYrNet) },
@@ -22631,6 +22719,7 @@ function buildFirePDF(returnBlob){
   if(eqKey)   sumLabel += ' + ' + eqKey;
   if(terrorKey) sumLabel += ' + ' + terrorKey;
   if(burgKey) sumLabel += ' + ' + burgKey;
+  if(addonKey) sumLabel += ' + ' + addonKey;
   sumLabel += ']';
   right.push({ sub:'Final Premium Summary', rows:[
     { label:sumLabel, value:R(q.totalNet) },
@@ -22689,6 +22778,8 @@ window.selectOcc = (typeof selectOcc === 'function') ? selectOcc : function(){};
 
 /* Document-verified checks for the built-in self-test (folded in by runSelfTest) */
 window.FIRE_VERIFIED = [
+  { label:'Fire add-ons as INLIAS rates them: debris 1% / betterment 1% / claim preparation 1% / brands 0.1% / escalation 5% of the basic fire premium (Sookshma 4 Cr basic 34,960 -> 350/350/350/35/1748)',
+    expect:'350/350/350/35/1748', check:()=>FIRE_ADDONS.map(a=>Math.round(34960*a.pct/100)).join('/') },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
     check:()=>[FIRE_COVER_DATA.perilsBSU.length,FIRE_COVER_DATA.perilsSFSP.length,FIRE_COVER_DATA.endorsementsSFSP.length,FIRE_COVER_DATA.exclBSU.length,FIRE_COVER_DATA.terror.exclusions.length].join('/') },
   { label:'Fire: Laghu/SFSP FLEXA rate Jute Mills = 2.58 per mille (NIC Annexure C, code 2111)', expect:2.58, check:()=>RATES.laghu['Jute Mills'] },
@@ -22722,11 +22813,11 @@ function newQuote(){
     const sec = document.getElementById('sectionFire'); if(sec) window.scrollTo({ top: Math.max(0, sec.offsetTop - 8), behavior:'smooth' });
   }catch(e){ console.error(e); }
 }
-window.FIRE = {newQuote: newQuote, shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
+window.FIRE = {toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v72 · one action bar on every product, Motor quick-quote presets, customer-only WC schedule · 04-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v73 · Fire add-on covers (INLIAS-verified), Motor 'Package plus' preset, class / fuel-aware presets, auto Nil Dep discount · 04-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
