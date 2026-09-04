@@ -2004,6 +2004,10 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
     </div>
 
     <div class="field">
+      <label class="lbl" for="seatCap">Seating capacity <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; including the driver; the quick quotes rate unnamed PA on the other seats and set the passenger count</span></label>
+      <input type="number" id="seatCap" class="qty-input" inputmode="numeric" min="1" max="100" value="5" style="max-width:150px" />
+    </div>
+    <div class="field">
       <label class="lbl">Quick quote type <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; sets the cover, PA options and add-ons in one tap</span></label>
       <div class="preset-row" id="motorPresets"></div>
     </div>
@@ -7115,7 +7119,7 @@ const RATES = {
   addons: {
     nilDep:       { name:'Nil Depreciation',        type:'nilDep' },
     engineProtect:{ name:'Engine Protection',        type:'percent', rate:0.03,  rateTable:'engineProtect',
-                    hideFor:['commercial','pccv','misc'] },
+                    hideFor:['commercial','pccv','misc'], hideFuel:['electric'] },   // no engine to protect on a pure EV; hybrids keep it
     rti:          { name:'Return to Invoice',        type:'percent', rate:0.003, maxAgeYears:3, idvBased:true },
     consumables:  { name:'Consumables Cover',        type:'percent', rate:0.04,  rateTable:'consumables',
                     hideFor:['twoWheeler','twoWheelerHire','misc'], maxAgeYears:5 },   // wording: Private Car and PCCV / GCCV, up to 5 years
@@ -8816,6 +8820,7 @@ function renderAddons(){
 
     // Hide addons explicitly excluded for certain vehicle types (hideFor)
     if(a.hideFor && a.hideFor.includes(state.vehicleType)) return '';
+    if(a.hideFuel && a.hideFuel.includes(state.fuel)) return '';
 
     // Hide addons restricted to specific fuel types
     if(a.fuelOnly && !a.fuelOnly.includes(state.fuel)) return '';
@@ -9659,6 +9664,11 @@ function updateAgeBadge(){
   $('ageBadgeWrap').innerHTML = `<span class="age-badge">${yrs}y ${mos}m · ${bracket.label}${asOn}</span>${warn}`;
 }
 
+/* seating capacity (incl. driver) feeds the quick quotes; defaults follow the vehicle class */
+const SEAT_DEFAULTS = { privateCar:5, twoWheeler:2, twoWheelerHire:2, pccv:4, commercial:2, misc:2 };
+function seatCapacity(){ const v = parseInt(($('seatCap')||{}).value, 10); return v > 0 ? v : (SEAT_DEFAULTS[state.vehicleType] || 5); }
+function syncSeatDefault(){ const e = $('seatCap'); if(!e) return; if(e.dataset.vt !== state.vehicleType){ e.dataset.vt = state.vehicleType; e.value = SEAT_DEFAULTS[state.vehicleType] || 5; } }
+
 /* ── Quick quote presets: one tap sets policy type, PA switches and add-ons, then rates ── */
 const MOTOR_PRESETS = [
   { key:'tpOnly',    name:'TP only',                 desc:'Liability only \u00b7 LL to paid driver \u00b7 no PA',          policy:'thirdParty',    sw:{ cpa:false, paUn:false, llDrv:true }, addons:[] },
@@ -9688,6 +9698,7 @@ function presetShortName(k){
 }
 function renderMotorPresets(){
   const host = $('motorPresets'); if(!host) return;
+  syncSeatDefault();
   const cls = ({ privateCar:'private car', twoWheeler:'two-wheeler', twoWheelerHire:'two-wheeler (hire)', pccv:'passenger carrier', commercial:'goods carrier', misc:'misc. vehicle' })[state.vehicleType] || state.vehicleType;
   host.innerHTML = MOTOR_PRESETS.map(p => {
     let desc = p.desc;
@@ -9709,7 +9720,10 @@ function applyMotorPreset(key){
     const sw = document.querySelector('#sectionMotor .switch[data-key="'+k+'"]'); if(!sw) return;
     if(!!state.switches[k] !== p.sw[k]) sw.click();
   });
-  if(state.switches.paUn){ const px = $('paUnPax'); if(px && !(parseInt(px.value,10) > 0)){ px.value = '1'; px.dispatchEvent(new Event('input', { bubbles:true })); } }
+  /* seats: unnamed PA on every seat other than the driver; passenger count for passenger carriers */
+  const seats = seatCapacity(), others = Math.max(1, seats - 1);
+  if(state.vehicleType === 'pccv'){ const pc = $('paxCount'); if(pc && parseInt(pc.value,10) !== others){ pc.value = String(others); pc.dispatchEvent(new Event('input', { bubbles:true })); pc.dispatchEvent(new Event('change', { bubbles:true })); } }
+  if(state.switches.paUn){ const px = $('paUnPax'); if(px && parseInt(px.value,10) !== others){ px.value = String(others); px.dispatchEvent(new Event('input', { bubbles:true })); } }
   if(typeof renderAddons === 'function') renderAddons();
   const isVisible = i => i.offsetParent !== null || (i.closest('label') && i.closest('label').offsetParent !== null);
   let towingDone = false;
@@ -10479,7 +10493,7 @@ function calculate(silent=false){
     // (Oriental rule: NCB applies to (Basic OD − Discount) + Engine Protection. EP itself is NOT discounted.)
     let engineProtectAmt = 0;
     let engineProtectAddon = null;
-    if(Array.isArray(data.selectedAddons) && data.selectedAddons.includes('engineProtect')){
+    if(Array.isArray(data.selectedAddons) && data.selectedAddons.includes('engineProtect') && data.fuel !== 'electric'){
       const a = RATES.addons.engineProtect;
       if(a && (!a.maxAgeYears || ageYears <= a.maxAgeYears)){
         let rate = a.rate;
@@ -10693,6 +10707,7 @@ function calculate(silent=false){
 
       // Skip addons restricted to specific vehicle types (vehicleOnly)
       if(a.vehicleOnly && !a.vehicleOnly.includes(data.vehicleType)) continue;
+      if(a.hideFuel && a.hideFuel.includes(data.fuel)) continue;
 
       // ── Nil Dep ────────────────────────────────────────────────
       if(a.type === 'nilDep'){
@@ -10816,6 +10831,7 @@ function calculate(silent=false){
       /* class restriction is enforced here too, so a selection left over from another vehicle class is never charged */
       if(a.hideFor && a.hideFor.includes(data.vehicleType)) continue;
       if(a.vehicleOnly && !a.vehicleOnly.includes(data.vehicleType)) continue;
+      if(a.hideFuel && a.hideFuel.includes(data.fuel)) continue;
 
       // ── Key Replacement ────────────────────────────────────────
       if(a.type === 'keyReplace'){
@@ -18545,6 +18561,8 @@ const VERIFIED_CASES = [
   { label:'Super Health Top-Up: room-rent removal loading 20/10/5% by deductible; 66-70 entry loading 10%; family discount 10% on individual plan',
     check:()=>[stuRoomLoadPct(500000),stuRoomLoadPct(1000000),stuRoomLoadPct(1500000),stuQuote([68],300000,300000,'individual',{}).base,stuQuote([30,32],300000,300000,'individual',{}).base].join('/'),
     expect:'20/10/5/'+(7385+Math.round(7385*0.1))+'/'+(1977*2-Math.round(1977*2*0.1)) },
+  { label:'Engine Protect is not offered on pure electric vehicles (hybrids keep it); quick quotes read the seating capacity field',
+    check:()=>[RATES.addons.engineProtect.hideFuel.join(','), typeof seatCapacity, SEAT_DEFAULTS.privateCar].join('/'), expect:'electric/function/5' },
   { label:'Motor schedule carries the IMT 23 endorsement wording; health PDFs carry the non-payable items list (68 items)',
     check:()=>(MOTOR_ADDON_WORDINGS.imt23 && MOTOR_ADDON_WORDINGS.imt23.conditions.length)+'/'+HEALTH_EXCLUDED_ITEMS.length+'/'+Object.keys(HEALTH_COVER_DATA).sort().join(','), expect:'4/68/HFF,OMI,OMP,STU' },
   { label:'Tractor >6HP IS a Misc-D pickable slab (Vinod 31-Aug-2026)',
@@ -22835,7 +22853,7 @@ window.FIRE = {toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v74 · CAR / EAR: manual INLIAS rates on every extension, EAR STFI 0.30, offsite storage / waiver of subrogation / DE-3 extensions · 04-Sep-2026</div>
+<div id="buildStamp" style="position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v75 · seating capacity drives quick quotes (unnamed PA seats, passenger count); Engine Protect not for pure EVs · 04-Sep-2026</div>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
 </html>
