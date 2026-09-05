@@ -7124,9 +7124,9 @@ const RATES = {
     consumables:  { name:'Consumables Cover',        type:'percent', rate:0.04,  rateTable:'consumables',
                     hideFor:['twoWheeler','twoWheelerHire','misc'], maxAgeYears:5 },   // wording: Private Car and PCCV / GCCV, up to 5 years
     keyReplace:   { name:'Key Replacement',          type:'keyReplace',
-                    hideFor:['commercial','pccv','misc'], maxAgeYears:5 },   // wording: up to 5 years
-    tyreProtect:  { name:'Tyre & Rim Protect',       type:'tyreProtect', rate:0.002,
-                    hideFor:['commercial','pccv','misc'] },
+                    hideFor:['commercial','misc'], pccvMaxPax:6, maxAgeYears:5 },   // wording: Private Car / Two-Wheeler / PCCV<6, up to 5 years
+    tyreProtect:  { name:'Tyre & Rim Protect',       type:'tyreProtect', rate:0.002, pccvRate:0.003,
+                    hideFor:['commercial','misc'], pccvMaxPax:6 },   // wording: Private Car / Two-Wheeler / PCCV<6; PCCV rated 0.30% of invoice
     batteryProtect:{ name:'Battery Protect — Without Co-Pay', type:'batteryProtect', variant:'standard',
                     fuelOnly:['electric','hybrid'], vehicleOnly:['twoWheeler','privateCar'], maxAgeYears:5 },
     batteryProtectCoPay:{ name:'Battery Protect — With Co-Pay', type:'batteryProtect', variant:'copay',
@@ -8818,8 +8818,8 @@ function renderAddons(){
     // Hide addons restricted to specific vehicle types (vehicleOnly)
     if(a.vehicleOnly && !a.vehicleOnly.includes(state.vehicleType)) return '';
 
-    // Hide addons explicitly excluded for certain vehicle types (hideFor)
-    if(a.hideFor && a.hideFor.includes(state.vehicleType)) return '';
+    // Hide addons explicitly excluded for certain vehicle types (hideFor / PCCV seat limit)
+    if(addonClassBlocked(a, state.vehicleType, parseInt(($('paxCount')||{}).value, 10) || 0)) return '';
     if(a.hideFuel && a.hideFuel.includes(state.fuel)) return '';
 
     // Hide addons restricted to specific fuel types
@@ -8913,10 +8913,11 @@ function renderAddons(){
         const invVal = parseFloat(($('tyreInvoiceInput') || {}).value) || parseFloat(($('invoiceValue') || {}).value) || 0;
         const baseLabel = invVal > 0 ? `on Invoice (₹${fmt(invVal)})` : 'on Est. Invoice';
         note = `${rates3yr.tyreProtect}% ${baseLabel} · 3yr package`;
-      } else if(state.vehicleType === 'privateCar' && ageMonths !== null){
+      } else if((state.vehicleType === 'privateCar' || state.vehicleType === 'pccv') && ageMonths !== null){
         const manualInv = parseFloat(($('tyreInvoiceInput') || {}).value) || 0;
+        const tyRate = state.vehicleType === 'pccv' ? a.pccvRate : a.rate, tyPct = (tyRate*100).toFixed(2);
         if(manualInv > 0){
-          note = `0.20% on Invoice ₹${fmt(manualInv)} → ₹${fmt(Math.round(manualInv * 0.002))}`;
+          note = `${tyPct}% on Invoice ₹${fmt(manualInv)} → ₹${fmt(Math.round(manualInv * tyRate))}`;
         } else {
           const ageYrsUI = ageMonths / 12;
           let divisorUI = null;
@@ -8930,8 +8931,8 @@ function renderAddons(){
             const idvVal = parseFloat(($('idv') || {}).value) || 0;
             const estInv = idvVal > 0 ? Math.round(idvVal / divisorUI) : 0;
             note = estInv > 0
-              ? `0.20% on Est. Invoice ₹${fmt(estInv)} (IDV÷${divisorUI}) — or enter actual invoice above`
-              : `0.20% on Est. Invoice (IDV ÷ dep. divisor)`;
+              ? `${tyPct}% on Est. Invoice ₹${fmt(estInv)} (IDV÷${divisorUI}) — or enter actual invoice above`
+              : `${tyPct}% on Est. Invoice (IDV ÷ dep. divisor)`;
           } else {
             disabled = true; note = 'Not available · age &gt; 5 yrs';
           }
@@ -9393,8 +9394,9 @@ function updateTyreHint(){
   const hint = $('tyreInvoiceHint');
   if(!hint) return;
   const manualInv = parseFloat(($('tyreInvoiceInput') || {}).value) || 0;
+  const tyRateH = state.vehicleType === 'pccv' ? RATES.addons.tyreProtect.pccvRate : RATES.addons.tyreProtect.rate;
   if(manualInv > 0){
-    hint.textContent = `Premium = ₹${fmt(Math.round(manualInv * 0.002))} (0.20% on ₹${fmt(manualInv)})`;
+    hint.textContent = `Premium = ₹${fmt(Math.round(manualInv * tyRateH))} (${(tyRateH*100).toFixed(2)}% on ₹${fmt(manualInv)})`;
     return;
   }
   // Show auto-calculated estimate from IDV
@@ -9411,7 +9413,7 @@ function updateTyreHint(){
     else if(ageYrsH <= 5) div = 0.50;
     if(div !== null){
       const estInv = Math.round(idvVal / div);
-      hint.textContent = `Auto: Est. Invoice ₹${fmt(estInv)} (IDV ÷ ${div}) → Premium ≈ ₹${fmt(Math.round(estInv * 0.002))}`;
+      hint.textContent = `Auto: Est. Invoice ₹${fmt(estInv)} (IDV ÷ ${div}) → Premium ≈ ₹${fmt(Math.round(estInv * tyRateH))}`;
     } else {
       hint.textContent = 'Not available — age above 5 years';
     }
@@ -9666,6 +9668,12 @@ function updateAgeBadge(){
 
 /* seating capacity (incl. driver) feeds the quick quotes; defaults follow the vehicle class */
 const SEAT_DEFAULTS = { privateCar:5, twoWheeler:2, twoWheelerHire:2, pccv:4, commercial:2, misc:2 };
+/* Add-ons restricted to small PCCVs (wording "PCCV<6"): hidden when the passenger count exceeds pccvMaxPax */
+function addonClassBlocked(a, vehicleType, paxCount){
+  if(a.hideFor && a.hideFor.includes(vehicleType)) return true;
+  if(vehicleType === 'pccv' && a.pccvMaxPax && (paxCount || 0) > a.pccvMaxPax) return true;
+  return false;
+}
 function seatCapacity(){ const v = parseInt(($('seatCap')||{}).value, 10); return v > 0 ? v : (SEAT_DEFAULTS[state.vehicleType] || 5); }
 function syncSeatDefault(){ const e = $('seatCap'); if(!e) return; if(e.dataset.vt !== state.vehicleType){ e.dataset.vt = state.vehicleType; e.value = SEAT_DEFAULTS[state.vehicleType] || 5; } }
 
@@ -10720,8 +10728,8 @@ function calculate(silent=false){
       // Skip addons restricted to specific fuel types (e.g. Battery Protect = EV only)
       if(a.fuelOnly && !a.fuelOnly.includes(data.fuel)) continue;
 
-      // Skip addons hidden for this vehicle type
-      if(a.hideFor && a.hideFor.includes(data.vehicleType)) continue;
+      // Skip addons hidden for this vehicle type (hideFor / PCCV seat limit)
+      if(addonClassBlocked(a, data.vehicleType, data.paxCount)) continue;
 
       // Skip addons restricted to specific vehicle types (vehicleOnly)
       if(a.vehicleOnly && !a.vehicleOnly.includes(data.vehicleType)) continue;
@@ -10847,7 +10855,7 @@ function calculate(silent=false){
 
       if(a.maxAgeYears && ageYears > a.maxAgeYears) continue;
       /* class restriction is enforced here too, so a selection left over from another vehicle class is never charged */
-      if(a.hideFor && a.hideFor.includes(data.vehicleType)) continue;
+      if(addonClassBlocked(a, data.vehicleType, data.paxCount)) continue;
       if(a.vehicleOnly && !a.vehicleOnly.includes(data.vehicleType)) continue;
       if(a.hideFuel && a.hideFuel.includes(data.fuel)) continue;
 
@@ -10883,12 +10891,12 @@ function calculate(silent=false){
 
       // ── Tyre & Rim — base = manual invoice OR IDV reversed by depreciation slab ──
       if(a.type === 'tyreProtect'){
-        let tyreRate = a.rate;
+        let tyreRate = data.vehicleType === 'pccv' ? a.pccvRate : a.rate;
         if(pkg3yr && rates3yr && rates3yr.tyreProtect){
           tyreRate = rates3yr.tyreProtect / 100;
         }
         let tyreBase = 0, tyreBaseLabel = '';
-        if(data.vehicleType === 'privateCar'){
+        if(data.vehicleType === 'privateCar' || data.vehicleType === 'pccv'){
           const manualInvoice = parseFloat(($('tyreInvoiceInput') || {}).value) || 0;
           if(manualInvoice > 0){
             // User entered invoice value — use it directly
@@ -22873,7 +22881,7 @@ window.FIRE = {toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v77 · sweep fixes: preset chips per class, seating on hire two-wheelers and car PDFs, Misc unnamed PA in dual quotes, no dash rows on Fire quote, no referral warnings on CAR lines · 05-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v78 · Tyre & Rim and Key Replacement offered on PCCV up to 6 passengers; PCCV tyre cover rated 0.30% of invoice · 05-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
