@@ -9671,8 +9671,8 @@ function syncSeatDefault(){ const e = $('seatCap'); if(!e) return; if(e.dataset.
 
 /* ── Quick quote presets: one tap sets policy type, PA switches and add-ons, then rates ── */
 const MOTOR_PRESETS = [
-  { key:'tpOnly',    name:'TP only',                 desc:'Liability only \u00b7 LL to paid driver \u00b7 no PA',          policy:'thirdParty',    sw:{ cpa:false, paUn:false, llDrv:true }, addons:[] },
-  { key:'tpPA',      name:'TP + PA',                 desc:'Liability \u00b7 Owner PA \u00b7 unnamed PA \u00b7 paid driver', policy:'thirdParty',    sw:{ cpa:true,  paUn:true,  llDrv:true }, addons:[] },
+  { key:'tpOnly',    name:'TP only',                 desc:'Liability only \u00b7 LL to paid driver \u00b7 no PA',          policy:'thirdParty',    sw:{ cpa:false, paUn:false, llDrv:true }, addons:[], term:'1yr' },
+  { key:'tpPA',      name:'TP + PA',                 desc:'Liability \u00b7 Owner PA \u00b7 unnamed PA \u00b7 paid driver', policy:'thirdParty',    sw:{ cpa:true,  paUn:true,  llDrv:true }, addons:[], term:'1yr' },
   { key:'pkgBasic',  name:'Package basic',           desc:'OD + TP \u00b7 Owner PA \u00b7 unnamed PA \u00b7 paid driver',   policy:'comprehensive', sw:{ cpa:true,  paUn:true,  llDrv:true }, addons:[] },
   { key:'pkgNilDep', name:'Package + Nil Dep',       desc:'Basic package with Nil Depreciation',                            policy:'comprehensive', sw:{ cpa:true,  paUn:true,  llDrv:true }, addons:['nilDep'] },
   { key:'pkgCore',   name:'Package + core add-ons',  desc:'Nil Dep \u00b7 Engine \u00b7 Consumables \u00b7 Key \u00b7 Towing', policy:'comprehensive', sw:{ cpa:true,  paUn:true,  llDrv:true }, addons:['nilDep','engineProtect','consumables','keyReplace','towing'] },
@@ -9716,6 +9716,16 @@ function applyMotorPreset(key){
   const p = MOTOR_PRESETS.find(x => x.key === key); if(!p) return;
   const radio = document.querySelector('input[name="policy"][value="'+p.policy+'"]');
   if(radio && !radio.checked){ radio.checked = true; radio.dispatchEvent(new Event('change', { bubbles:true })); }
+  /* TP quick quotes are always one-year policies (and one-year PA / LL terms) whatever the registration date;
+     the term can still be changed by hand afterwards */
+  if(p.term){
+    state.policyTerm = p.term;
+    if(typeof renderTerms === 'function') renderTerms();
+    const tr = document.querySelector('input[name="term"][value="' + p.term + '"]');
+    if(tr){ tr.checked = true; tr.dispatchEvent(new Event('change', { bubbles:true })); }
+    else if(typeof syncTpTermRow === 'function') syncTpTermRow();
+    state.cpaTerm = state.paUnTerm = state.llTerm = p.term;
+  }
   Object.keys(p.sw).forEach(k => {
     const sw = document.querySelector('#sectionMotor .switch[data-key="'+k+'"]'); if(!sw) return;
     if(!!state.switches[k] !== p.sw[k]) sw.click();
@@ -22853,7 +22863,7 @@ window.FIRE = {toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v75 · seating capacity drives quick quotes (unnamed PA seats, passenger count); Engine Protect not for pure EVs · 04-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v76 · TP quick quotes always one-year policies · 05-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
