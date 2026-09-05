@@ -5722,7 +5722,7 @@ else if(isEAR){const b=q.breakdown||{};const si=q.si;secI.push({label:'Col. 4 ba
 else{const extra=Math.max(0,months-3);secI.push({label:'Min. rate '+q.risk.r.toFixed(3)+pm+' x SI/1000',value:R((q.si/1000)*q.risk.r)});if(extra>0)secI.push({label:'Addl. '+q.risk.a.toFixed(3)+pm+' x '+extra+' months',value:R((q.si/1000)*q.risk.a*extra)});}
 secI.push({label:'Gross Section I Premium',value:R(q.grossPrem),bold:true});if(q.discPct>0)secI.push({label:'Less: Discount ('+q.discPct+'%)',value:'- '+R(q.discAmt)});secI.push({label:'Net Section I Premium (A)',value:R(q.netPrem),total:true});
 right.push({sub:'Section I - Material Damage',rows:secI});
-const hasExt=q.extLines&&q.extLines.length>0;if(hasExt){const ext=[];q.extLines.forEach(l=>{const parts=String(l.label).replace(/‰/g,' per mille').replace(/\s*×\s*/g,' x ').split(/\s[—–-]\s/);const name=parts.shift();const detail=parts.join(' - ');ext.push({label:name,value:R(l.grossAmt||l.amt)});if(detail)ext.push({label:detail,sub:true});if(l.discAmt>0)ext.push({label:'Less: discount',value:'- '+R(l.discAmt),sub:true});});ext.push({label:'Total Extensions (B)',value:R(q.extTotal),total:true});right.push({sub:'Extensions & Add-on Covers',rows:ext});}
+const hasExt=q.extLines&&q.extLines.length>0;if(hasExt){const ext=[];q.extLines.forEach(l=>{const parts=String(l.label).replace(/\s*⚠.*$/,'').replace(/‰/g,' per mille').replace(/\s*×\s*/g,' x ').split(/\s[—–-]\s/);const name=parts.shift();const detail=parts.join(' - ');ext.push({label:name,value:R(l.grossAmt||l.amt)});if(detail)ext.push({label:detail,sub:true});if(l.discAmt>0)ext.push({label:'Less: discount',value:'- '+R(l.discAmt),sub:true});});ext.push({label:'Total Extensions (B)',value:R(q.extTotal),total:true});right.push({sub:'Extensions & Add-on Covers',rows:ext});}
 right.push({sub:'Final Premium Summary',rows:[{label:'Net Premium before GST'+(hasExt?' [A + B]':' [A]'),value:R(q.totalNet)},{label:'GST @ 18%',value:R(q.gst)},{label:'Total Premium',value:R(q.grand),total:true}]});
 const notes=['Rates are as per the All India Engineering Tariff for CAR / EAR together with the applicable road-risk, NATCAT, deductible and discount rules. This is an indicative quotation - final premium, terms and conditions are subject to underwriting and acceptance of risk.',isEAR?'EAR / SCE: the Col. 4 base rate covers the first erection month and one testing month; testing cannot exceed 12 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.':'CAR: the minimum rate covers the first 3 months of the policy period and the additional monthly rate applies beyond 3 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.','Excess applies to each claim as shown in the Compulsory Excess table. Third Party Liability is not granted during extended maintenance. ALOP / DSU, if shown, is a separate section and is not included in the total above.','This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.'];
 const safeName=String(q.insuredName||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);const mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const dStr=String(now.getDate()).padStart(2,'0')+mons[now.getMonth()]+now.getFullYear();
@@ -9701,10 +9701,16 @@ function renderMotorPresets(){
   syncSeatDefault();
   const cls = ({ privateCar:'private car', twoWheeler:'two-wheeler', twoWheelerHire:'two-wheeler (hire)', pccv:'passenger carrier', commercial:'goods carrier', misc:'misc. vehicle' })[state.vehicleType] || state.vehicleType;
   host.innerHTML = MOTOR_PRESETS.map(p => {
-    let desc = p.desc;
+    /* PA to un-named passengers is not offered on passenger / goods carriers; LL to paid driver does not apply to private two-wheelers */
+    const paOk = !(state.vehicleType === 'pccv' || state.vehicleType === 'commercial');
+    const llOk = state.vehicleType !== 'twoWheeler';
+    const tpBits = (p.sw.cpa ? ' \u00b7 Owner PA' : '') + (p.sw.paUn && paOk ? ' \u00b7 unnamed PA' : '') + (p.sw.llDrv && llOk ? ' \u00b7 paid driver' : '') + (!p.sw.cpa && !p.sw.paUn ? ' \u00b7 no PA' : '');
+    let desc;
     if(p.policy === 'comprehensive'){
       const keys = presetAddonKeys(p);
-      desc = (keys.length ? keys.map(presetShortName).join(' \u00b7 ') : 'no add-ons') + ' \u00b7 Owner PA \u00b7 unnamed PA \u00b7 paid driver';
+      desc = (keys.length ? keys.map(presetShortName).join(' \u00b7 ') : 'no add-ons') + tpBits;
+    } else {
+      desc = 'Liability only' + tpBits;
     }
     return '<button type="button" class="preset-chip' + (state.motorPreset === p.key ? ' active' : '') + '" data-preset="'+p.key+'" title="for this ' + cls + (state.fuel ? ', ' + state.fuel : '') + '"><b>'+p.name+'</b><small>'+desc+'</small></button>';
   }).join('');
@@ -9714,6 +9720,7 @@ function renderMotorPresets(){
 (function(){ const grid = $('addonsGrid'); if(grid && window.MutationObserver){ let t = null; new MutationObserver(() => { clearTimeout(t); t = setTimeout(renderMotorPresets, 30); }).observe(grid, { childList:true }); } })();
 function applyMotorPreset(key){
   const p = MOTOR_PRESETS.find(x => x.key === key); if(!p) return;
+  if(typeof syncSeatDefault === 'function') syncSeatDefault();
   const radio = document.querySelector('input[name="policy"][value="'+p.policy+'"]');
   if(radio && !radio.checked){ radio.checked = true; radio.dispatchEvent(new Event('change', { bubbles:true })); }
   /* TP quick quotes are always one-year policies (and one-year PA / LL terms) whatever the registration date;
@@ -9732,7 +9739,7 @@ function applyMotorPreset(key){
   });
   /* seats: unnamed PA on every seat other than the driver; passenger count for passenger carriers */
   const seats = seatCapacity(), others = Math.max(1, seats - 1);
-  if(state.vehicleType === 'pccv'){ const pc = $('paxCount'); if(pc && parseInt(pc.value,10) !== others){ pc.value = String(others); pc.dispatchEvent(new Event('input', { bubbles:true })); pc.dispatchEvent(new Event('change', { bubbles:true })); } }
+  if(state.vehicleType === 'pccv' || state.vehicleType === 'twoWheelerHire'){ const pc = $('paxCount'); if(pc && parseInt(pc.value,10) !== others){ pc.value = String(others); pc.dispatchEvent(new Event('input', { bubbles:true })); pc.dispatchEvent(new Event('change', { bubbles:true })); } }
   if(state.switches.paUn){ const px = $('paUnPax'); if(px && parseInt(px.value,10) !== others){ px.value = String(others); px.dispatchEvent(new Event('input', { bubbles:true })); } }
   if(typeof renderAddons === 'function') renderAddons();
   const isVisible = i => i.offsetParent !== null || (i.closest('label') && i.closest('label').offsetParent !== null);
@@ -10336,6 +10343,7 @@ function calculate(silent=false){
     regDate:      $('regDate').value,
     slab:         $('ccSlab').value,
     idv:          parseFloat($('idv').value) || 0,
+    seatCap:      (typeof seatCapacity === 'function') ? seatCapacity() : 0,
     paxCount:     parseInt($('paxCount').value, 10) || 0,
     cngKit:       parseFloat($('cngKit').value) || 0,
     elecAcc:      parseFloat($('elecAcc').value) || 0,
@@ -11679,7 +11687,9 @@ function seatingCapacityLabel(q){
     const n = Math.max(parseInt(d.llGccvCount, 10) || 0, 1);
     return n + (n > 1 ? ' (driver + ' + (n - 1) + (vt === 'commercial' ? ' cleaner' : ' other') + (n > 2 ? 's' : '') + ')' : ' (driver)');
   }
-  // Private car / two-wheeler: seating is not rated; show the PA Un-named occupants + driver when declared
+  // Private car / two-wheeler: the declared seating capacity (incl. driver); else the PA Un-named occupants + driver
+  const seats = parseInt(d.seatCap, 10) || 0;
+  if(seats > 0) return seats + ' (incl. driver)';
   const pax = (d.switches && d.switches.paUn) ? (parseInt(d.paUnPax, 10) || 0) : 0;
   return pax > 0 ? (pax + 1) + ' (incl. driver)' : '';
 }
@@ -13251,8 +13261,8 @@ function computeQuote(d) {
     extras.items.push({ name: 'Owner PA', amount: cpa });
     extras.total += cpa;
   }
-  // PA for Un-named Persons is not offered for Misc, PCCV and Commercial vehicles.
-  const paUnVehAllowed = !(d.vehicleType==='misc' || d.vehicleType==='pccv' || d.vehicleType==='commercial');
+  // PA for Un-named Persons is not offered for PCCV and Commercial vehicles (same rule as calculate())
+  const paUnVehAllowed = !(d.vehicleType==='pccv' || d.vehicleType==='commercial');
   if (paUnVehAllowed && d.switches.paUn && d.paUnPax > 0 && d.paUnSI > 0) {
     const maxSI = RATES.optional.paUnnamedMaxSI[d.vehicleType];
     const si = Math.min(d.paUnSI, maxSI);
@@ -22682,12 +22692,12 @@ function buildFirePDF(returnBlob){
       ['FLEXA (Fire & Allied Perils)', 'Covered'],
       ['STFI Cover', q.stfiOn ? ('Covered @ ' + (q.stfiRateUsed != null ? q.stfiRateUsed + ' per mille' : 'as rated')) : 'Not Opted'],
       ['Earthquake Cover', q.eqOn ? ('Covered \u2013 ' + eqZoneShort) : 'Not Opted'],
-      ['Earthquake Rate', q.eqOn ? (q.eqRate + ' per mille') : '\u2014'],
+      q.eqOn ? ['Earthquake Rate', q.eqRate + ' per mille'] : null,
       ['Terrorism Cover', (q.terrorOn && q.terrorNet > 0) ? ('Covered @ ' + q.terrorRate + ' per mille') : 'Not Opted'],
       ['Theft & Burglary Cover', q.burgOn ? 'Covered' : 'Not Opted'],
-      ['Burglary Sum Insured', q.burgOn ? OICPDF.fmtIN(q.burgSI) : '\u2014'],
-      ['Burglary Rate', q.burgOn ? (q.burgRate + (q.burgUnit === 'pct' ? ' percent' : ' per mille')) : '\u2014']
-    ]},
+      q.burgOn ? ['Burglary Sum Insured', OICPDF.fmtIN(q.burgSI)] : null,
+      q.burgOn ? ['Burglary Rate', q.burgRate + (q.burgUnit === 'pct' ? ' percent' : ' per mille')] : null
+    ].filter(Boolean)},
     { bar:'Add-on Covers', rows: (q.addonLines && q.addonLines.length)
         ? q.addonLines.map(a => [a.name.length > 44 ? a.name.slice(0, 44) + '\u2026' : a.name, (a.limit ? 'Limit ' + OICPDF.fmtIN(a.limit) + ' \u00b7 ' : '') + a.pct + '% of basic'])
         : [['Add-on covers', 'Not Opted']] },
@@ -22863,7 +22873,7 @@ window.FIRE = {toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v76 · TP quick quotes always one-year policies · 05-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v77 · sweep fixes: preset chips per class, seating on hire two-wheelers and car PDFs, Misc unnamed PA in dual quotes, no dash rows on Fire quote, no referral warnings on CAR lines · 05-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
