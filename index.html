@@ -527,6 +527,14 @@ var OIC_WORD_AR  = 640/103;
      notes a module passes in, so no product can ship without it. The motor
      module builds its own note box and carries its own copy of this string. */
   var PORTAL_DISCLAIMER = 'Please check the portal https://orientalinsurance.org.in/ and the Policy Issuing Office for all details.';
+  var QUOTE_VALID_DAYS = 7;
+  /* every quotation is open for 7 days from the day it is generated */
+  function validityNote(from){
+    var d = (from instanceof Date && !isNaN(from)) ? new Date(from.getTime()) : new Date();
+    d.setDate(d.getDate() + QUOTE_VALID_DAYS);
+    var p = function(n){ return (n < 10 ? '0' : '') + n; };
+    return 'This quotation is valid for ' + QUOTE_VALID_DAYS + ' days from the date of generation, i.e. up to ' + p(d.getDate()) + '-' + p(d.getMonth() + 1) + '-' + d.getFullYear() + '. Premium after that date is subject to the rates and terms then in force.';
+  }
 
   var DEFAULT_NOTES = [
     'Above mentioned Premium is subject to acceptance of risk and completion of underwriting requirements, including inspection where applicable.',
@@ -586,6 +594,7 @@ var OIC_WORD_AR  = 640/103;
     var left  = (spec.left  || []).filter(Boolean);
     var right = (spec.right || []).filter(Boolean);
     var notes = (spec.notes && spec.notes.length ? spec.notes : DEFAULT_NOTES).slice();
+    notes.unshift(validityNote(spec.generatedAt));
     if (notes.indexOf(PORTAL_DISCLAIMER) === -1) notes.push(PORTAL_DISCLAIMER);
 
     /* ---------- primitives ---------- */
@@ -852,7 +861,7 @@ var OIC_WORD_AR  = 640/103;
     return { doc: doc, filename: spec.filename || 'Oriental_Quote.pdf' };
   }
 
-  var API = { render: render, money: money, money2: money2, fmtIN: fmtIN, palette: C, pdfSafe: pdfSafe };
+  var API = { render: render, money: money, money2: money2, fmtIN: fmtIN, palette: C, pdfSafe: pdfSafe, validityNote: validityNote, QUOTE_VALID_DAYS: QUOTE_VALID_DAYS };
   root.OICPDF = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 
@@ -3620,6 +3629,12 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
     <div class="field" style="margin-top:8px">
       <label class="lbl" for="addon-limit">Add-on limit (each) <span style="font-weight:400;color:var(--mute)">&mdash; blank = 10% of Sum Insured</span></label>
       <input type="number" id="addon-limit" placeholder="e.g. 500000" min="0" step="1" inputmode="decimal">
+    </div>
+    <div class="field" style="margin-top:8px">
+      <label class="lbl" for="addon-discount">Add-on discount <span style="font-weight:400;color:var(--mute)">&mdash; applied to every add-on cover opted above</span></label>
+      <div class="input-suffix" data-suffix="%">
+        <input type="number" id="addon-discount" placeholder="0" min="0" max="100" value="0" step="0.1" inputmode="decimal">
+      </div>
     </div>
 
     <div class="switch-row" style="cursor:default">
@@ -12013,12 +12028,13 @@ function generatePDF(q, docOverride){
     const goldH=34, urlH=22, noteGap=12;
     // important note text measured for height
     const notePieces = [
+      OICPDF.validityNote(d),
       'Above mentioned Premium is subject to Positive vehicle inspection, if required as per Underwriting Guidelines.',
       'Insurance is the subject matter of the solicitation. For more details on benefits/exclusions, risk factors, terms and conditions please refer policy wordings/sales brochure carefully before concluding a sale. Visit https://www.orientalinsurance.org.in for policy wording.',
       'This is a system generated quote and does not require signature. Premium and Risk period may change at the time of issuance of Policy.',
       'Please check the portal https://orientalinsurance.org.in/ and the Policy Issuing Office for all details.'
     ];
-    const noteBodyH = 78;            // room for the four notes incl. the portal disclaimer
+    const noteBodyH = 100;           // room for the five notes (validity, inspection, solicitation, system quote, portal)
     const noteHdrH  = 18;
     const noteTotalH= noteHdrH+noteBodyH;
     const blockH = noteTotalH + noteGap + goldH;       // note + gap + gold
@@ -12042,7 +12058,10 @@ function generatePDF(q, docOverride){
     let ty=by+13;
     notePieces.forEach((p,i)=>{ const last = i===notePieces.length-1;
       text(p,M+9,ty,{size:7.8,bold:last,color:last?C.blue:C.inkSoft,maxWidth:CW-18});
-      ty+= (p.length>120?23:12); });
+      /* advance by the real wrapped line count so a two-line note never overprints the next one */
+      doc.setFont('helvetica', last?'bold':'normal'); doc.setFontSize(7.8);
+      const nl = doc.splitTextToSize(p, CW-18).length;
+      ty+= nl>1 ? nl*10.5+2 : 12; });
     by+=noteBodyH+noteGap;
 
     // Gold Total bar
@@ -21516,11 +21535,11 @@ function updateTerrorPill(){ const v = parseFloat(document.getElementById('terro
    R/432702/11/2027/67 (Sookshma, 4 Cr: 350 / 350 / 350 / 35 / 1,748 on a basic of 34,960) and
    R/432702/11/2027/68 (Laghu, 12 Cr: 732 / 732 / 732 / 3,660 on 73,200). Each line is rounded to the rupee. */
 const FIRE_ADDONS = [
-  { key:'debris',     name:'Removal of Debris (including external debris and ingressed water)', pct:1 },
-  { key:'betterment', name:'Involuntary Betterment while reinstating the property',              pct:1 },
-  { key:'claimPrep',  name:'Claim Preparation Clause',                                           pct:1 },
-  { key:'brands',     name:'Brands and Trademarks Clause',                                       pct:0.1 },
-  { key:'escalation', name:'Escalation Clause',                                                  pct:5 }
+  { key:'debris',     name:'Removal of Debris (including external debris and ingressed water)', short:'Removal of Debris',            pct:1 },
+  { key:'betterment', name:'Involuntary Betterment while reinstating the property',              short:'Involuntary Betterment',       pct:1 },
+  { key:'claimPrep',  name:'Claim Preparation Clause',                                           short:'Claim Preparation Clause',     pct:1 },
+  { key:'brands',     name:'Brands and Trademarks Clause',                                       short:'Brands and Trademarks Clause', pct:0.1 },
+  { key:'escalation', name:'Escalation Clause',                                                  short:'Escalation Clause',            pct:5 }
 ];
 function fireAddonOn(key){ const sw = document.getElementById('addon-' + key + '-switch'); return !!(sw && sw.classList.contains('on')); }
 function toggleAddon(key){ const sw = document.getElementById('addon-' + key + '-switch'); if(sw) sw.classList.toggle('on'); }
@@ -22025,8 +22044,11 @@ function calculate(){
   // ── ADD-ON COVERS (% of the basic fire premium) ──
   const addonLimitIn = Math.max(0, parseFloat((document.getElementById('addon-limit')||{}).value) || 0);
   const addonLimit   = addonLimitIn || Math.round(si * 0.10);
-  const addonLines   = FIRE_ADDONS.filter(a => fireAddonOn(a.key)).map(a => ({ key:a.key, name:a.name, pct:a.pct, limit:(a.key === 'escalation' ? 0 : addonLimit), amount:Math.round(flexaGross * a.pct / 100) }));
+  const addonDisc    = Math.min(100, Math.max(0, parseFloat((document.getElementById('addon-discount')||{}).value) || 0));
+  const addonLines   = FIRE_ADDONS.filter(a => fireAddonOn(a.key)).map(a => { const gross = Math.round(flexaGross * a.pct / 100); return { key:a.key, name:a.name, short:a.short, pct:a.pct, limit:(a.key === 'escalation' ? 0 : addonLimit), gross, amount:Math.round(gross * (1 - addonDisc / 100)) }; });
+  const addonGross   = addonLines.reduce((t, a) => t + a.gross, 0);
   const addonNet     = addonLines.reduce((t, a) => t + a.amount, 0);
+  const addonDiscAmt = addonGross - addonNet;
 
   const totalNet = (flexaNet+stfiNet+eqNet+terrorNet+burgNet+addonNet)*period;
   const gst   = totalNet*0.18;
@@ -22102,7 +22124,8 @@ function calculate(){
 
   if(addonLines.length){
     html += `<div class="line section-divider"><span class="k">Add-on Covers · % of basic fire premium</span><span class="v"></span></div>`;
-    addonLines.forEach(a => { html += `<div class="line"><span class="k">${a.name} · ${a.pct}%</span><span class="v">${fmtR(a.amount)}</span></div>`; });
+    addonLines.forEach(a => { html += `<div class="line"><span class="k">${a.name} · ${a.pct}%</span><span class="v">${fmtR(a.gross)}</span></div>`; });
+    if(addonDisc > 0) html += `<div class="line sub"><span class="k">Discount (${addonDisc}%)</span><span class="v discount">− ${fmtR(addonDiscAmt)}</span></div>`;
     html += `<div class="line net-line"><span class="k">Net Add-on Premium</span><span class="v">${fmtR(addonNet)}</span></div>`;
   }
 
@@ -22193,7 +22216,7 @@ function calculate(){
     burgOn, burgSI, burgRate, burgUnit, burgRateLabel, burgDisc,
     burgGross, burgDiscAmt, burgNet,
     oneYrNet: flexaNet+stfiNet+eqNet+terrorNet+burgNet+addonNet,
-    addonLines, addonNet, addonLimit,
+    addonLines, addonNet, addonLimit, addonGross, addonDisc, addonDiscAmt,
     terrorOn, terrorRate, terrorDisc, terrorGross, terrorDiscAmt, terrorNet,
     totalNet, gst, grand,
     commRate: comm.rate, commAmt, commLabel: comm.label, commCategory: comm.category,
@@ -22707,7 +22730,7 @@ function buildFirePDF(returnBlob){
       q.burgOn ? ['Burglary Rate', q.burgRate + (q.burgUnit === 'pct' ? ' percent' : ' per mille')] : null
     ].filter(Boolean)},
     { bar:'Add-on Covers', rows: (q.addonLines && q.addonLines.length)
-        ? q.addonLines.map(a => [a.name.length > 44 ? a.name.slice(0, 44) + '\u2026' : a.name, (a.limit ? 'Limit ' + OICPDF.fmtIN(a.limit) + ' \u00b7 ' : '') + a.pct + '% of basic'])
+        ? q.addonLines.map(a => [a.short || (a.name.length > 44 ? a.name.slice(0, 44) + '\u2026' : a.name), (a.limit ? 'Limit ' + OICPDF.fmtIN(a.limit) + ' \u00b7 ' : '') + a.pct + '% of basic'])
         : [['Add-on covers', 'Not Opted']] },
     { bar:'Policy Excess / Deductible', rows:[
       ['Sum Insured Band', exBand],
@@ -22768,7 +22791,8 @@ function buildFirePDF(returnBlob){
   let addonKey = '';
   if(q.addonLines && q.addonLines.length){
     addonKey = String.fromCharCode(66 + (q.stfiOn ? 1 : 0) + (q.eqOn ? 1 : 0) + (terrorKey ? 1 : 0) + (burgKey ? 1 : 0));
-    const arows = q.addonLines.map(a => ({ label: a.name + ' @ ' + a.pct + '% of basic', value:R(a.amount) }));
+    const arows = q.addonLines.map(a => ({ label: (a.short || a.name) + ' @ ' + a.pct + '% of basic', value:R(a.gross != null ? a.gross : a.amount) }));
+    if(q.addonDisc > 0) arows.push({ label:'Discount on add-on covers (' + q.addonDisc + '%)', value:'- ' + R(q.addonDiscAmt) });
     arows.push({ label:'Net Add-on Premium (' + addonKey + ')', value:R(q.addonNet), total:true });
     right.push({ sub:'Section ' + addonKey + ' \u2013 Add-on Covers', rows:arows });
   }
@@ -22844,6 +22868,10 @@ window.selectOcc = (typeof selectOcc === 'function') ? selectOcc : function(){};
 window.FIRE_VERIFIED = [
   { label:'Fire add-ons as INLIAS rates them: debris 1% / betterment 1% / claim preparation 1% / brands 0.1% / escalation 5% of the basic fire premium (Sookshma 4 Cr basic 34,960 -> 350/350/350/35/1748)',
     expect:'350/350/350/35/1748', check:()=>FIRE_ADDONS.map(a=>Math.round(34960*a.pct/100)).join('/') },
+  { label:'Fire: add-on discount 20% on Removal of Debris (basic 34,960 -> 350 gross, 280 net)', expect:'280',
+    check:()=>String(Math.round(Math.round(34960*FIRE_ADDONS[0].pct/100)*(1-20/100))) },
+  { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
+    check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
     check:()=>[FIRE_COVER_DATA.perilsBSU.length,FIRE_COVER_DATA.perilsSFSP.length,FIRE_COVER_DATA.endorsementsSFSP.length,FIRE_COVER_DATA.exclBSU.length,FIRE_COVER_DATA.terror.exclusions.length].join('/') },
   { label:'Fire: Laghu/SFSP FLEXA rate Jute Mills = 2.58 per mille (NIC Annexure C, code 2111)', expect:2.58, check:()=>RATES.laghu['Jute Mills'] },
@@ -22881,7 +22909,7 @@ window.FIRE = {toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v78 · Tyre & Rim and Key Replacement offered on PCCV up to 6 passengers; PCCV tyre cover rated 0.30% of invoice · 05-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v79 · 7-day validity note on every quote PDF; discount field for Fire add-on covers · 05-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
