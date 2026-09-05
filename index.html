@@ -5725,7 +5725,7 @@ const left=[{bar:'Customer Details',rows:[['Name / Project',q.insuredName||'Valu
 const riskRows=[];if(isSplit){q.splitSegments.forEach((s,i)=>{riskRows.push({label:(i+1)+'. '+s.label+'  ·  Code '+s.risk.c+'  ·  '+R(s.si)});wrapText(s.risk.n,68).forEach(l=>riskRows.push({label:'      '+l}));riskRows.push({label:'      Col.4 '+s.risk.c4.toFixed(2)+' | Col.5 '+s.risk.c5.toFixed(3)+' | Col.6 '+s.risk.c6.toFixed(3)+' | Col.7 '+s.risk.c7.toFixed(2)+pm});});}
 else{riskRows.push(['Risk Code',isEAR?q.risk.c:q.selectedCode]);wrapText(q.risk.n,68).forEach((l,i)=>riskRows.push({label:(i===0?'Risk: ':'      ')+l}));if(isEAR){riskRows.push(['Col. 4 base rate',q.risk.c4.toFixed(2)+pm]);riskRows.push(['Col. 5 (erection months 2-11)',q.risk.c5.toFixed(3)+pm+' / month']);riskRows.push(['Col. 6 (beyond month 11)',q.risk.c6.toFixed(3)+pm+' / month']);riskRows.push(['Col. 7 (extra testing)',q.risk.c7.toFixed(2)+pm+' / month']);}else{riskRows.push(['Minimum rate (first 3 months)',q.risk.r.toFixed(3)+pm]);riskRows.push(['Additional rate per month',q.risk.a.toFixed(3)+pm]);riskRows.push(['Effective rate applied',q.grossRate.toFixed(4)+pm]);}}
 left.push({bar:'Risk Details',rows:riskRows});
-const d=q.discInputs||{};left.push({bar:'Section I Discounts',rows:[['Higher Excess Discount',(d.ex||0)+'%'],['Volume Discount',(d.vol||0)+'%'],['Special / Additional Discount',(d.sp||0)+'%'],{label:'Combined discount applied',value:(q.discPct||0)+'%',total:true}]});
+/* section I discounts are never itemised for the customer */
 const exRows=[];const E=q.excess||excessFor(q.risk,q.si,q.mode);exRows.push([isEAR?'Normal period':'Normal claims',E.normal.pct+'% of claim, min Rs. '+OICPDF.fmtIN(E.normal.min)]);if(E.testing)exRows.push(['Testing period',E.testing.pct+'% of claim, min Rs. '+OICPDF.fmtIN(E.testing.min)]);exRows.push([isEAR?'AOG / major perils':'AOG / major peril claims',E.aog.pct+'% of claim, min Rs. '+OICPDF.fmtIN(E.aog.min)+(isEAR?', max Rs. 5 Cr':'')]);exRows.push({label:'Basis: % of each claim, subject to the tariff minimum'+(E.mult?' (minimum x '+E.mult+')':'')});
 left.push({bar:'Compulsory Excess',rows:exRows});
 const al=isEAR?alopSnapshot():null;if(al){left.push({bar:'ALOP / DSU (separate section - not in total)',rows:[['ALOP Sum Insured',R(al.si)],['Rate',al.rate.toFixed(2)+pm],['Max. indemnity period',al.mip+' months'],{label:'ALOP premium (excl. GST)',value:R(al.prem),total:true}]});}
@@ -5735,11 +5735,11 @@ const right=[{bar:'Premium Breakup'}];const secI=[];
 if(isSplit){q.splitSegments.forEach((s,i)=>{secI.push({label:(i+1)+'. '+s.label+' @ '+s.risk.c4.toFixed(2)+pm,value:R(s.grossPrem)});});}
 else if(isEAR){const b=q.breakdown||{};const si=q.si;secI.push({label:'Col. 4 base ('+q.risk.c4.toFixed(2)+pm+')',value:R((si/1000)*q.risk.c4)});if(b.col5M>0)secI.push({label:'Col. 5 x '+b.col5M+' months',value:R((si/1000)*q.risk.c5*b.col5M)});if(b.col6M>0)secI.push({label:'Col. 6 x '+b.col6M+' months',value:R((si/1000)*q.risk.c6*b.col6M)});if(b.testExtra>0)secI.push({label:'Col. 7 x '+b.testExtra+' testing months',value:R((si/1000)*q.risk.c7*b.testExtra)});}
 else{const extra=Math.max(0,months-3);secI.push({label:'Min. rate '+q.risk.r.toFixed(3)+pm+' x SI/1000',value:R((q.si/1000)*q.risk.r)});if(extra>0)secI.push({label:'Addl. '+q.risk.a.toFixed(3)+pm+' x '+extra+' months',value:R((q.si/1000)*q.risk.a*extra)});}
-secI.push({label:'Gross Section I Premium',value:R(q.grossPrem),bold:true});if(q.discPct>0)secI.push({label:'Less: Discount ('+q.discPct+'%)',value:'- '+R(q.discAmt)});secI.push({label:'Net Section I Premium (A)',value:R(q.netPrem),total:true});
+if(q.discPct>0){secI.forEach(r=>{delete r.value;r.sub=true;});}else secI.push({label:'Gross Section I Premium',value:R(q.grossPrem),bold:true});secI.push({label:'Net Section I Premium (A)',value:R(q.netPrem),total:true});
 right.push({sub:'Section I - Material Damage',rows:secI});
-const hasExt=q.extLines&&q.extLines.length>0;if(hasExt){const ext=[];q.extLines.forEach(l=>{const parts=String(l.label).replace(/\s*⚠.*$/,'').replace(/‰/g,' per mille').replace(/\s*×\s*/g,' x ').split(/\s[—–-]\s/);const name=parts.shift();const detail=parts.join(' - ');ext.push({label:name,value:R(l.grossAmt||l.amt)});if(detail)ext.push({label:detail,sub:true});if(l.discAmt>0)ext.push({label:'Less: discount',value:'- '+R(l.discAmt),sub:true});});ext.push({label:'Total Extensions (B)',value:R(q.extTotal),total:true});right.push({sub:'Extensions & Add-on Covers',rows:ext});}
+const hasExt=q.extLines&&q.extLines.length>0;if(hasExt){const ext=[];q.extLines.forEach(l=>{const parts=String(l.label).replace(/\s*⚠.*$/,'').replace(/‰/g,' per mille').replace(/\s*×\s*/g,' x ').split(/\s[—–-]\s/);const name=parts.shift();const detail=parts.join(' - ');ext.push({label:name,value:R(l.amt)});if(detail)ext.push({label:detail,sub:true});});ext.push({label:'Total Extensions (B)',value:R(q.extTotal),total:true});right.push({sub:'Extensions & Add-on Covers',rows:ext});}
 right.push({sub:'Final Premium Summary',rows:[{label:'Net Premium before GST'+(hasExt?' [A + B]':' [A]'),value:R(q.totalNet)},{label:'GST @ 18%',value:R(q.gst)},{label:'Total Premium',value:R(q.grand),total:true}]});
-const notes=['Rates are as per the All India Engineering Tariff for CAR / EAR together with the applicable road-risk, NATCAT, deductible and discount rules. This is an indicative quotation - final premium, terms and conditions are subject to underwriting and acceptance of risk.',isEAR?'EAR / SCE: the Col. 4 base rate covers the first erection month and one testing month; testing cannot exceed 12 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.':'CAR: the minimum rate covers the first 3 months of the policy period and the additional monthly rate applies beyond 3 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.','Excess applies to each claim as shown in the Compulsory Excess table. Third Party Liability is not granted during extended maintenance. ALOP / DSU, if shown, is a separate section and is not included in the total above.','This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.'];
+const notes=['Rates are as per the All India Engineering Tariff for CAR / EAR together with the applicable road-risk, NATCAT and deductible rules. This is an indicative quotation - final premium, terms and conditions are subject to underwriting and acceptance of risk.',isEAR?'EAR / SCE: the Col. 4 base rate covers the first erection month and one testing month; testing cannot exceed 12 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.':'CAR: the minimum rate covers the first 3 months of the policy period and the additional monthly rate applies beyond 3 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.','Excess applies to each claim as shown in the Compulsory Excess table. Third Party Liability is not granted during extended maintenance. ALOP / DSU, if shown, is a separate section and is not included in the total above.','This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.'];
 const safeName=String(q.insuredName||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);const mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const dStr=String(now.getDate()).padStart(2,'0')+mons[now.getMonth()]+now.getFullYear();
 const out=OICPDF.render({subtitle:isEAR?'Quotation Worksheet For Erection All Risks / SCE Insurance - EAR (TAC ENGINEERING TARIFF)':"Quotation Worksheet For Contractor's All Risks Insurance - CAR (TAC ENGINEERING TARIFF)",quoteNumber:String(Math.floor(now.getTime()/1000)).slice(-5),quoteId:q.quoteRef,dateStr:dateStr,costCode:'',agent:A,left:left,right:right,notes:notes,totalLabel:'Total Premium (incl. GST)',totalValue:R(q.grand),filename:'Oriental_'+(isEAR?'EAR':'CAR')+'_Quote_'+safeName+'_'+dStr+'.pdf'});
 try{ drawCarCoverPages(out.doc, q); }catch(e){ console.error('CAR/EAR cover pages skipped:', e); }
@@ -6417,11 +6417,17 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
       basicRows.push({ label:q.periodFactor.label, value:'applied', sub:true });
     if(q.occLoad)
       basicRows.push({ label:'Add: Occupational diseases, Part C (50% of book rate)', value:R(q.occLoad) });
-    basicRows.push({ label:'Basic Cover \u2013 WC (A)', value:R(q.basic), total:true });
-    if(q.discBasic > 0 || q.minAdj > 0){
-      if(q.discBasic > 0) basicRows.push({ label:'Less: Flexi Discount ('+q.discBasicPct+'%)', value:'- '+R(q.discBasic) });
+    if(q.discBasic > 0){
+      /* flexi discount is never itemised for the customer: the rating lines are shown without amounts and the section total is net */
+      basicRows.forEach(r=>{ if(!r.total){ delete r.value; r.sub = true; } });
       if(q.minAdj > 0) basicRows.push({ label:'Add: minimum premium adjustment', value:R(q.minAdj) });
-      basicRows.push({ label:'Net Basic Cover', value:R(q.basic-q.discBasic+q.minAdj), total:true });
+      basicRows.push({ label:'Basic Cover \u2013 WC (A)', value:R(q.basic-q.discBasic+q.minAdj), total:true });
+    } else {
+      basicRows.push({ label:'Basic Cover \u2013 WC (A)', value:R(q.basic), total:true });
+      if(q.minAdj > 0){
+        basicRows.push({ label:'Add: minimum premium adjustment', value:R(q.minAdj) });
+        basicRows.push({ label:'Net Basic Cover', value:R(q.basic+q.minAdj), total:true });
+      }
     }
     right.push({ sub:'Section A \u2013 Basic Cover (Employees Compensation)', rows:basicRows });
 
@@ -6431,11 +6437,8 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
                + (m.atMinimum ? '  (minimum)' : ''),
         value: R(m.amount)
       }));
-      medRows.push({ label:'Medical Extension (B)', value:R(q.med), total:true });
-      if(q.discMed > 0){
-        medRows.push({ label:'Less: Flexi Discount ('+q.discMedPct+'%)', value:'- '+R(q.discMed) });
-        medRows.push({ label:'Net Medical Extension', value:R(q.med-q.discMed), total:true });
-      }
+      if(q.discMed > 0) medRows.forEach(r=>{ delete r.value; r.sub = true; });
+      medRows.push({ label:'Medical Extension (B)', value:R(q.med-(q.discMed||0)), total:true });
       right.push({ sub:'Section B \u2013 Medical Extension Add-on (CR-7005)', rows:medRows });
     }
 
@@ -6449,7 +6452,7 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
     const notes = [
       'Premium is provisional. Condition 6 of the policy requires the premium to be adjusted against the actual wages, salaries and other earnings paid during the period of insurance; a correct account must be supplied within one month of expiry.',
       'Wages up to Rs. 15,000 per month (the Employees Compensation Act ceiling) are rated at the tariff rate for the occupation; wages above the ceiling are rated at the reduced excess-wages rate shown, on the separate schedule.',
-      'Medical Extension cannot be issued as a standalone cover; any discount on it is within the same office authority as the basic premium.',
+      'Medical Extension cannot be issued as a standalone cover.',
       'Above premium is subject to acceptance of the risk as per Underwriting Guidelines. Insurance is the subject matter of the solicitation.',
       'This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.'
     ];
@@ -11939,7 +11942,6 @@ function generatePDF(q, docOverride){
     ly=row(LX,ly,colW,'Vehicle Age', (q.ageBracket&&q.ageBracket.label?q.ageBracket.label:'')+(q.ageYears!=null?'  ('+(Math.round(q.ageYears*10)/10)+' yrs)':''), {zebra:z}); z=!z;
     if(q.data.policyType!=='thirdParty'){
       ly=row(LX,ly,colW,'No Claim Bonus', ncbPct+'%', {zebra:z}); z=!z;
-      ly=row(LX,ly,colW,"Underwriter's Discount on OD", (q.data.odDiscount||0)+'%', {zebra:z}); z=!z;
     }
     ly+=Math.round(6*VS);
 
@@ -11962,13 +11964,20 @@ function generatePDF(q, docOverride){
       // back to q.odBase exactly. No add-on cover is folded into this figure.
       const _nonElP = q.odNonElecAccPrem||0, _gvwSur = q.gcvGVWSurcharge||0;
       const _basicPure = (q.odBase||0) - _nonElP - _gvwSur;
+      if((q.odDiscountAmt||0)>0){
+        /* the underwriter's discount is never itemised for the customer: the OD components are shown
+           as one figure net of it, so the section still adds up to Total Own Damage Premium */
+        const _odParts = _basicPure + _nonElP + _gvwSur + (q.odCNGKit||0) + (q.imt47Amt||0) + (q.odElecAcc||0);
+        const _hasAcc = (_nonElP + _gvwSur + (q.odCNGKit||0) + (q.imt47Amt||0) + (q.odElecAcc||0)) > 0;
+        ry=row(RX,ry,colW, _hasAcc ? 'OD Premium (vehicle & accessories)' : 'Own Damage Premium', R(_odParts - q.odDiscountAmt), {zebra:rz}); rz=!rz;
+      } else {
       ry=row(RX,ry,colW,'Basic OD Premium', R(_basicPure), {zebra:rz}); rz=!rz;
       if(_nonElP>0){ ry=row(RX,ry,colW,'Non-Electrical Accessories', R(_nonElP), {zebra:rz}); rz=!rz; }
       if(_gvwSur>0){ ry=row(RX,ry,colW,'GVW Surcharge (above 12,000 kg)', R(_gvwSur), {zebra:rz}); rz=!rz; }
       if(q.odCNGKit>0){ ry=row(RX,ry,colW, q.odCNGInbuilt ? 'In-built Bi-Fuel CNG/LPG Cover (OD) – GR.42(b)' : 'CNG/LPG Kit OD Premium (4% of kit value)', R(q.odCNGKit), {zebra:rz}); rz=!rz; }
       if(q.imt47Amt>0){ ry=row(RX,ry,colW,'Add: Overturning Cover (IMT-47)', R(q.imt47Amt), {zebra:rz}); rz=!rz; }
       if(q.odElecAcc>0){ ry=row(RX,ry,colW,'Electrical Accessories', R(q.odElecAcc), {zebra:rz}); rz=!rz; }
-      if(q.odDiscountAmt>0){ ry=row(RX,ry,colW,"Less: Underwriter's Discount", '- '+R(q.odDiscountAmt), {zebra:rz}); rz=!rz; }
+      }
       if(q.antiTheftDiscount>0){ ry=row(RX,ry,colW,'Less: Anti-Theft Discount', '- '+R(q.antiTheftDiscount), {zebra:rz}); rz=!rz; }
       ry=row(RX,ry,colW,'Less: No Claim Bonus ('+ncbPct+'%)', q.ncbDiscount>0?'- '+R(q.ncbDiscount):R(0), {zebra:rz}); rz=!rz;
       if(q.odCNGFuel>0){ ry=row(RX,ry,colW,'CNG/LPG Fuel Loading', R(q.odCNGFuel), {zebra:rz}); rz=!rz; }
@@ -12215,7 +12224,7 @@ const MOTOR_ADDON_WORDINGS = {
       "In consideration of the additional premium, and notwithstanding anything to the contrary in the policy, loss of or damage (excluding theft under any circumstances) to lamps, tyres / tubes, mudguards, bonnet / side parts, bumpers, headlights and the paintwork of the damaged portion only is covered, provided the vehicle is also damaged at the same time.",
       "Without this endorsement the standard commercial-vehicle policy does not pay for these parts unless the whole vehicle is damaged; the endorsement restores that cover subject to the conditions below."
     ],
-    table: { head: ["Premium basis", "Rate"], rows: [["Additional premium", "15% of the Own Damage premium (the OD discount applies on this amount in the same way as on the basic OD)"]] },
+    table: { head: ["Premium basis", "Rate"], rows: [["Additional premium", "15% of the Own Damage premium"]] },
     conditions: [
       "Depreciation applies as per the schedule provided in Section 1 of the policy. In respect of paintwork of the damaged portion, the depreciation schedule of Section 1 applies in the same way.",
       "In addition to any amount the insured may be required to bear under condition 1, the insured shall also bear 50% of the assessed loss in respect of each and every claim under this endorsement.",
@@ -22622,7 +22631,7 @@ function drawFireCoverPages(doc, q){
   block('Earthquake (fire and shock)', [q.eqOn ? ((isSFSP ? 'Endorsement 8 - loss (including by fire) occasioned by earthquake including landslide / rockslide; flood from earthquake included as STFI is not deleted. Special conditions: excess 5% of each claim, minimum Rs. 10,000; the entire property at the location must be extended with identical Sum Insured (except plinth and foundations); the insured must prove the loss was occasioned by earthquake if required.' : 'Earthquake, volcanic eruption and other convulsions of nature are in-built insured perils (item 4) of the policy.') + ' Rated at ' + q.eqRate + ' per mille (' + eqZone + ').') : (isSFSP ? 'Not opted. Earthquake, volcanic eruption and other convulsions of nature are excluded under SFSP unless the earthquake endorsement is taken.' : 'In-built insured peril (item 4). Not rated separately on this quote.')], { tint: q.eqOn ? 'green' : undefined });
   if(q.terrorOn && q.terrorNet > 0){
     block('Terrorism - what is covered', D.terror.covers, { tint:'green' });
-    block('Terrorism - rate', ['Rated at ' + q.terrorRate + ' per mille on the Sum Insured as per the Indian Market Terrorism Risk Insurance Pool.' + (q.terrorDisc > 0 ? ' Discount applied: ' + q.terrorDisc + '%.' : '')]);
+    block('Terrorism - rate', ['Rated at ' + q.terrorRate + ' per mille on the Sum Insured as per the Indian Market Terrorism Risk Insurance Pool.']);
     block('Terrorism - exclusions', D.terror.exclusions, { numbered:true, tint:'red' });
     block('Terrorism - limit', [D.terror.limit]);
     table2(['Terrorism excess by risk type', 'Excess per claim'], D.terror.excess.map(function(r){ const mark = (q.tier === 'non-industrial' && /Non-industrial/.test(r[0])) || (q.tier !== 'non-industrial' && /Industrial/.test(r[0]) && !/Non/.test(r[0])); return [r[0] + (mark ? '  (this risk)' : ''), r[1]]; }), 0.42);
@@ -22665,7 +22674,7 @@ function drawFireCoverPages(doc, q){
   block('Changes and cancellation', ['Changes to covers or Sums Insured take effect only after the proposal is accepted and additional premium paid. The insured may cancel at any time by written notice; the Company cancels only for misrepresentation, non-disclosure, fraud or non-cooperation. The policy ends automatically on payment of the entire Sum Insured (where not restored), on change of ownership or on sale of the property.']);
   table2(['Time for which the policy was in force', 'Refund of premium on cancellation by the insured'], D.refund, 0.5);
   block('Making a claim', ['Give notice immediately with details of the event and loss; report to police, fire or other authorities as required; take all reasonable steps to prevent further damage; do not sell, give away or dispose of damaged items; do not carry out repairs unless urgent; preserve evidence and photographs; give all information, books of account and documents; submit the claim form within 30 days of first noticing the loss; prove that the insured event happened and the extent of the loss.']);
-  if(!isSFSP) block('Premium basis', ['Basic rate including STFI and earthquake; terrorism (industrial / non-industrial); addition for kutcha construction; additional premium for optional and add-on covers; discount / loading based on risk factors; taxes as applicable.']);
+  if(!isSFSP) block('Premium basis', ['Basic rate including STFI and earthquake; terrorism (industrial / non-industrial); addition for kutcha construction; additional premium for optional and add-on covers; taxes as applicable.']);
   y += 8;
   note('Insurance is the subject matter of the solicitation. For full terms read the policy document, available from any Oriental branch or at www.orientalinsurance.org.in; for legal interpretation the policy document holds.');
   footer();
@@ -22748,31 +22757,33 @@ function buildFirePDF(returnBlob){
   // ── RIGHT COLUMN ──
   const right = [ { bar:'Premium Breakup' } ];
 
-  const flexaRows = [ { label:'Gross FLEXA Premium', value:R(q.flexaGross) } ];
-  if(q.flexaDiscAmt > 0) flexaRows.push({ label:'Less: Discount (' + q.flexaDisc + '%)', value:'- ' + R(q.flexaDiscAmt) });
+  /* discounts are never itemised for the customer: a discounted section shows its net figure only */
+  const flexaRows = [];
+  if(!(q.flexaDiscAmt > 0)) flexaRows.push({ label:'Gross FLEXA Premium', value:R(q.flexaGross) });
   flexaRows.push({ label:'Net FLEXA Premium (A)', value:R(q.flexaNet), total:true });
   right.push({ sub:'Section A \u2013 FLEXA (Fire & Allied Perils)', rows:flexaRows });
 
   let stfiKey = '', eqKey = '';
   if(q.stfiOn){
     stfiKey = 'B';
-    const rows = [ { label:'Gross STFI Premium', value:R(q.stfiGross) } ];
-    if(q.stfiDiscAmt > 0) rows.push({ label:'Less: Discount (' + q.stfiDisc + '%)', value:'- ' + R(q.stfiDiscAmt) });
+    const rows = [];
+    if(!(q.stfiDiscAmt > 0)) rows.push({ label:'Gross STFI Premium', value:R(q.stfiGross) });
     rows.push({ label:'Net STFI Premium (B)', value:R(q.stfiNet), total:true });
     right.push({ sub:'Section B \u2013 Storm, Tempest, Flood & Inundation', rows:rows });
   }
   if(q.eqOn){
     eqKey = q.stfiOn ? 'C' : 'B';
-    const rows = [ { label:'Gross EQ Premium', value:R(q.eqGross) } ];
-    if(q.eqDiscAmt > 0) rows.push({ label:'Less: Discount (' + q.eqDisc + '%)', value:'- ' + R(q.eqDiscAmt) });
+    const rows = [];
+    if(!(q.eqDiscAmt > 0)) rows.push({ label:'Gross EQ Premium', value:R(q.eqGross) });
     rows.push({ label:'Net EQ Premium (' + eqKey + ')', value:R(q.eqNet), total:true });
     right.push({ sub:'Section ' + eqKey + ' \u2013 Earthquake (Fire & Shock)', rows:rows });
   }
   let terrorKey = '';
   if(q.terrorOn && q.terrorNet > 0){
     terrorKey = String.fromCharCode(66 + (q.stfiOn ? 1 : 0) + (q.eqOn ? 1 : 0));
-    const trows = [ { label:'Gross Terrorism Premium @ ' + q.terrorRate + ' per mille', value:R(q.terrorGross) } ];
-    if(q.terrorDiscAmt > 0) trows.push({ label:'Less: Discount (' + q.terrorDisc + '%)', value:'- ' + R(q.terrorDiscAmt) });
+    const trows = [];
+    if(!(q.terrorDiscAmt > 0)) trows.push({ label:'Gross Terrorism Premium @ ' + q.terrorRate + ' per mille', value:R(q.terrorGross) });
+    else trows.push({ label:'Terrorism cover @ ' + q.terrorRate + ' per mille', sub:true });
     trows.push({ label:'Net Terrorism Premium (' + terrorKey + ')', value:R(q.terrorNet), total:true });
     right.push({ sub:'Section ' + terrorKey + ' \u2013 Terrorism', rows:trows });
   }
@@ -22781,18 +22792,17 @@ function buildFirePDF(returnBlob){
   if(q.burgOn){
     burgKey = String.fromCharCode(66 + (q.stfiOn ? 1 : 0) + (q.eqOn ? 1 : 0) + (terrorKey ? 1 : 0));   // B, C, D or E
     const rows = [
-      { label:'Burglary Sum Insured', value:OICPDF.fmtIN(q.burgSI) },
-      { label:'Gross Burglary Premium', value:R(q.burgGross) }
+      { label:'Burglary Sum Insured', value:OICPDF.fmtIN(q.burgSI) }
     ];
-    if(q.burgDiscAmt > 0) rows.push({ label:'Less: Discount (' + q.burgDisc + '%)', value:'- ' + R(q.burgDiscAmt) });
+    if(!(q.burgDiscAmt > 0)) rows.push({ label:'Gross Burglary Premium', value:R(q.burgGross) });
     rows.push({ label:'Net Burglary Premium (' + burgKey + ')', value:R(q.burgNet), total:true });
     right.push({ sub:'Section ' + burgKey + ' \u2013 Theft & Burglary (Burglary & Housebreaking)', rows:rows });
   }
   let addonKey = '';
   if(q.addonLines && q.addonLines.length){
     addonKey = String.fromCharCode(66 + (q.stfiOn ? 1 : 0) + (q.eqOn ? 1 : 0) + (terrorKey ? 1 : 0) + (burgKey ? 1 : 0));
-    const arows = q.addonLines.map(a => ({ label: (a.short || a.name) + ' @ ' + a.pct + '% of basic', value:R(a.gross != null ? a.gross : a.amount) }));
-    if(q.addonDisc > 0) arows.push({ label:'Discount on add-on covers (' + q.addonDisc + '%)', value:'- ' + R(q.addonDiscAmt) });
+    /* each add-on is printed at its net amount; the discount itself is not itemised */
+    const arows = q.addonLines.map(a => ({ label: (a.short || a.name) + (q.addonDisc > 0 ? '' : ' @ ' + a.pct + '% of basic'), value:R(a.amount) }));
     arows.push({ label:'Net Add-on Premium (' + addonKey + ')', value:R(q.addonNet), total:true });
     right.push({ sub:'Section ' + addonKey + ' \u2013 Add-on Covers', rows:arows });
   }
@@ -22816,7 +22826,7 @@ function buildFirePDF(returnBlob){
   ]});
 
   const notes = [
-    'Rates applied are the standard fire rates for the occupancy, with STFI / earthquake rates as applicable; discounts are within the authority of the issuing office. This is an indicative quotation \u2014 final premium, terms and conditions are subject to insurer underwriting and acceptance of risk.',
+    'Rates applied are the standard fire rates for the occupancy, with STFI / earthquake rates as applicable. This is an indicative quotation \u2014 final premium, terms and conditions are subject to insurer underwriting and acceptance of risk.',
     'Deletion of NATCAT perils is not permitted. Policy excess (minimum deductibles) as shown above.'
   ];
   if(q.isTreaty){
@@ -22870,6 +22880,8 @@ window.FIRE_VERIFIED = [
     expect:'350/350/350/35/1748', check:()=>FIRE_ADDONS.map(a=>Math.round(34960*a.pct/100)).join('/') },
   { label:'Fire: add-on discount 20% on Removal of Debris (basic 34,960 -> 350 gross, 280 net)', expect:'280',
     check:()=>String(Math.round(Math.round(34960*FIRE_ADDONS[0].pct/100)*(1-20/100))) },
+  { label:'PDF: WC medical extension prints net of flexi discount (1,000 - 10% = 900)', expect:'900',
+    check:()=>{ const q={med:1000,discMed:100}; return String(q.med-(q.discMed||0)); } },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -22909,7 +22921,7 @@ window.FIRE = {toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v79 · 7-day validity note on every quote PDF; discount field for Fire add-on covers · 05-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v80 · underwriting / flexi discounts no longer itemised on customer PDFs (Motor, Fire, WC, CAR/EAR); NCB and cost code unchanged · 05-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
