@@ -3621,17 +3621,17 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
          and the cover is excluded entirely from the quote, the result card
          and the PDF. Rated on the burglary SI, never on the fire SI.       -->
     <div class="section-label" style="margin-top:14px">Add-on Covers <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; rated as a percentage of the basic fire premium</span></div>
-    <div class="switch-row"><div><div class="t">Removal of Debris <span class="rate-pill">1% of basic</span></div><div class="s">Including external debris and ingressed water</div></div><div class="switch" id="addon-debris-switch" onclick="FIRE.toggleAddon('debris')"></div></div>
-    <div class="switch-row"><div><div class="t">Involuntary Betterment <span class="rate-pill">1% of basic</span></div><div class="s">Extra cost of a currently available equivalent when like-for-like replacement is not possible</div></div><div class="switch" id="addon-betterment-switch" onclick="FIRE.toggleAddon('betterment')"></div></div>
-    <div class="switch-row"><div><div class="t">Claim Preparation Clause <span class="rate-pill">1% of basic</span></div><div class="s">Reasonable professional fees for preparing and substantiating a claim</div></div><div class="switch" id="addon-claimPrep-switch" onclick="FIRE.toggleAddon('claimPrep')"></div></div>
-    <div class="switch-row"><div><div class="t">Brands and Trademarks Clause <span class="rate-pill">0.1% of basic</span></div><div class="s">Salvage of branded goods only after removal of brands / trademarks</div></div><div class="switch" id="addon-brands-switch" onclick="FIRE.toggleAddon('brands')"></div></div>
-    <div class="switch-row"><div><div class="t">Escalation Clause <span class="rate-pill">5% of basic</span></div><div class="s">Automatic increase of the Sum Insured during the policy period</div></div><div class="switch" id="addon-escalation-switch" onclick="FIRE.toggleAddon('escalation')"></div></div>
+    <div class="switch-row"><div><div class="t">Removal of Debris <span class="rate-pill">1% of basic</span></div><div class="s">Including external debris and ingressed water</div></div><div class="input-suffix" data-suffix="%" style="flex:none;width:86px;margin:0 10px" title="Discount on this add-on" onclick="event.stopPropagation()"><input type="number" id="addon-debris-disc" placeholder="disc" min="0" max="100" step="0.1" inputmode="decimal" style="text-align:right"></div><div class="switch" id="addon-debris-switch" onclick="FIRE.toggleAddon('debris')"></div></div>
+    <div class="switch-row"><div><div class="t">Involuntary Betterment <span class="rate-pill">1% of basic</span></div><div class="s">Extra cost of a currently available equivalent when like-for-like replacement is not possible</div></div><div class="input-suffix" data-suffix="%" style="flex:none;width:86px;margin:0 10px" title="Discount on this add-on" onclick="event.stopPropagation()"><input type="number" id="addon-betterment-disc" placeholder="disc" min="0" max="100" step="0.1" inputmode="decimal" style="text-align:right"></div><div class="switch" id="addon-betterment-switch" onclick="FIRE.toggleAddon('betterment')"></div></div>
+    <div class="switch-row"><div><div class="t">Claim Preparation Clause <span class="rate-pill">1% of basic</span></div><div class="s">Reasonable professional fees for preparing and substantiating a claim</div></div><div class="input-suffix" data-suffix="%" style="flex:none;width:86px;margin:0 10px" title="Discount on this add-on" onclick="event.stopPropagation()"><input type="number" id="addon-claimPrep-disc" placeholder="disc" min="0" max="100" step="0.1" inputmode="decimal" style="text-align:right"></div><div class="switch" id="addon-claimPrep-switch" onclick="FIRE.toggleAddon('claimPrep')"></div></div>
+    <div class="switch-row"><div><div class="t">Brands and Trademarks Clause <span class="rate-pill">0.1% of basic</span></div><div class="s">Salvage of branded goods only after removal of brands / trademarks</div></div><div class="input-suffix" data-suffix="%" style="flex:none;width:86px;margin:0 10px" title="Discount on this add-on" onclick="event.stopPropagation()"><input type="number" id="addon-brands-disc" placeholder="disc" min="0" max="100" step="0.1" inputmode="decimal" style="text-align:right"></div><div class="switch" id="addon-brands-switch" onclick="FIRE.toggleAddon('brands')"></div></div>
+    <div class="switch-row"><div><div class="t">Escalation Clause <span class="rate-pill">5% of basic</span></div><div class="s">Automatic increase of the Sum Insured during the policy period</div></div><div class="input-suffix" data-suffix="%" style="flex:none;width:86px;margin:0 10px" title="Discount on this add-on" onclick="event.stopPropagation()"><input type="number" id="addon-escalation-disc" placeholder="disc" min="0" max="100" step="0.1" inputmode="decimal" style="text-align:right"></div><div class="switch" id="addon-escalation-switch" onclick="FIRE.toggleAddon('escalation')"></div></div>
     <div class="field" style="margin-top:8px">
       <label class="lbl" for="addon-limit">Add-on limit (each) <span style="font-weight:400;color:var(--mute)">&mdash; blank = 10% of Sum Insured</span></label>
       <input type="number" id="addon-limit" placeholder="e.g. 500000" min="0" step="1" inputmode="decimal">
     </div>
     <div class="field" style="margin-top:8px">
-      <label class="lbl" for="addon-discount">Add-on discount <span style="font-weight:400;color:var(--mute)">&mdash; applied to every add-on cover opted above</span></label>
+      <label class="lbl" for="addon-discount">Discount on all add-ons <span style="font-weight:400;color:var(--mute)">&mdash; used for any add-on whose own box above is blank</span></label>
       <div class="input-suffix" data-suffix="%">
         <input type="number" id="addon-discount" placeholder="0" min="0" max="100" value="0" step="0.1" inputmode="decimal">
       </div>
@@ -22054,7 +22054,14 @@ function calculate(){
   const addonLimitIn = Math.max(0, parseFloat((document.getElementById('addon-limit')||{}).value) || 0);
   const addonLimit   = addonLimitIn || Math.round(si * 0.10);
   const addonDisc    = Math.min(100, Math.max(0, parseFloat((document.getElementById('addon-discount')||{}).value) || 0));
-  const addonLines   = FIRE_ADDONS.filter(a => fireAddonOn(a.key)).map(a => { const gross = Math.round(flexaGross * a.pct / 100); return { key:a.key, name:a.name, short:a.short, pct:a.pct, limit:(a.key === 'escalation' ? 0 : addonLimit), gross, amount:Math.round(gross * (1 - addonDisc / 100)) }; });
+  const addonLines   = FIRE_ADDONS.filter(a => fireAddonOn(a.key)).map(a => {
+    const gross = Math.round(flexaGross * a.pct / 100);
+    const ownEl = document.getElementById('addon-' + a.key + '-disc');
+    const own   = ownEl && String(ownEl.value).trim() !== '' ? parseFloat(ownEl.value) : NaN;
+    const disc  = isNaN(own) ? addonDisc : Math.min(100, Math.max(0, own));
+    const amount = Math.round(gross * (1 - disc / 100));
+    return { key:a.key, name:a.name, short:a.short, pct:a.pct, limit:(a.key === 'escalation' ? 0 : addonLimit), gross, disc, discAmt: gross - amount, amount };
+  });
   const addonGross   = addonLines.reduce((t, a) => t + a.gross, 0);
   const addonNet     = addonLines.reduce((t, a) => t + a.amount, 0);
   const addonDiscAmt = addonGross - addonNet;
@@ -22133,8 +22140,10 @@ function calculate(){
 
   if(addonLines.length){
     html += `<div class="line section-divider"><span class="k">Add-on Covers · % of basic fire premium</span><span class="v"></span></div>`;
-    addonLines.forEach(a => { html += `<div class="line"><span class="k">${a.name} · ${a.pct}%</span><span class="v">${fmtR(a.gross)}</span></div>`; });
-    if(addonDisc > 0) html += `<div class="line sub"><span class="k">Discount (${addonDisc}%)</span><span class="v discount">− ${fmtR(addonDiscAmt)}</span></div>`;
+    addonLines.forEach(a => {
+      html += `<div class="line"><span class="k">${a.name} · ${a.pct}%</span><span class="v">${fmtR(a.gross)}</span></div>`;
+      if(a.disc > 0) html += `<div class="line sub"><span class="k">Discount (${a.disc}%)</span><span class="v discount">− ${fmtR(a.discAmt)}</span></div>`;
+    });
     html += `<div class="line net-line"><span class="k">Net Add-on Premium</span><span class="v">${fmtR(addonNet)}</span></div>`;
   }
 
@@ -22739,7 +22748,7 @@ function buildFirePDF(returnBlob){
       q.burgOn ? ['Burglary Rate', q.burgRate + (q.burgUnit === 'pct' ? ' percent' : ' per mille')] : null
     ].filter(Boolean)},
     { bar:'Add-on Covers', rows: (q.addonLines && q.addonLines.length)
-        ? q.addonLines.map(a => [a.short || (a.name.length > 44 ? a.name.slice(0, 44) + '\u2026' : a.name), (a.limit ? 'Limit ' + OICPDF.fmtIN(a.limit) + ' \u00b7 ' : '') + a.pct + '% of basic'])
+        ? q.addonLines.map(a => [a.short || a.name, a.pct + '% of basic']).concat(q.addonLines.some(a => a.limit) ? [['Limit per add-on (Escalation excluded)', OICPDF.fmtIN(q.addonLimit)]] : [])
         : [['Add-on covers', 'Not Opted']] },
     { bar:'Policy Excess / Deductible', rows:[
       ['Sum Insured Band', exBand],
@@ -22802,7 +22811,7 @@ function buildFirePDF(returnBlob){
   if(q.addonLines && q.addonLines.length){
     addonKey = String.fromCharCode(66 + (q.stfiOn ? 1 : 0) + (q.eqOn ? 1 : 0) + (terrorKey ? 1 : 0) + (burgKey ? 1 : 0));
     /* each add-on is printed at its net amount; the discount itself is not itemised */
-    const arows = q.addonLines.map(a => ({ label: (a.short || a.name) + (q.addonDisc > 0 ? '' : ' @ ' + a.pct + '% of basic'), value:R(a.amount) }));
+    const arows = q.addonLines.map(a => ({ label: (a.short || a.name) + (a.disc > 0 ? '' : ' @ ' + a.pct + '% of basic'), value:R(a.amount) }));
     arows.push({ label:'Net Add-on Premium (' + addonKey + ')', value:R(q.addonNet), total:true });
     right.push({ sub:'Section ' + addonKey + ' \u2013 Add-on Covers', rows:arows });
   }
@@ -22880,6 +22889,8 @@ window.FIRE_VERIFIED = [
     expect:'350/350/350/35/1748', check:()=>FIRE_ADDONS.map(a=>Math.round(34960*a.pct/100)).join('/') },
   { label:'Fire: add-on discount 20% on Removal of Debris (basic 34,960 -> 350 gross, 280 net)', expect:'280',
     check:()=>String(Math.round(Math.round(34960*FIRE_ADDONS[0].pct/100)*(1-20/100))) },
+  { label:'Fire: every add-on row has its own discount box', expect:'5',
+    check:()=>String(FIRE_ADDONS.filter(a=>document.getElementById('addon-'+a.key+'-disc')).length) },
   { label:'PDF: WC medical extension prints net of flexi discount (1,000 - 10% = 900)', expect:'900',
     check:()=>{ const q={med:1000,discMed:100}; return String(q.med-(q.discMed||0)); } },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
@@ -22921,7 +22932,7 @@ window.FIRE = {toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v80 · underwriting / flexi discounts no longer itemised on customer PDFs (Motor, Fire, WC, CAR/EAR); NCB and cost code unchanged · 05-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v81 · discount box on every Fire add-on; add-on limit printed once on the Fire PDF · 05-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
