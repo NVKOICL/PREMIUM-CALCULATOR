@@ -5230,10 +5230,7 @@ onblur="setTimeout(CAR.closeEQLoc,180)">
 <div class="info-banner" style="margin-top:8px">
 <strong>EQ cover must be for total project period (incl. all extensions).</strong> Cannot be opted mid-term. Zone auto-detected from project location (BIS IS 1893:2016). Rates per NIC F&E rating circular w.e.f. 10.09.2026 §2.3: Zone I 0.50 · II 0.25 · III 0.10 · IV 0.05‰ p.a. Roads / pipelines / railway tracks spanning more than one zone: charge EQ per zone on zone-wise SI, else the highest zone rate. First-loss: 20% SI at 50% rate, or 10% SI at 40% rate.
 </div>
-<div class="field" style="margin-top:8px">
-<label>EQ Discount <span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:10.5px;color:var(--success)">% on EQ premium</span></label>
-<div class="input-suffix" data-suffix="%"><input type="number" id="ce-disc-eq" placeholder="0" min="0" step="0.5" value="0" inputmode="decimal"></div>
-</div>
+<div class="info-banner" style="margin-top:8px"><strong>No discount on EQ.</strong> Minimum NATCAT rates must be charged on all project policies (Revised Underwriting &amp; Rate Guidelines w.e.f. 10 Sep 2026).</div><input type="hidden" id="ce-disc-eq" value="0">
 </div>
 <!-- 3. Surrounding Property -->
 <div class="sw-row">
@@ -5361,10 +5358,7 @@ onblur="setTimeout(CAR.closeEQLoc,180)">
 <div class="sw-toggle" id="ce-sw-stfi" onclick="CAR.toggleExt('stfi')"></div>
 </div>
 <div class="sw-expand" id="ce-exp-stfi"><div class="field" style="margin-top:8px"><label>Manual rate <span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:10.5px;color:var(--mute)">&permil; per year on the Sum Insured &mdash; as keyed in INLIAS; blank = tariff formula</span></label><div class="input-suffix" data-suffix="&permil;"><input type="number" id="ce-rate-stfi" placeholder="tariff formula" min="0" step="0.001" inputmode="decimal"></div></div>
-<div class="field" style="margin-top:12px">
-<label>STFI Discount <span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:10.5px;color:var(--success)">% on STFI premium</span></label>
-<div class="input-suffix" data-suffix="%"><input type="number" id="ce-disc-stfi" placeholder="0" min="0" step="0.5" value="0" inputmode="decimal"></div>
-</div>
+<div class="info-banner" style="margin-top:8px"><strong>No discount on STFI.</strong> Minimum NATCAT rates must be charged on all project policies (Revised Underwriting &amp; Rate Guidelines w.e.f. 10 Sep 2026).</div><input type="hidden" id="ce-disc-stfi" value="0">
 </div>
 <!-- 9. Maintenance -->
 <div class="sw-row">
@@ -5643,7 +5637,9 @@ const MAINT_RATES={mv6:0.25,mv12:0.50,em6:0.50,em12:1.00,em24:2.00};const MAINT_
 if(currentMode==='ear'){if(splitActive&&splitSegments.length>0){const testM=earTotalTesting();const{grossPrem}=computeEARSplitPremium(months,testM);return si>0?(grossPrem/si*1000):0;}
 if(selectedEARCode){const risk=EAR_DATA.find(r=>r.c===selectedEARCode);if(risk){const testM=earTotalTesting();const erectM=Math.max(0,months-testM);if(months<=2)return risk.c4;let rate=risk.c4;const col5M=Math.min(Math.max(0,erectM-1),10);rate+=risk.c5*col5M;const col6M=Math.max(0,erectM-11);rate+=risk.c6*col6M;const testExtra=Math.max(0,testM-1);rate+=risk.c7*testExtra;return rate;}}}
 return 0;}
-function computeExtensions(si,months,secIPrem,_grossSecI,discPct){_grossSecI=_grossSecI||secIPrem;const lines=[];let total=0;function getSectionDisc(id){const el=$(id);return el?Math.min(100,Math.max(0,parseFloat(el.value)||0)):0;}
+/* guidelines w.e.f. 10.09.2026: minimum NATCAT rates on every project policy - STFI and EQ take no discount */
+function natcatDiscBlocked(id){return id==='disc-stfi'||id==='disc-eq';}
+function computeExtensions(si,months,secIPrem,_grossSecI,discPct){_grossSecI=_grossSecI||secIPrem;const lines=[];let total=0;function getSectionDisc(id){if(natcatDiscBlocked(id))return 0;const el=$(id);return el?Math.min(100,Math.max(0,parseFloat(el.value)||0)):0;}
 function applyExtDisc(gross,label,sectionDiscId){const pct=getSectionDisc(sectionDiscId);if(pct>0){const discAmt=gross*(pct/100);const net=gross-discAmt;return{gross,net,discAmt,label:label,discLine:`  ↳ Discount ${pct}% on ${label.split('—')[0].trim()}`};}
 return{gross,net:gross,discAmt:0,label,discLine:null};}
 if(EXT_STATE.tpl){const tplSI=parseFloat($('tpl-si').value)||0;if(tplSI>0){const tplOvr=parseFloat(($('rate-tpl')||{}).value)||0;const tplGross=tplOvr>0?(tplSI/1000)*tplOvr:(tplSI/si)*_grossSecI;const maxTpl=si<=1e8?1e7:Math.min(0.10*si,1e8);const warning=tplSI>maxTpl?` ⚠ exceeds tariff limit (₹${(maxTpl/1e7).toFixed(0)} Cr) — excess to Misc. Dept.`:'';const r=applyExtDisc(tplGross,`TPL — SI ${fmtR(tplSI)}${tplOvr>0?` @ ${tplOvr}‰ on limit`:''}${warning}`,'disc-tpl');lines.push({label:r.label,amt:r.net,grossAmt:r.gross,discAmt:r.discAmt,discLine:r.discLine});total+=r.net;}}
@@ -5739,7 +5735,7 @@ if(q.discPct>0){secI.forEach(r=>{delete r.value;r.sub=true;});}else secI.push({l
 right.push({sub:'Section I - Material Damage',rows:secI});
 const hasExt=q.extLines&&q.extLines.length>0;if(hasExt){const ext=[];q.extLines.forEach(l=>{const parts=String(l.label).replace(/\s*⚠.*$/,'').replace(/‰/g,' per mille').replace(/\s*×\s*/g,' x ').split(/\s[—–-]\s/);const name=parts.shift();const detail=parts.join(' - ');ext.push({label:name,value:R(l.amt)});if(detail)ext.push({label:detail,sub:true});});ext.push({label:'Total Extensions (B)',value:R(q.extTotal),total:true});right.push({sub:'Extensions & Add-on Covers',rows:ext});}
 right.push({sub:'Final Premium Summary',rows:[{label:'Net Premium before GST'+(hasExt?' [A + B]':' [A]'),value:R(q.totalNet)},{label:'GST @ 18%',value:R(q.gst)},{label:'Total Premium',value:R(q.grand),total:true}]});
-const notes=['Rates are as per the All India Engineering Tariff for CAR / EAR together with the applicable road-risk, NATCAT and deductible rules. This is an indicative quotation - final premium, terms and conditions are subject to underwriting and acceptance of risk.',isEAR?'EAR / SCE: the Col. 4 base rate covers the first erection month and one testing month; testing cannot exceed 12 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.':'CAR: the minimum rate covers the first 3 months of the policy period and the additional monthly rate applies beyond 3 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.','Excess applies to each claim as shown in the Compulsory Excess table. Third Party Liability is not granted during extended maintenance. ALOP / DSU, if shown, is a separate section and is not included in the total above.','This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.'];
+const notes=['Rates are as per the All India Engineering Tariff for CAR / EAR together with the applicable road-risk, NATCAT and deductible rules; NATCAT perils are charged at the minimum rates. This is an indicative quotation - final premium, terms and conditions are subject to underwriting and acceptance of risk.',isEAR?'EAR / SCE: the Col. 4 base rate covers the first erection month and one testing month; testing cannot exceed 12 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.':'CAR: the minimum rate covers the first 3 months of the policy period and the additional monthly rate applies beyond 3 months. Earthquake and STFI covers, where opted, run for the full project period including extensions.','Excess applies to each claim as shown in the Compulsory Excess table. Third Party Liability is not granted during extended maintenance. ALOP / DSU, if shown, is a separate section and is not included in the total above.','This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.'];
 const safeName=String(q.insuredName||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);const mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const dStr=String(now.getDate()).padStart(2,'0')+mons[now.getMonth()]+now.getFullYear();
 const out=OICPDF.render({subtitle:isEAR?'Quotation Worksheet For Erection All Risks / SCE Insurance - EAR (TAC ENGINEERING TARIFF)':"Quotation Worksheet For Contractor's All Risks Insurance - CAR (TAC ENGINEERING TARIFF)",quoteNumber:String(Math.floor(now.getTime()/1000)).slice(-5),quoteId:q.quoteRef,dateStr:dateStr,costCode:'',agent:A,left:left,right:right,notes:notes,totalLabel:'Total Premium (incl. GST)',totalValue:R(q.grand),filename:'Oriental_'+(isEAR?'EAR':'CAR')+'_Quote_'+safeName+'_'+dStr+'.pdf'});
 try{ drawCarCoverPages(out.doc, q); }catch(e){ console.error('CAR/EAR cover pages skipped:', e); }
@@ -6056,6 +6052,8 @@ function drawCarCoverPages(doc, q){
     {label:'CCPP 300 MW+ testing excess min Rs.125 lakh / normal Rs.75 lakh (Annexure E §2.3.1)', expect:'12500000/7500000',
      check:()=>{const e=excessFor(EAR_DATA.find(r=>r.c==='073310C'),1e9,'ear');return e.testing.min+'/'+e.normal.min;}},
     {label:'Discount authority up to 99.99% on basic / minimum rates (NIC circular §2.1c)', expect:99.99, check:()=>MAX_COMBINED_DISC},
+    {label:'Guidelines w.e.f. 10.09.2026: no discount on NATCAT (STFI / EQ) for project policies', expect:'0/0',
+      check:()=>(natcatDiscBlocked('disc-stfi')?0:1)+'/'+(natcatDiscBlocked('disc-eq')?0:1)+(natcatDiscBlocked('disc-terror')?'/x':'')},
     {label:'INLIAS R/432706/44/2024/9: EAR STFI 0.30 per mille per year; CAR 0.40; offsite storage, waiver of subrogation and DE-3 extensions present', expect:'0.3/0.4/true',
      check:()=>[CAR_STFI_RATE.ear, CAR_STFI_RATE.car, ('os' in EXT_STATE && 'wos' in EXT_STATE && 'de3' in EXT_STATE)].join('/')},
 
@@ -22932,7 +22930,7 @@ window.FIRE = {toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v82 · discount structure w.e.f. 01/06/2026 re-verified against the supplied document; PCCV three-wheelers capped by the seating x fuel 3-wheeler table · 07-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v83 · Fire & Engineering guidelines w.e.f. 10 Sep 2026 (not BGR / BSUS): no NATCAT discount on CAR / EAR; Fire caps re-confirmed · 07-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
