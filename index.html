@@ -11885,9 +11885,13 @@ function generatePDF(q, docOverride){
         text('PRITHVI, AGNI, JAL, AAKASH  \u00B7  Sab Ki Suraksha Hamare Paas', W/2, 44, {size:7.5,color:C.mute,align:'center'});
       }
     }
-    text('Quotation Worksheet For Motor Insurance \u2013 '+quoteSubtitle(q), W/2, 66, {bold:true,italic:true,size:9.5,color:C.blue,align:'center',maxWidth:CW-80});
+    const _subT='Quotation Worksheet For Motor Insurance \u2013 '+quoteSubtitle(q);
+    text(_subT, W/2, 66, {bold:true,italic:true,size:9.5,color:C.blue,align:'center',maxWidth:CW-80});
+    /* a two-line subtitle (Misc Class D) pushes the quote-number row down instead of printing over it */
+    doc.setFont('helvetica','bolditalic'); doc.setFontSize(9.5);
+    const _subLines = doc.splitTextToSize(pdfSafe(_subT), CW-80).length;
 
-    let topY=82;
+    let topY=82 + (_subLines>1 ? 12*(_subLines-1) : 0);
     text('Quote Number: '+quoteNum, M, topY, {bold:true,size:10,color:C.ink});
     // faint agent-only code placed just after the quote number (size 5.5, muted grey)
     if(secretCode){
@@ -11960,8 +11964,12 @@ function generatePDF(q, docOverride){
         /* the underwriter's discount is never itemised for the customer: the OD components are shown
            as one figure net of it, so the section still adds up to Total Own Damage Premium */
         const _odParts = _basicPure + _nonElP + _gvwSur + (q.odCNGKit||0) + (q.imt47Amt||0) + (q.odElecAcc||0);
-        const _hasAcc = (_nonElP + _gvwSur + (q.odCNGKit||0) + (q.imt47Amt||0) + (q.odElecAcc||0)) > 0;
-        ry=row(RX,ry,colW, _hasAcc ? 'OD Premium (vehicle & accessories)' : 'Own Damage Premium', R(_odParts - q.odDiscountAmt), {zebra:rz}); rz=!rz;
+        const _hasAcc = (_nonElP + _gvwSur + (q.odCNGKit||0) + (q.odElecAcc||0)) > 0;
+        /* IMT-47 overturning cover stays visible as its own line, net of the same discount share */
+        const _pct47 = (q.data && q.data.odDiscount) ? q.data.odDiscount/100 : 0;
+        const _imt47Net = (q.imt47Amt||0) > 0 ? Math.round(q.imt47Amt * (1 - _pct47)) : 0;
+        ry=row(RX,ry,colW, _hasAcc ? 'OD Premium (vehicle & accessories)' : 'Own Damage Premium', R(_odParts - q.odDiscountAmt - _imt47Net), {zebra:rz}); rz=!rz;
+        if(_imt47Net>0){ ry=row(RX,ry,colW,'Add: Overturning Cover (IMT-47)', R(_imt47Net), {zebra:rz}); rz=!rz; }
       } else {
       ry=row(RX,ry,colW,'Basic OD Premium', R(_basicPure), {zebra:rz}); rz=!rz;
       if(_nonElP>0){ ry=row(RX,ry,colW,'Non-Electrical Accessories', R(_nonElP), {zebra:rz}); rz=!rz; }
@@ -12480,9 +12488,23 @@ const MOTOR_ADDON_WORDINGS = {
   },
   imt47: {
     title: "IMT-47 Overturning Cover (Tool of Trade)",
-    scope: "Miscellaneous Class D vehicles",
-    covers: ["Cover for loss or damage caused by overturning whilst the vehicle is being used as a tool of trade, as per India Motor Tariff endorsement IMT-47."],
-    conditions: ["As per the India Motor Tariff (IMT 2002) endorsement wording attached to the policy."], exclusions: [], uin: {}
+    scope: "Miscellaneous Class D vehicles used as a tool of trade - mobile cranes, drilling rigs, mobile plant, excavators, navvies, shovels, grabs, rippers and similar",
+    covers: [
+      "In consideration of the additional premium, and notwithstanding anything to the contrary in the policy, the Company indemnifies the insured against loss of or damage to the insured vehicle (including its accessories) caused by overturning whilst the vehicle is being used as a tool of trade.",
+      "Without this endorsement the Own Damage section of a Miscellaneous Class D policy does not pay for overturning that occurs while the vehicle is working as a tool of trade (India Motor Tariff endorsement IMT-47)."
+    ],
+    table: { head: ["Premium basis", "Rate"], rows: [["Additional premium", "0.50% of the Insured's Declared Value"]] },
+    conditions: [
+      "The vehicle must be used as a tool of trade in accordance with the manufacturer's instructions and within its rated safe working load / capacity.",
+      "The policy excess and the depreciation schedule of the Own Damage section apply to a claim under this endorsement in the same way as to any other Own Damage claim.",
+      "Subject otherwise to the terms, exceptions, conditions and limitations of the policy."
+    ],
+    exclusions: [
+      "Loss or damage caused whilst the vehicle is used as a tool of trade in a manner not in accordance with the manufacturer's instructions, or beyond its safe working load or capacity.",
+      "Loss or damage to the load, goods or property being lifted, carried or handled, and any consequential loss.",
+      "Overturning caused by a breach of the policy conditions, or arising from the vehicle being driven by a person not permitted to drive under the policy."
+    ],
+    uin: {}
   }
 };
 
@@ -12503,6 +12525,8 @@ function drawMotorAddonPages(doc, q){
   /* IMT 23 is a tariff endorsement carried as a liability-section extra, not an add-on item */
   const imt = ((q && q.extras && q.extras.items) || []).find(function(e){ return /^IMT 23/.test(e.name || ''); });
   if(imt && !seen.imt23){ seen.imt23 = true; picks.push({ key:'imt23', item:{ key:'imt23', amount: imt.amount, name: imt.name } }); }
+  /* IMT 47 overturning cover is priced inside Basic OD for Misc Class D vehicles, not as an add-on item */
+  if(q && q.imt47Amt > 0 && !seen.imt47 && MOTOR_ADDON_WORDINGS.imt47){ seen.imt47 = true; const _p47 = (q.data && q.data.odDiscount) ? q.data.odDiscount/100 : 0; picks.push({ key:'imt47', item:{ key:'imt47', amount: Math.round(q.imt47Amt * (1 - _p47)), name:'Overturning Cover (IMT-47)' } }); }
   if(!picks.length) return;
 
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
@@ -22930,7 +22954,7 @@ window.FIRE = {toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v83 · Fire & Engineering guidelines w.e.f. 10 Sep 2026 (not BGR / BSUS): no NATCAT discount on CAR / EAR; Fire caps re-confirmed · 07-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v84 · IMT-47 overturning cover shown on the Motor PDF with its wording page · 08-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
