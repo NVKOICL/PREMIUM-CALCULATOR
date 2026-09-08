@@ -18788,6 +18788,7 @@ const VERIFIED_CASES = [
    — otherwise leftover switches or terms produce failures that look like
    rating regressions but are only stale UI state. */
 function _stBaseline(){
+  _sipManualOverride = false;   /* golden cases carry the auto-applied discount; a chip clicked in the UI must not suppress it */
   state.switches = { cpa:true, atd:false, paUn:false, llDrv:false, llNFPP:false,
     imt23:false, vintage:false, transfer:false, nilDepGccvRenewal:false,
     geoExt:false, tppd:false };
@@ -22935,7 +22936,7 @@ function buildBgrPDF(returnBlob){
   const now = q.now || new Date();
   const dateStr = now.toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'}).replace(/\//g, '-');
   let costCode = '';
-  try{ costCode = (typeof buildCostCode === 'function') ? buildCostCode(0, 0, (typeof CR8811_BGR_PCT === 'number' ? CR8811_BGR_PCT : 0)) : ''; }catch(e){ costCode = ''; }
+  try{ costCode = (typeof buildCostCode === 'function') ? buildCostCode((q.inp && q.inp.discPct) || 0, 0, (typeof CR8811_BGR_PCT === 'number' ? CR8811_BGR_PCT : 0)) : ''; }catch(e){ costCode = ''; }
   const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'Vinod', phone:'7032688497'};
   const inp = q.inp || {};
   const zoneName = ['', 'I', 'II', 'III', 'IV'][q.zone] || 'IV';
@@ -23252,7 +23253,8 @@ window.FIRE_VERIFIED = [
 ];
 function newQuote(){
   try{
-    ['sum-insured','insured-name'].forEach(function(id){ const e = document.getElementById(id); if(e) e.value = ''; });
+    ['sum-insured','insured-name','bgr-lor','bgr-aa','bgr-pa'].forEach(function(id){ const e = document.getElementById(id); if(e) e.value = ''; });
+    ['bgr-disc','bgr-load'].forEach(function(id){ const e = document.getElementById(id); if(e) e.value = '0'; });
     const card = document.getElementById('result-card'); if(card) card.classList.remove('visible');
     lastQuote = null;
     const sec = document.getElementById('sectionFire'); if(sec) window.scrollTo({ top: Math.max(0, sec.offsetTop - 8), behavior:'smooth' });
@@ -23262,7 +23264,7 @@ window.FIRE = {bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQu
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v86 · Bharat Griha Raksha segment in Fire (per OICL Fire Premium Calculator w.e.f. 01-01-2025); terrorism 0.13 per mille on non-industrial risks; Sookshma list completed · 08-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v87 · sweep fixes: self-test immune to a clicked discount chip, BGR New Quote clears its fields, BGR cost code carries the FLEXA discount · 08-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
