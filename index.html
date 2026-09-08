@@ -1948,7 +1948,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 
     <div class="field-row">
       <div class="field">
-        <label for="regDateText">Registration Date</label>
+        <label for="regDateText">Invoice Date / Registration Date</label>
         <div style="display:flex;gap:6px;align-items:center">
           <input type="text" id="regDateText" inputmode="numeric" placeholder="DD/MM/YYYY" maxlength="10" style="flex:1" />
           <input type="date" id="regDate" style="width:42px;padding:11px 8px" title="Pick from calendar" />
@@ -10404,7 +10404,7 @@ function calculate(silent=false){
 
   clearErrors();
   let ok = true;
-  if(!data.regDate){ markError('regDate','Select registration date'); ok=false; }
+  if(!data.regDate){ markError('regDate','Select invoice / registration date'); ok=false; }
   else {
     // Registration date cannot be in the future — a future date silently lands in the
     // newest age bracket / 10% nil-dep slab and produces a wrong premium.
@@ -11925,7 +11925,7 @@ function generatePDF(q, docOverride){
     ly=row(LX,ly,colW,'Vehicle Number', q.data.regNumber||'', {zebra:z}); z=!z;
     ly=row(LX,ly,colW,'Make, Model & Variant', q.data.vehicleModel, {zebra:z}); z=!z;
     ly=row(LX,ly,colW,'RTO Location', rtoLoc, {zebra:z}); z=!z;
-    ly=row(LX,ly,colW,'Registration Date', fmtRegDate(q.data.regDate), {zebra:z}); z=!z;
+    ly=row(LX,ly,colW,'Invoice / Registration Date', fmtRegDate(q.data.regDate), {zebra:z}); z=!z;
     ly=row(LX,ly,colW,'Cubic Capacity/KW', ccKw, {zebra:z}); z=!z;
     ly=row(LX,ly,colW,'Seating Capacity', seatingCapacityLabel(q), {zebra:z}); z=!z;
     ly=row(LX,ly,colW,'Fuel Type', q.fuelCfg.label, {zebra:z}); z=!z;
@@ -22954,7 +22954,7 @@ window.FIRE = {toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v84 · IMT-47 overturning cover shown on the Motor PDF with its wording page · 08-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v85 · Motor date field labelled Invoice Date / Registration Date · 08-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
