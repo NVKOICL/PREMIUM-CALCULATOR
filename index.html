@@ -3342,7 +3342,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
   background:radial-gradient(circle,rgba(232,71,10,.25),transparent 70%);
   pointer-events:none;
 }#sectionFire .total-row .tk{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;opacity:.75;position:relative;z-index:1}#sectionFire .total-row .tk small{display:block;font-size:9.5px;font-weight:500;opacity:.7;margin-top:3px;letter-spacing:.08em}#sectionFire .total-row .tv{font-family:'Fraunces',serif;font-size:clamp(28px,7vw,34px);font-weight:600;letter-spacing:-.025em;font-feature-settings:"tnum";position:relative;z-index:1;line-height:1}#sectionFire .total-row .tv em{font-style:normal;font-size:17px;font-weight:400;opacity:.65;margin-right:5px}#sectionFire .footer{text-align:center;margin-top:32px;padding:0 20px;font-size:11.5px;color:var(--mute);line-height:1.65}#sectionFire .footer strong{color:var(--ink-soft)}#sectionFire .error{color:var(--danger);font-size:12px;margin-top:8px;font-weight:600;display:none;letter-spacing:.01em}#sectionFire .error.show{display:block}#sectionFire .error::before{content:"⚠ ";margin-right:2px}#sectionFire /* ── NEW: 3-COL SEGMENTED ── */
-.segmented.cols-3{grid-template-columns:1fr 1fr 1fr}#sectionFire .segmented.cols-3 label{padding:12px 6px;font-size:12px;min-height:62px}#sectionFire .segmented.cols-3 label small{font-size:9.5px}#sectionFire /* ── NEW: REFERRAL FLAGS ── */
+.segmented.cols-3{grid-template-columns:1fr 1fr 1fr}#sectionFire .segmented.cols-3 label{padding:12px 6px;font-size:12px;min-height:62px}#sectionFire .segmented.cols-4{grid-template-columns:repeat(4,1fr)}#sectionFire .segmented.cols-4 label{padding:12px 4px;font-size:11.5px;min-height:62px}#sectionFire .segmented.cols-3 label small{font-size:9.5px}#sectionFire /* ── NEW: REFERRAL FLAGS ── */
 .flags-card{border:1.5px solid var(--danger);background:linear-gradient(135deg,#fff5f4 0%,#ffe9e6 100%);display:none}#sectionFire .flags-card.show{display:block;animation:fadeUp .35s ease}#sectionFire .flags-card .section-label{color:var(--danger)}#sectionFire .flags-card .section-label::after{background:linear-gradient(to right,rgba(179,38,30,.3),transparent)}#sectionFire .flag-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px dashed rgba(179,38,30,.2);font-size:13px;line-height:1.5;color:#5a1411}#sectionFire .flag-item:last-child{border-bottom:none}#sectionFire .flag-item .icon{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--danger);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}#sectionFire .flag-item .body strong{color:#5a1411;font-weight:700}#sectionFire .flag-item .body .ref{display:block;font-size:10.5px;color:#8a4540;margin-top:3px;letter-spacing:.04em;text-transform:uppercase;font-weight:600}#sectionFire /* ── NEW: INFO / WARN BANNERS ── */
 .info-banner{background:linear-gradient(135deg,#fef5eb 0%,#fdebd9 100%);border:1px solid var(--accent-tint);border-radius:var(--radius-sm);padding:11px 14px;margin-top:10px;font-size:12px;color:var(--ink-soft);line-height:1.5;display:none}#sectionFire .info-banner.show{display:block}#sectionFire .info-banner strong{color:var(--accent-dark);font-weight:700}#sectionFire /* ── NEW: TREATY BADGE on occupancy result ── */
 .badge.treaty{background:#1f7a3e;color:#fff}#sectionFire .badge.notified{background:#5b21b6;color:#fff;box-shadow:0 1px 4px rgba(91,33,182,.3)}#sectionFire /* ── NEW: PML BREAKDOWN PANEL ── */
@@ -3370,7 +3370,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
   <!-- ── POLICY TYPE ── -->
   <div class="card">
     <div class="section-label">Policy Type</div>
-    <div class="segmented cols-3">
+    <div class="segmented cols-4">
       <input type="radio" name="fire-policy" id="pol-sookshma" checked>
       <label for="pol-sookshma" onclick="FIRE.setPolicy('sookshma')">
         Sookshma
@@ -3385,6 +3385,11 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
       <label for="pol-tariff" onclick="FIRE.setPolicy('tariff')">
         SFSP / IAR
         <small>above ₹50 Cr</small>
+      </label>
+      <input type="radio" name="fire-policy" id="pol-bgr">
+      <label for="pol-bgr" onclick="FIRE.setPolicy('bgr')">
+        Griha Raksha
+        <small>home building</small>
       </label>
     </div>
   </div>
@@ -3412,6 +3417,76 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- ── BHARAT GRIHA RAKSHA — home building & contents; shown only when the BGR policy is selected ── -->
+  <div class="card" id="bgr-card" style="display:none">
+    <div class="section-label">Bharat Griha Raksha <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; home building &amp; contents</span></div>
+    <div class="field">
+      <label for="bgr-occ">Occupancy</label>
+      <select id="bgr-occ" onchange="FIRE.bgrRefresh()">
+        <option value="dwelling">Dwelling &ndash; Home Building / Contents</option>
+        <option value="coop">Dwelling &ndash; Co-operative Housing Society</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="bgr-years">Policy Term</label>
+        <select id="bgr-years" onchange="FIRE.bgrRefresh()">
+          <option value="1">1 Year</option><option value="2">2 Years</option><option value="3">3 Years</option><option value="4">4 Years</option><option value="5">5 Years</option>
+          <option value="6">6 Years</option><option value="7">7 Years</option><option value="8">8 Years</option><option value="9">9 Years</option><option value="10">10 Years</option>
+        </select>
+      </div>
+      <div class="field" id="bgr-short-field">
+        <label for="bgr-months">Short Period (annual policy)</label>
+        <select id="bgr-months">
+          <option value="12">Full year</option>
+          <option value="1">1 month &middot; 10%</option><option value="2">2 months &middot; 19%</option><option value="3">3 months &middot; 29%</option>
+          <option value="4">4 months &middot; 38%</option><option value="5">5 months &middot; 48%</option><option value="6">6 months &middot; 58%</option>
+          <option value="7">7 months &middot; 67%</option><option value="8">8 months &middot; 77%</option><option value="9">9 months &middot; 86%</option>
+          <option value="10">Above 9 &amp; below 12 months &middot; 100%</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field" id="bgr-eq-field" style="display:none">
+        <label for="bgr-eq-zone">Earthquake Zone (co-operative society)</label>
+        <select id="bgr-eq-zone">
+          <option value="4">Zone IV &middot; 0.05&permil;</option><option value="3">Zone III &middot; 0.10&permil;</option>
+          <option value="2">Zone II &middot; 0.15&permil;</option><option value="1">Zone I &middot; 0.25&permil;</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="bgr-terror">Terrorism Cover</label>
+        <select id="bgr-terror"><option value="yes">Yes &middot; 0.07&permil;</option><option value="no">No</option></select>
+      </div>
+    </div>
+    <div class="section-label" style="margin-top:14px">Optional Covers</div>
+    <div class="field-row">
+      <div class="field">
+        <label for="bgr-lor">Loss of Rent &ndash; Sum Insured</label>
+        <div class="input-prefix" data-prefix="₹"><input type="number" id="bgr-lor" placeholder="0" min="0" inputmode="numeric"></div>
+      </div>
+      <div class="field">
+        <label for="bgr-aa">Alternative Accommodation &ndash; Sum Insured</label>
+        <div class="input-prefix" data-prefix="₹"><input type="number" id="bgr-aa" placeholder="0" min="0" inputmode="numeric"></div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="bgr-pa">Personal Accident &ndash; persons (₹5 lakh each)</label>
+        <input type="number" id="bgr-pa" placeholder="0" min="0" max="20" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="bgr-disc">Discount on FLEXA</label>
+        <div class="input-suffix" data-suffix="%"><input type="number" id="bgr-disc" placeholder="0" min="0" max="100" step="0.1" value="0" inputmode="decimal"></div>
+      </div>
+    </div>
+    <div class="field">
+      <label for="bgr-load">Loading on FLEXA</label>
+      <div class="input-suffix" data-suffix="%"><input type="number" id="bgr-load" placeholder="0" min="0" max="500" step="0.1" value="0" inputmode="decimal"></div>
+    </div>
+    <div class="info-banner show" style="margin-top:8px">Sum Insured (Building &amp; Contents) and the insured name come from the Policy Details card above. Terms of 2 to 10 years use the long-term rate table; the short-period scale applies to annual policies only. Discount and loading apply to the FLEXA premium alone. The Revised Underwriting Guidelines of 10 Sep 2026 do not apply to BGR.</div>
   </div>
 
   <!-- ── RISK CLASSIFICATION (all modes) — drives STFI & EQ rates ── -->
@@ -3567,7 +3642,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
       <div class="field">
         <label>Terrorism Rate (‰ on Sum Insured)</label>
         <div class="input-suffix" data-suffix="‰">
-          <input type="number" id="terror-rate" placeholder="0.21" value="0.21" min="0" step="0.01" inputmode="decimal" oninput="FIRE.updateTerrorPill()">
+          <input type="number" id="terror-rate" placeholder="0.21" value="0.21" min="0" step="0.01" inputmode="decimal" oninput="this.dataset.manual='1';FIRE.updateTerrorPill()">
         </div>
       </div>
       <div class="field">
@@ -19488,6 +19563,7 @@ if(document.getElementById('ohProduct')) ohSyncUI();
 const RATES = {
   sookshma: {
     "Abrasive Manufacturing":0.677,"Adhesive Film Mfg (Flash Point below 32C)":1.344,"Adhesive Film Mfg (Flash Point above 32C)":0.979,
+    "Dish Antenna":0.228,"Cloth Processing units outside textile mills compound":1.077,
     "Aerated Water Factories":0.599,"Aerial Ropeway including Trolley Stations":0.771,"Agarbatti Manufacturing":1.924,
     "Aircraft Hangers":1.141,"Airport Terminal Buildings":0.286,"Aluminum/Zinc/Copper Factories":0.628,
     "Aluminum/Magnesium Powder Plants":0.875,"Amusement Parks":0.771,"Analytical/Quality Control Laboratories":0.624,
@@ -20371,7 +20447,7 @@ function nicInfo(name, siCr){
   if(code === '2063' && (siCr||0) > 20) cat = 'D';          // cotton gin & press above Rs.20 Cr at one location
   return { code, cat, rate: NIC_FIRE[code][1] };
 }
-function policyShortFor(p){ return p==='sookshma' ? 'NBSUS' : p==='laghu' ? 'NBLUS' : 'SFSP / IAR'; }
+function policyShortFor(p){ return p==='sookshma' ? 'NBSUS' : p==='laghu' ? 'NBLUS' : p==='bgr' ? 'BGR' : 'SFSP / IAR'; }
 function flexaCapFor(policy){ return policy === 'sookshma' ? 99.99 : 75; }
 function natcatCapFor(policy, cat){ if(policy !== 'sookshma') return 0; return cat === 'A' ? 50 : cat === 'B' ? 25 : 0; }
 const ROADS_STFI_FLOOR_DISC = Math.round((1 - 0.37/0.52) * 10000) / 100;   // 28.85% — RO may discount roads STFI 0.52 → 0.37
@@ -21081,6 +21157,7 @@ function setPolicy(p){
   document.getElementById('pol-sookshma').checked = (p==='sookshma');
   document.getElementById('pol-laghu').checked = (p==='laghu');
   document.getElementById('pol-tariff').checked = (p==='tariff');
+  const pb = document.getElementById('pol-bgr'); if(pb) pb.checked = (p==='bgr');
   clearSelection();
   document.getElementById('search-results').classList.remove('open');
   document.getElementById('occ-input').value='';
@@ -21090,6 +21167,9 @@ function setPolicy(p){
   document.body.classList.toggle('policy-tariff', p==='tariff');
   document.body.classList.toggle('policy-sookshma', p==='sookshma');
   document.body.classList.toggle('policy-laghu', p==='laghu');
+  document.body.classList.toggle('policy-bgr', p==='bgr');
+  bgrApplyLayout(p==='bgr');
+  { const tr = document.getElementById('terror-rate'); if(tr) delete tr.dataset.manual; }
 
   // Update Risk Classification section label per mode
   const rcl = document.getElementById('risk-class-label');
@@ -21149,6 +21229,16 @@ function updateSTFIRate(){
       if(optionLabelMap[opt.value]) opt.textContent = optionLabelMap[opt.value];
     });
   }
+
+  /* Terrorism default follows the risk class (OICL Fire Premium Calculator w.e.f. 01-01-2025:
+     Non-Industrial 0.13 per mille, Industrial 0.21 per mille) unless a rate was typed by hand */
+  const tr = document.getElementById('terror-rate');
+  if(tr && tr.dataset.manual !== '1'){
+    const def = (tier === 'non-industrial') ? '0.13' : '0.21';
+    if(tr.value !== def){ tr.value = def; if(typeof updateTerrorPill === 'function') updateTerrorPill(); }
+  }
+  const td = document.getElementById('terror-desc');
+  if(td) td.textContent = 'Terrorism cover \u00b7 ' + (tier === 'non-industrial' ? 'non-industrial 0.13\u2030' : 'industrial 0.21\u2030') + ' on full Sum Insured';
 
   syncEQTier();
 }
@@ -21979,6 +22069,7 @@ function fmtR(n){ return '₹'+fmt(n) }
 
 // ── CALCULATE ───────────────────────────────────────────────────────────
 function calculate(){
+  if(currentPolicy === 'bgr') return calculateBGR();
   // Validation
   if(!selectedOcc){
     document.getElementById('occ-error').classList.add('show');
@@ -22712,8 +22803,217 @@ function drawFireCoverPages(doc, q){
 }
 
 
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BHARAT GRIHA RAKSHA (BGR) — Oriental BGR premium calculator w.e.f. 01-01-2025
+   (FLEXA rates w.e.f. 01-04-2021). Source: "Oriental New Fire Premium Calculator
+   wef 01-01-2025.ods", sheets "Griha Raksha" and "Griha Raksha Tariff".
+   The Revised Underwriting & Rate Guidelines of 10 Sep 2026 do NOT apply to BGR.
+   ══════════════════════════════════════════════════════════════════════════ */
+const BGR_RATES = {
+  dwelling: { label:'Dwelling \u2013 Home Building / Contents',        flexa:0.056, stfi:0.075, eq:{1:0.05,2:0.05,3:0.05,4:0.05}, terror:0.07, lor:0.048, aa:0.048 },
+  coop:     { label:'Dwelling \u2013 Co-operative Housing Society',    flexa:0.121, stfi:0.15,  eq:{1:0.25,2:0.15,3:0.10,4:0.05}, terror:0.07, lor:0.102, aa:0.102 }
+};
+/* Long-term rate table (per mille, years 1-10) for the dwelling occupancy; the co-operative society
+   occupancy scales its annual rates by the same year factor (the tariff sheet gives no separate table). */
+const BGR_LT = {
+  flexa: [0.056,0.109,0.164,0.220,0.277,0.335,0.392,0.451,0.509,0.556],
+  stfi:  [0.075,0.155,0.230,0.311,0.391,0.477,0.557,0.643,0.723,0.804],
+  eq:    [0.05, 0.103,0.153,0.207,0.261,0.318,0.371,0.429,0.482,0.536],
+  terror:[0.07, 0.165,0.245,0.332,0.417,0.508,0.594,0.686,0.772,0.857],
+  addon: [0.048,0.092,0.134,0.174,0.211,0.247,0.280,0.312,0.341,0.369],
+  pa:    [10,20,28,37,45,52,59,66,72,78]          /* Rs. per person (Rs. 5 lakh each) */
+};
+/* Short period scale for annual policies: % of the annual premium */
+const BGR_SHORT = {1:10, 2:19, 3:29, 4:38, 5:48, 6:58, 7:67, 8:77, 9:86, 10:100, 12:100};
+function bgrLtRate(kind, annual, years){ const t = BGR_LT[kind]; const y = Math.min(Math.max(years, 1), 10); return annual * (t[y-1] / t[0]); }
+function bgrCompute(inp){
+  const r = BGR_RATES[inp.occ] || BGR_RATES.dwelling;
+  const y = Math.min(Math.max(parseInt(inp.years, 10) || 1, 1), 10);
+  const si = inp.si || 0;
+  const zone = parseInt(inp.zone, 10) || 4;
+  const rates = {
+    flexa: bgrLtRate('flexa', r.flexa, y), stfi: bgrLtRate('stfi', r.stfi, y),
+    eq: bgrLtRate('eq', r.eq[zone] || r.eq[4], y), terror: inp.terror ? bgrLtRate('terror', r.terror, y) : 0,
+    lor: bgrLtRate('addon', r.lor, y), aa: bgrLtRate('addon', r.aa, y), pa: BGR_LT.pa[y-1]
+  };
+  const p = {
+    flexa: si * rates.flexa / 1000, stfi: si * rates.stfi / 1000, eq: si * rates.eq / 1000, terror: si * rates.terror / 1000,
+    lor: (inp.lorSI || 0) * rates.lor / 1000, aa: (inp.aaSI || 0) * rates.aa / 1000, pa: (inp.paPersons || 0) * rates.pa
+  };
+  const disc = p.flexa * (inp.discPct || 0) / 100, load = p.flexa * (inp.loadPct || 0) / 100;
+  const subtotal = p.flexa + p.stfi + p.eq + p.terror + p.lor + p.aa + p.pa;
+  const beforeShort = subtotal - disc + load;
+  const months = parseInt(inp.months, 10) || 12;
+  const shortPct = (y === 1 && months < 12) ? (BGR_SHORT[months] || 100) : 100;
+  const net = beforeShort * shortPct / 100;
+  const shortAdj = net - beforeShort;
+  const gst = net * 0.18, grand = net + gst;
+  return { occ: inp.occ, occLabel: r.label, years: y, months, zone, rates, p, disc, load, subtotal, beforeShort, shortPct, shortAdj, net, gst, grand };
+}
+function bgrRefresh(){
+  const occ = (document.getElementById('bgr-occ') || {}).value || 'dwelling';
+  const yrs = parseInt((document.getElementById('bgr-years') || {}).value, 10) || 1;
+  const eqF = document.getElementById('bgr-eq-field'); if(eqF) eqF.style.display = occ === 'coop' ? '' : 'none';
+  const shF = document.getElementById('bgr-short-field'); if(shF) shF.style.display = yrs === 1 ? '' : 'none';
+}
+function bgrApplyLayout(on){
+  const sec = document.getElementById('sectionFire'); if(!sec) return;
+  const keep = ['#pol-sookshma', '#insured-name', '#result-card'];
+  sec.querySelectorAll('.card').forEach(card => {
+    if(card.id === 'bgr-card'){ card.style.display = on ? '' : 'none'; return; }
+    const isKeep = keep.some(sel => card.matches(sel) || card.querySelector(sel));
+    card.style.display = (on && !isKeep) ? 'none' : '';
+  });
+  const pp = document.getElementById('policy-period'); const pf = pp && pp.closest('.field'); if(pf) pf.style.display = on ? 'none' : '';
+  const rc = document.getElementById('result-card'); if(rc) rc.classList.remove('visible');
+  if(on) bgrRefresh();
+}
+function calculateBGR(){
+  const g = id => document.getElementById(id);
+  const si = parseFloat(g('sum-insured').value);
+  if(!si || si <= 0){
+    g('sum-insured').focus(); g('sum-insured').style.borderColor = 'var(--danger)';
+    setTimeout(() => g('sum-insured').style.borderColor = '', 2000);
+    g('result-card').classList.remove('visible'); return;
+  }
+  const inp = {
+    occ: g('bgr-occ').value, years: g('bgr-years').value, months: g('bgr-months').value, zone: g('bgr-eq-zone').value,
+    terror: g('bgr-terror').value === 'yes', si,
+    lorSI: Math.max(0, parseFloat(g('bgr-lor').value) || 0), aaSI: Math.max(0, parseFloat(g('bgr-aa').value) || 0),
+    paPersons: Math.max(0, parseInt(g('bgr-pa').value, 10) || 0),
+    discPct: Math.min(100, Math.max(0, parseFloat(g('bgr-disc').value) || 0)), loadPct: Math.max(0, parseFloat(g('bgr-load').value) || 0)
+  };
+  const q = bgrCompute(inp);
+  const insuredName = g('insured-name').value.trim() || '\u2014';
+  const today = new Date().toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+  const termLabel = q.years > 1 ? q.years + ' Years (long term)' : (q.months < 12 ? (q.months === 10 ? 'Above 9 & below 12 months' : q.months + ' month' + (q.months > 1 ? 's' : '')) + ' \u00b7 short period ' + q.shortPct + '%' : '1 Year');
+  let qd = `
+    <div class="quote-row"><span class="k">Sum Insured (Building &amp; Contents)</span><span class="v">${fmtR(si)}</span></div>
+    <div class="quote-row"><span class="k">Occupancy</span><span class="v occ-name">${q.occLabel}</span></div>
+    <div class="quote-row"><span class="k">FLEXA Rate</span><span class="v">${q.rates.flexa.toFixed(3)}\u2030${q.years > 1 ? ' (' + q.years + '-yr)' : ''}</span></div>
+    <div class="quote-row"><span class="k">Policy Term</span><span class="v">${termLabel}</span></div>`;
+  if(q.occ === 'coop') qd += `<div class="quote-row"><span class="k">Earthquake Zone</span><span class="v">Zone ${['', 'I', 'II', 'III', 'IV'][q.zone]}</span></div>`;
+  g('quote-details').innerHTML = qd;
+  const rl = (k, v, cls) => `<div class="line${cls ? ' ' + cls : ''}"><span class="k">${k}</span><span class="v${cls === 'sub' ? ' discount' : ''}">${v}</span></div>`;
+  let html = '';
+  html += rl('Bharat Griha Raksha \u2013 Standard Covers', '', 'section-divider');
+  html += rl(`FLEXA (Fire &amp; Allied Perils) \u00b7 ${q.rates.flexa.toFixed(3)}\u2030`, fmtR(q.p.flexa));
+  if(q.disc > 0) html += rl(`Discount on FLEXA (${inp.discPct}%)`, '\u2212 ' + fmtR(q.disc), 'sub');
+  if(q.load > 0) html += rl(`Loading on FLEXA (${inp.loadPct}%)`, '+ ' + fmtR(q.load), 'sub');
+  html += rl(`STFI \u00b7 ${q.rates.stfi.toFixed(3)}\u2030`, fmtR(q.p.stfi));
+  html += rl(`Earthquake \u00b7 ${q.rates.eq.toFixed(3)}\u2030`, fmtR(q.p.eq));
+  if(inp.terror) html += rl(`Terrorism \u00b7 ${q.rates.terror.toFixed(3)}\u2030`, fmtR(q.p.terror));
+  if(inp.lorSI > 0 || inp.aaSI > 0 || inp.paPersons > 0){
+    html += rl('Optional Covers', '', 'section-divider');
+    if(inp.lorSI > 0) html += rl(`Loss of Rent \u00b7 SI ${fmtR(inp.lorSI)} @ ${q.rates.lor.toFixed(3)}\u2030`, fmtR(q.p.lor));
+    if(inp.aaSI > 0) html += rl(`Alternative Accommodation \u00b7 SI ${fmtR(inp.aaSI)} @ ${q.rates.aa.toFixed(3)}\u2030`, fmtR(q.p.aa));
+    if(inp.paPersons > 0) html += rl(`Personal Accident \u00b7 ${inp.paPersons} \u00d7 \u20b9${q.rates.pa}`, fmtR(q.p.pa));
+  }
+  if(q.shortPct < 100) html += rl(`Short period \u00b7 ${q.shortPct}% of annual premium`, '\u2212 ' + fmtR(-q.shortAdj), 'sub');
+  html += rl('Total Net Premium', fmtR(q.net), 'net-line');
+  html += rl('TAX COMPUTATION', '', 'section-divider');
+  html += rl('GST @ 18%', fmtR(q.gst));
+  g('res-date').textContent = today;
+  g('breakdown-body').innerHTML = html;
+  g('grand-total').textContent = fmt(q.grand);
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  lastQuote = Object.assign({
+    bgr: true,
+    quoteRef: `BGR-${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`,
+    dateStr: now.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}),
+    now, insured: g('insured-name').value.trim() || 'Valued Customer', si, inp,
+    policyMode: 'bgr', policyLabel: 'Bharat Griha Raksha (BGR)', period: q.years, termLabel, totalNet: q.net
+  }, q);
+  const card = g('result-card'); card.classList.add('visible');
+  setTimeout(() => card.scrollIntoView({ behavior:'smooth', block:'start' }), 60);
+}
+function buildBgrPDF(returnBlob){
+  const q = lastQuote; if(!q || !q.bgr) return;
+  const R = OICPDF.money2;
+  const now = q.now || new Date();
+  const dateStr = now.toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'}).replace(/\//g, '-');
+  let costCode = '';
+  try{ costCode = (typeof buildCostCode === 'function') ? buildCostCode(0, 0, (typeof CR8811_BGR_PCT === 'number' ? CR8811_BGR_PCT : 0)) : ''; }catch(e){ costCode = ''; }
+  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'Vinod', phone:'7032688497'};
+  const inp = q.inp || {};
+  const zoneName = ['', 'I', 'II', 'III', 'IV'][q.zone] || 'IV';
+  const left = [
+    { bar:'Customer Details', rows:[ ['Name', q.insured || 'Valued Customer'], ['Mobile No', ''], ['Email', ''] ] },
+    { bar:'Employee/Intermediary Details', rows:[ ['Employee/Intermediary Code', AG.code || ''], ['Name', AG.name || ''], ['Mobile No', AG.phone || ''], ['Email', AG.email || ''] ] },
+    { bar:'Risk Details', rows:[
+      ['Product', 'Bharat Griha Raksha'],
+      ['Occupancy', q.occLabel],
+      ['Policy Term', q.termLabel],
+      q.occ === 'coop' ? ['Earthquake Zone', 'Zone ' + zoneName] : null,
+      ['Sum Insured (Building & Contents)', OICPDF.fmtIN(q.si)]
+    ].filter(Boolean) },
+    { bar:'Covers', rows:[
+      ['Fire & Allied Perils (FLEXA)', 'Covered'],
+      ['Storm, Tempest, Flood & Inundation', 'Covered'],
+      ['Earthquake (Fire & Shock)', 'Covered'],
+      ['Terrorism', inp.terror ? 'Covered' : 'Not Opted'],
+      ['Loss of Rent', inp.lorSI > 0 ? 'SI ' + OICPDF.fmtIN(inp.lorSI) : 'Not Opted'],
+      ['Alternative Accommodation', inp.aaSI > 0 ? 'SI ' + OICPDF.fmtIN(inp.aaSI) : 'Not Opted'],
+      ['Personal Accident (Rs. 5 lakh per person)', inp.paPersons > 0 ? inp.paPersons + ' person' + (inp.paPersons > 1 ? 's' : '') : 'Not Opted']
+    ] },
+    { bar:'Documents Required', rows:[
+      { label:'1. Filled & signed Proposal Form' },
+      { label:'2. Proof of ownership / occupancy of the home building' },
+      { label:'3. Carpet area and construction details for the building Sum Insured' },
+      { label:'4. List of contents where contents cover is opted beyond the standard limit' },
+      { label:'5. Previous policy copy (for renewals)' }
+    ] }
+  ];
+  const right = [ { bar:'Premium Breakup' } ];
+  const std = [];
+  /* discount / loading are folded into the FLEXA line (never itemised for the customer) */
+  std.push({ label:'FLEXA (Fire & Allied Perils)', value:R(q.p.flexa - q.disc + q.load) });
+  std.push({ label:'Storm, Tempest, Flood & Inundation', value:R(q.p.stfi) });
+  std.push({ label:'Earthquake (Fire & Shock)', value:R(q.p.eq) });
+  if(inp.terror) std.push({ label:'Terrorism', value:R(q.p.terror) });
+  std.push({ label:'Standard Covers (A)', value:R(q.p.flexa - q.disc + q.load + q.p.stfi + q.p.eq + q.p.terror), total:true });
+  right.push({ sub:'Section A \u2013 Standard Covers', rows:std });
+  let optKey = '';
+  if(inp.lorSI > 0 || inp.aaSI > 0 || inp.paPersons > 0){
+    optKey = 'B';
+    const rows = [];
+    if(inp.lorSI > 0) rows.push({ label:'Loss of Rent', value:R(q.p.lor) });
+    if(inp.aaSI > 0) rows.push({ label:'Alternative Accommodation', value:R(q.p.aa) });
+    if(inp.paPersons > 0) rows.push({ label:'Personal Accident (' + inp.paPersons + ' \u00d7 Rs. ' + q.rates.pa + ')', value:R(q.p.pa) });
+    rows.push({ label:'Optional Covers (B)', value:R(q.p.lor + q.p.aa + q.p.pa), total:true });
+    right.push({ sub:'Section B \u2013 Optional Covers', rows:rows });
+  }
+  const fin = [];
+  if(q.shortPct < 100) fin.push({ label:'Short period \u2013 ' + q.shortPct + '% of the annual premium', value:'- ' + R(-q.shortAdj) });
+  fin.push({ label:'Net Premium before GST [A' + (optKey ? ' + B' : '') + ']', value:R(q.net) });
+  fin.push({ label:'GST @ 18%', value:R(q.gst) });
+  fin.push({ label:'Total Premium', value:R(q.grand), total:true });
+  right.push({ sub:'Final Premium Summary', rows:fin });
+  const notes = [
+    'Bharat Griha Raksha is the standard home insurance policy for the home building and its contents. Rates applied are the Oriental Bharat Griha Raksha rates for the occupancy; long-term policies use the long-term rate table. This is an indicative quotation \u2014 final premium, terms and conditions are subject to insurer underwriting and acceptance of risk.',
+    'Personal Accident cover is Rs. 5,00,000 per person. Loss of Rent and Alternative Accommodation are rated on their own sums insured.',
+    'Cheque / DD payable to: The Oriental Insurance Company Limited. This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.'
+  ];
+  const safeName = String(q.insured || 'Customer').replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_').substring(0, 40);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dStr = String(now.getDate()).padStart(2, '0') + months[now.getMonth()] + now.getFullYear();
+  const out = OICPDF.render({
+    subtitle: 'Quotation Worksheet For Fire Insurance \u2013 BHARAT GRIHA RAKSHA POLICY',
+    quoteNumber: String(Math.floor(now.getTime() / 1000)).slice(-5),
+    quoteId: q.quoteRef, dateStr, costCode, agent: AG, left, right, notes,
+    totalLabel: 'Total Premium' + (q.years > 1 ? ' (' + q.years + ' Years)' : ''),
+    totalValue: R(q.grand),
+    filename: 'Oriental_BGR_Quote_' + safeName + '_' + dStr + '.pdf'
+  });
+  if(returnBlob) return new Blob([out.doc.output('arraybuffer')], {type:'application/pdf'});
+  out.doc.save(out.filename);
+}
+
 function buildFirePDF(returnBlob){
   if(!lastQuote){ alert('Please calculate the premium first.'); return; }
+  if(lastQuote.bgr) return buildBgrPDF(returnBlob);
   const q = lastQuote;
   const R = OICPDF.money2;
   const now = q.now || new Date();
@@ -22907,6 +23207,14 @@ window.selectOcc = (typeof selectOcc === 'function') ? selectOcc : function(){};
 
 /* Document-verified checks for the built-in self-test (folded in by runSelfTest) */
 window.FIRE_VERIFIED = [
+  { label:'BGR: dwelling SI 72,41,850, 1 year, terrorism opted -> FLEXA 406 / STFI 543 / EQ 362 / Terrorism 507 / net 1,818 / GST 327 / total 2,145 (Griha Raksha sheet)', expect:'406/543/362/507/1818/327/2145',
+    check:()=>{ const q = bgrCompute({occ:'dwelling', years:1, months:12, zone:4, terror:true, si:7241850}); return [q.p.flexa, q.p.stfi, q.p.eq, q.p.terror, q.net, q.gst, q.grand].map(v=>Math.round(v)).join('/'); } },
+  { label:'BGR: long-term table year 5 -> FLEXA 0.277, STFI 0.391, EQ 0.261, Terrorism 0.417, add-ons 0.211, PA Rs.45 (Griha Raksha Tariff sheet)', expect:'0.277/0.391/0.261/0.417/0.211/45',
+    check:()=>{ const q = bgrCompute({occ:'dwelling', years:5, months:12, zone:4, terror:true, si:1000000}); return [q.rates.flexa, q.rates.stfi, q.rates.eq, q.rates.terror, q.rates.lor].map(v=>v.toFixed(3)).concat([q.rates.pa]).join('/'); } },
+  { label:'BGR: co-operative society annual FLEXA 0.121, STFI 0.15, EQ Zone I 0.25, add-ons 0.102; 3-month short period = 29% of annual', expect:'0.121/0.150/0.250/0.102/29',
+    check:()=>{ const q = bgrCompute({occ:'coop', years:1, months:3, zone:1, terror:true, si:1000000}); return [q.rates.flexa, q.rates.stfi, q.rates.eq, q.rates.lor].map(v=>v.toFixed(3)).join('/') + '/' + q.shortPct; } },
+  { label:'Fire: Sookshma list carries Dish Antenna 0.228 and Cloth Processing 1.077 (OICL Fire calculator w.e.f. 01-01-2025)', expect:'0.228/1.077',
+    check:()=>RATES.sookshma['Dish Antenna'] + '/' + RATES.sookshma['Cloth Processing units outside textile mills compound'] },
   { label:'Fire add-ons as INLIAS rates them: debris 1% / betterment 1% / claim preparation 1% / brands 0.1% / escalation 5% of the basic fire premium (Sookshma 4 Cr basic 34,960 -> 350/350/350/35/1748)',
     expect:'350/350/350/35/1748', check:()=>FIRE_ADDONS.map(a=>Math.round(34960*a.pct/100)).join('/') },
   { label:'Fire: add-on discount 20% on Removal of Debris (basic 34,960 -> 350 gross, 280 net)', expect:'280',
@@ -22950,11 +23258,11 @@ function newQuote(){
     const sec = document.getElementById('sectionFire'); if(sec) window.scrollTo({ top: Math.max(0, sec.offsetTop - 8), behavior:'smooth' });
   }catch(e){ console.error(e); }
 }
-window.FIRE = {toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
+window.FIRE = {bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v85 · Motor date field labelled Invoice Date / Registration Date · 08-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v86 · Bharat Griha Raksha segment in Fire (per OICL Fire Premium Calculator w.e.f. 01-01-2025); terrorism 0.13 per mille on non-industrial risks; Sookshma list completed · 08-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
