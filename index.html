@@ -2150,7 +2150,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
           <span style="font-size:12px;color:var(--ink-soft);white-space:nowrap">Or enter custom %:</span>
           <input type="number" id="nilDepDiscCustom" inputmode="decimal" placeholder="e.g. 15" min="0" max="40" step="1"
             style="width:90px;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:#fff"
-            oninput="nilDepDiscInput(this);" />
+            oninput="_nilDepManual=true;nilDepDiscInput(this);" />
           <span style="font-size:12px;color:var(--mute)">%</span>
         </div>
         <div class="hint">Applied only on Nil Depreciation add-on premium.</div>
@@ -7646,13 +7646,23 @@ function buildCostCode(odDiscPct, ndDiscPct, commission){
 }
 
 function nilDepDiscCapFor(vt){
-  // Nil-Dep discount ceiling by segment:
-  //   GCCV (commercial) and Two-Wheeler Hire  : 20%
-  //   PCCV                                    : 25%   (was wrongly 20%)
+  // Nil-Dep discount by segment (user directive 09-Sep-2026, applied automatically when Nil Dep is opted):
   //   Private Car / Two-Wheeler / Misc        : 40%
-  if(vt === 'commercial' || vt === 'twoWheelerHire') return 20;
-  if(vt === 'pccv') return 25;
+  //   GCCV (commercial) / PCCV / 2W Hire      : 20%
+  if(vt === 'commercial' || vt === 'twoWheelerHire' || vt === 'pccv') return 20;
   return 40;
+}
+/* The Nil Dep discount is applied automatically at the class figure whenever the Nil Depreciation
+   add-on is opted; a chip clicked or a figure typed by the user sticks until New Quote / a quick quote. */
+let _nilDepManual = false;
+function applyAutoNilDepDisc(){
+  const on = !!document.querySelector('#addonsGrid input[data-addon="nilDep"]:checked');
+  if(!on || _nilDepManual) return;
+  const d = nilDepDiscCapFor(state.vehicleType);
+  state.nilDepDiscount = d;
+  const ci = document.getElementById('nilDepDiscCustom'); if(ci) ci.value = d;
+  document.querySelectorAll('#nilDepDiscChips .chip').forEach(c => c.classList.toggle('active', parseFloat(c.dataset.value) === d));
+  const warn = document.getElementById('nilDepDiscWarn'); if(warn) warn.style.display = 'none';
 }
 
 const state = {
@@ -7900,6 +7910,7 @@ setupSingleSelectChips('ncbChips', v=>{ state.ncbYears = parseInt(v,10); renderA
 setupSingleSelectChips('paUnSiChips', v=>{ state.paUnSI = parseInt(v,10); updatePaUnPreview(); });
 setupSingleSelectChips('fuelChips', v=>{ state.fuel = v; updateFuelHint(); renderAddons(); scheduleAutoCalc(); });
 setupSingleSelectChips('nilDepDiscChips', v=>{
+  _nilDepManual = true;
   state.nilDepDiscount = Math.min(parseFloat(v) || 0, nilDepDiscCapFor(state.vehicleType));
   const ci = $('nilDepDiscCustom'); if(ci) ci.value = state.nilDepDiscount || '';
 });
@@ -9165,6 +9176,7 @@ function renderAddons(){
       if(!i.checked){ const inp = $('tyreInvoiceInput'); if(inp) inp.value = ''; }
       updateTyreHint();
     }
+    if(i.dataset.addon === 'nilDep' && i.checked) applyAutoNilDepDisc();
     syncEpCcWrap(); scheduleAutoCalc();
   }));
 }
@@ -9576,6 +9588,7 @@ function updateNilDepGccvRenewalRow(){
     if(ci) ci.value = cap;
     document.querySelectorAll('#nilDepDiscChips .chip').forEach(c=>c.classList.toggle('active', parseFloat(c.dataset.value)===cap));
   }
+  applyAutoNilDepDisc();
 }
 function updateVintageRow(){
   $('vintageRow').style.display = state.vehicleType==='privateCar' ? '' : 'none';
@@ -9847,14 +9860,9 @@ function applyMotorPreset(key){
     if(i.checked !== want){ i.checked = want; i.dispatchEvent(new Event('change', { bubbles:true })); }
   });
   state.motorPreset = key;
-  /* auto quotes with Nil Dep carry the maximum Nil Dep discount for the class - capped at 20% for
-     passenger and goods carriers unless the vehicle has NCB (then the class ceiling applies) */
-  const nilOn = !!document.querySelector('#addonsGrid input[data-addon="nilDep"]:checked');
-  if(nilOn && typeof nilDepDiscCapFor === 'function'){
-    let d = nilDepDiscCapFor(state.vehicleType);
-    if((state.vehicleType === 'pccv' || state.vehicleType === 'commercial') && !(state.ncbYears > 0)) d = Math.min(d, 20);
-    const ci = $('nilDepDiscCustom'); if(ci){ ci.value = d; nilDepDiscInput(ci); }
-  }
+  /* quick quotes always carry the class Nil Dep discount (Pvt car / 2W 40%, GCCV / PCCV 20%) */
+  _nilDepManual = false;
+  applyAutoNilDepDisc();
   document.querySelectorAll('#motorPresets .preset-chip').forEach(b => b.classList.toggle('active', b.dataset.preset === key));
   if(typeof calculate === 'function') calculate(false);
 }
@@ -12949,7 +12957,7 @@ $('resetBtn').addEventListener('click', ()=>{
     chips.forEach(c=>c.classList.remove('active'));
     if(chips[0]) chips[0].classList.add('active');
   });
-  state.ncbYears = 0; state.odDiscount = 0; _sipManualOverride = false; state.nilDepDiscount = 0;
+  state.ncbYears = 0; state.odDiscount = 0; _sipManualOverride = false; state.nilDepDiscount = 0; _nilDepManual = false;
   state.loadingPct = 0;
   if($('loadingCustom')) $('loadingCustom').value = '';
   if($('targetPremiumInput')) $('targetPremiumInput').value = '';
@@ -23224,6 +23232,8 @@ window.FIRE_VERIFIED = [
     check:()=>String(FIRE_ADDONS.filter(a=>document.getElementById('addon-'+a.key+'-disc')).length) },
   { label:'PDF: WC medical extension prints net of flexi discount (1,000 - 10% = 900)', expect:'900',
     check:()=>{ const q={med:1000,discMed:100}; return String(q.med-(q.discMed||0)); } },
+  { label:'Nil Dep discount by class: private car 40 / two-wheeler 40 / GCCV 20 / PCCV 20 / 2W hire 20 / Misc 40', expect:'40/40/20/20/20/40',
+    check:()=>['privateCar','twoWheeler','commercial','pccv','twoWheelerHire','misc'].map(nilDepDiscCapFor).join('/') },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -23264,7 +23274,7 @@ window.FIRE = {bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQu
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v87 · sweep fixes: self-test immune to a clicked discount chip, BGR New Quote clears its fields, BGR cost code carries the FLEXA discount · 08-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v88 · Nil Dep discount applied automatically when Nil Depreciation is opted (Pvt car / 2W 40%, GCCV / PCCV 20%) · 09-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
