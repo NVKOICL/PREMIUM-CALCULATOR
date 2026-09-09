@@ -14219,7 +14219,7 @@ const hState = {
   freq: 'annual',
   si: 500000,
   basis: 'floater',
-  members: [{ age: 35, entryAge: null }],
+  members: [{ age: 35, entryAge: null, si: null, ped: null }],
   migration: 'none',
   migYear: '1',
   higherSi: false,
@@ -14229,6 +14229,7 @@ const hState = {
 };
 
 function hFmt(n) { return Math.round(n).toLocaleString('en-IN'); }
+function hSiShort(si){ return si >= 10000000 ? `\u20b9${si/10000000}Cr` : si >= 100000 ? `\u20b9${si/100000}L` : `\u20b9${si/1000}K`; }
 
 function freqLabel(f) {
   return { annual:'Annual', biennial:'Biennial (2-yr)', triennial:'Triennial (3-yr)', half_yearly:'Half-Yearly', quarterly:'Quarterly', monthly:'Monthly' }[f] || f;
@@ -14302,9 +14303,38 @@ function renderHMembers() {
           style="width:90px;padding:5px 8px;border-radius:8px;border:1.5px solid var(--border);font-size:12px;font-family:inherit;font-weight:600;background:#fff" />
         <span style="font-size:11px;color:var(--mute)">(if ≤65, age loading waived)</span>
       </div>` : ''}
+      ${hState.basis === 'individual' ? `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <label style="font-size:11px;color:var(--mute);font-weight:600;white-space:nowrap">Sum Insured:</label>
+        <select class="member-si-select" data-idx="${i}" style="padding:5px 8px;border-radius:8px;border:1.5px solid var(--border);font-size:12px;font-family:inherit;font-weight:600;background:#fff">
+          <option value="">As per policy (${hSiShort(hState.si)})</option>
+          ${(OSSS.plans[hState.plan] ? OSSS.plans[hState.plan].siOptions : []).map(v => `<option value="${v}" ${m.si === v ? 'selected' : ''}>${hSiShort(v)}</option>`).join('')}
+        </select>
+        <label style="font-size:11px;color:var(--mute);font-weight:600;white-space:nowrap">PED buyback:</label>
+        <select class="member-ped-select" data-idx="${i}" style="padding:5px 8px;border-radius:8px;border:1.5px solid var(--border);font-size:12px;font-family:inherit;font-weight:600;background:#fff">
+          <option value="">As per policy</option>
+          <option value="none" ${m.ped === 'none' ? 'selected' : ''}>None</option>
+          <option value="y2to1" ${m.ped === 'y2to1' ? 'selected' : ''}>2 &rarr; 1 yr (+20%)</option>
+          <option value="y2to0" ${m.ped === 'y2to0' ? 'selected' : ''}>2 &rarr; 0 yr (+30%)</option>
+        </select>
+      </div>` : ''}
       <button class="member-remove" data-idx="${i}" title="Remove" ${hState.members.length === 1 ? 'disabled style="opacity:.3"' : ''}>&times;</button>
     </div>`;
   }).join('');
+
+  list.querySelectorAll('.member-si-select').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const idx = parseInt(sel.dataset.idx);
+      hState.members[idx].si = sel.value ? parseInt(sel.value, 10) : null;
+      hCalcAndShow();
+    });
+  });
+  list.querySelectorAll('.member-ped-select').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const idx = parseInt(sel.dataset.idx);
+      hState.members[idx].ped = sel.value || null;
+      hCalcAndShow();
+    });
+  });
 
   list.querySelectorAll('.member-age-input').forEach(input => {
     input.addEventListener('change', () => {
@@ -14606,8 +14636,12 @@ function hCalculate() {
   const sorted = members.map((m, i) => ({ ...m, origIdx: i })).sort((a, b) => b.age - a.age);
   const eldestOrigIdx = sorted[0].origIdx;
 
+  const PED_PCT = { y2to1: 0.20, y2to0: 0.30 };
   const memberResults = members.map((m, i) => {
-    const chartPremium = OSSS.getRate(plan, zone, freq, si, m.age);
+    /* individual basis: a member may carry their own Sum Insured and their own PED buyback choice */
+    const memberSi  = (!isFloater && m.si) ? m.si : si;
+    const memberPed = (!isFloater && m.ped) ? m.ped : pedBuyback;
+    const chartPremium = OSSS.getRate(plan, zone, freq, memberSi, m.age);
     let pct = 1.0;
     if (isFloater) {
       // Eldest 100%, others 65 & below = 55%, others 66+ = 75%
@@ -14620,7 +14654,10 @@ function hCalculate() {
     const loadingPct = entryAgeWaived ? 0 : baseLoadingPct;
     const loading = Math.round(basePremium * loadingPct);
     const totalMember = basePremium + loading;
-    return { age: m.age, entryAge: m.entryAge, entryAgeWaived, chartPremium, pct, basePremium, loadingPct, loading, totalMember, isEldest: i === eldestOrigIdx };
+    const memberPedPct = PED_PCT[memberPed] || 0;
+    const memberPedLoad = (!isFloater && memberPedPct) ? Math.round(totalMember * memberPedPct) : 0;
+    return { age: m.age, entryAge: m.entryAge, entryAgeWaived, chartPremium, pct, basePremium, loadingPct, loading, totalMember, isEldest: i === eldestOrigIdx,
+             si: memberSi, ped: memberPed, pedPct: memberPedPct, pedLoad: memberPedLoad };
   });
 
   const totalBase = memberResults.reduce((s, m) => s + m.totalMember, 0);
@@ -14682,11 +14719,14 @@ function hCalculate() {
   // loading itself is not discounted.
   //   2 yrs -> 1 yr  = +20% of basic
   //   2 yrs -> 0 yr  = +30% of basic
-  const PED_PCT = { y2to1: 0.20, y2to0: 0.30 };
   const pedPct   = PED_PCT[pedBuyback] || 0;
-  const pedLoad  = pedPct ? Math.round(totalBase * pedPct) : 0;
-  const pedLabel = pedBuyback === 'y2to1' ? 'PED Waiting Period Buyback — 2 yr to 1 yr (20% on basic)'
-                 : pedBuyback === 'y2to0' ? 'PED Waiting Period Buyback — 2 yr to 0 yr (30% on basic)'
+  /* floater: one choice for the policy on the whole basic; individual: each member's own choice on their own premium */
+  const pedLoad  = isFloater ? (pedPct ? Math.round(totalBase * pedPct) : 0) : memberResults.reduce((t, m) => t + m.pedLoad, 0);
+  const pedMixed = !isFloater && memberResults.some(m => m.ped !== memberResults[0].ped);
+  const pedAll   = isFloater ? pedBuyback : (pedMixed ? 'mixed' : memberResults[0].ped);
+  const pedLabel = pedAll === 'mixed' ? 'PED Waiting Period Buyback — member-wise (see member premiums)'
+                 : pedAll === 'y2to1' ? 'PED Waiting Period Buyback — 2 yr to 1 yr (20% on basic)'
+                 : pedAll === 'y2to0' ? 'PED Waiting Period Buyback — 2 yr to 0 yr (30% on basic)'
                  : '';
   running += pedLoad;
 
@@ -14741,7 +14781,8 @@ function hCalcAndShow() {
   const r = hCalculate();
   const { plan, si, basis, zone, freq } = hState;
 
-  const siLabel = si >= 10000000 ? `₹${si/10000000}Cr` : `₹${si/100000}L`;
+  const siOwn = (basis === 'individual') && r.memberResults.some(m => m.si !== si);
+  const siLabel = siOwn ? r.memberResults.map(m => hSiShort(m.si)).join(' / ') + ' (member-wise)' : (si >= 10000000 ? `₹${si/10000000}Cr` : `₹${si/100000}L`);
   const basisLabel = basis === 'floater' ? 'Family Floater' : 'Individual SI';
 
   document.getElementById('hQuoteDetails').innerHTML = `
@@ -14758,10 +14799,11 @@ function hCalcAndShow() {
     const showEldest = m.isEldest && r.isFloater;
     const roleLabel = showEldest ? 'Eldest (100%)' : (r.isFloater ? (m.pct === 0.55 ? 'Member (55%)' : 'Member (75%)') : 'Individual');
     return `<div class="h-member-result ${showEldest ? 'eldest-result' : ''}">
-      <div class="hm-name">Member ${i+1} · Age ${m.age} · ${roleLabel}</div>
+      <div class="hm-name">Member ${i+1} · Age ${m.age} · ${roleLabel}${!r.isFloater ? ' · SI ' + hSiShort(m.si) : ''}</div>
       <div class="hm-rows">
         ${m.entryAgeWaived ? `<div class="hm-row"><span class="hk" style="color:var(--success)">Age loading waived (entry age ${m.entryAge})</span></div>` : ''}
         ${m.loadingPct > 0 ? `<div class="hm-row"><span class="hk">Age Loading (+${Math.round(m.loadingPct*100)}%)</span><span class="hv">+₹${hFmt(m.loading)}</span></div>` : ''}
+        ${m.pedLoad > 0 ? `<div class="hm-row"><span class="hk">PED buyback ${m.ped === 'y2to1' ? '2→1 yr (+20%)' : '2→0 yr (+30%)'}</span><span class="hv">+₹${hFmt(m.pedLoad)}</span></div>` : ''}
         <div class="hm-row"><span class="hk" style="font-weight:700;color:var(--ink)">Premium</span><span class="hv" style="color:var(--accent-dark);font-weight:700">₹${hFmt(m.totalMember)}</span></div>
       </div>
     </div>`;
@@ -14872,7 +14914,7 @@ document.querySelectorAll('input[name="hMigYear"]').forEach(r => {
 // Add member
 document.getElementById('hAddMember').addEventListener('click', () => {
   if (hState.members.length >= 12) { alert('Maximum 12 members'); return; }
-  hState.members.push({ age: 30, entryAge: null });
+  hState.members.push({ age: 30, entryAge: null, si: null, ped: null });
   renderHMembers();
   updateHPaRows();
   updateHFamDisc();
@@ -16169,7 +16211,9 @@ function generateHealthPDF(r, hStateSnap){
 
   const plan = hStateSnap.plan, si = hStateSnap.si, basis = hStateSnap.basis;
   const zone = hStateSnap.zone, freq = hStateSnap.freq, members = hStateSnap.members || [];
-  const siLabel = si>=10000000 ? 'Rs. '+(si/10000000)+' Cr' : si>=100000 ? 'Rs. '+(si/100000)+' Lakh' : 'Rs. '+(si/1000)+' K';
+  const siRs = v => v>=10000000 ? 'Rs. '+(v/10000000)+' Cr' : v>=100000 ? 'Rs. '+(v/100000)+' Lakh' : 'Rs. '+(v/1000)+' K';
+  const siOwn = basis==='individual' && (r.memberResults||[]).some(function(m){ return m.si && m.si !== si; });
+  const siLabel = siOwn ? 'Member-wise (see Member-wise Premium)' : siRs(si);
   const basisLabel = basis==='floater' ? 'Family Floater' : 'Individual Sum Insured';
   const freqLabel = {annual:'Annual', biennial:'Biennial (2-yr)', triennial:'Triennial (3-yr)',
                      half_yearly:'Half-Yearly', quarterly:'Quarterly', monthly:'Monthly'}[freq] || freq;
@@ -16199,14 +16243,15 @@ function generateHealthPDF(r, hStateSnap){
     { bar:'Member-wise Premium', rows:(r.memberResults||[]).map(function(m,i){
         const isEldest = m.isEldest && basis==='floater';
         const role = isEldest ? 'Eldest (100%)' : (r.isFloater ? (m.pct===0.55 ? 'Member (55%)' : 'Member (75%)') : 'Individual');
-        return { label:'Member '+(i+1)+' | Age '+m.age+' yr | '+role + (m.entryAgeWaived ? ' *' : ''),
-                 value:R(m.totalMember) };
+        const pedTag = (basis==='individual' && m.pedLoad>0) ? (m.ped==='y2to1' ? ' | PED 2>1 yr' : ' | PED 2>0 yr') : '';
+        return { label:'Member '+(i+1)+' | Age '+m.age+' yr | ' + (basis==='individual' ? 'SI '+siRs(m.si || si) : role) + pedTag + (m.entryAgeWaived ? ' *' : ''),
+                 value:R(m.totalMember + (basis==='individual' ? (m.pedLoad||0) : 0)) };
       }) }
   ];
 
   const right = [ { bar:'Premium Breakup' },
     { sub:'Section I \u2013 Base Premium', rows:[
-      { label:'Sum of member premiums (' + (r.memberResults||[]).length + ' members)', value:R(r.totalBase) },
+      { label:'Sum of member base premiums (' + (r.memberResults||[]).length + ' members)', value:R(r.totalBase) },
       { label:'Total Base Premium', value:R(r.totalBase), total:true }
     ]} ];
 
@@ -23234,6 +23279,14 @@ window.FIRE_VERIFIED = [
     check:()=>{ const q={med:1000,discMed:100}; return String(q.med-(q.discMed||0)); } },
   { label:'Nil Dep discount by class: private car 40 / two-wheeler 40 / GCCV 20 / PCCV 20 / 2W hire 20 / Misc 40', expect:'40/40/20/20/20/40',
     check:()=>['privateCar','twoWheeler','commercial','pccv','twoWheelerHire','misc'].map(nilDepDiscCapFor).join('/') },
+  { label:'OSSS individual basis: members carry their own SI and PED buyback (Premium plan, Zone II, ages 35 @ 5L none / 40 @ 10L 2>1 yr)', expect:'true',
+    check:()=>{ const keep = JSON.parse(JSON.stringify(hState)); try{
+        hState.plan='Premium'; hState.zone='II'; hState.freq='annual'; hState.si=500000; hState.basis='individual'; hState.pedBuyback='none';
+        hState.members=[{age:35,entryAge:null,si:null,ped:null},{age:40,entryAge:null,si:1000000,ped:'y2to1'}];
+        hState.discounts={family:false,online:false,tpa:false,ncb:false}; hState.migration='none'; hState.addons={pa:false,paAmounts:{}};
+        const r = hCalculate(); const a = OSSS.getRate('Premium','II','annual',500000,35), b = OSSS.getRate('Premium','II','annual',1000000,40);
+        return String(a>0 && b>0 && r.totalBase===a+b && r.pedLoad===Math.round(b*0.2) && r.memberResults[0].pedLoad===0);
+      } finally { Object.assign(hState, keep); } } },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -23274,7 +23327,7 @@ window.FIRE = {bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQu
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v88 · Nil Dep discount applied automatically when Nil Depreciation is opted (Pvt car / 2W 40%, GCCV / PCCV 20%) · 09-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v89 · Sampoorna Swasthya Suraksha individual basis: own Sum Insured and own PED buyback per member · 09-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
