@@ -6757,7 +6757,7 @@ function cpmCompute(inp){
   const shortPct = CPM_SHORT[months] || 100;
   const zoneRate = CPM_EQ[inp.zone] || CPM_EQ[4];
   let totalSI = 0; const rows = [];
-  (inp.items || []).forEach(it => {
+  (inp.items || []).filter(it => (it.si || 0) > 0).forEach(it => {
     const si = it.si || 0; totalSI += si;
     const base = CPM_GROUP_RATE[it.group] || 1.00;
     const floaterRate = inp.floater ? base * 0.10 : 0;
@@ -6780,9 +6780,11 @@ function cpmCompute(inp){
   const discountable = p.basic + p.floater + p.ug + p.esc + p.tpl + p.osp + p.debris;
   const discAmt = discountable * disc;
   const annualNet = subtotal - discAmt;
-  const net = annualNet * shortPct / 100;
+  /* short period: the scale applies to all covers except the earthquake extra, which the tariff charges pro-rata */
+  const eqShare = shortPct < 100 ? p.eq * (months / 12) : p.eq;
+  const net = shortPct < 100 ? (annualNet - p.eq) * shortPct / 100 + eqShare : annualNet;
   const gst = net * 0.18, grand = Math.round(net + gst);
-  return { rows, totalSI, zoneRate, shortPct, months, tplLimit, ospLimit, debrisSI, escSI: sum('escSI'), p, subtotal, discountable, discPct: disc * 100, discAmt, annualNet, net, gst, grand };
+  return { rows, totalSI, zoneRate, shortPct, months, tplLimit, ospLimit, debrisSI, escSI: sum('escSI'), p, subtotal, discountable, discPct: disc * 100, discAmt, annualNet, eqShare, net, gst, grand };
 }
 function readInputs(){
   return {
@@ -6846,7 +6848,7 @@ function calculate(){
   if(q.p.debris) h += line('Clearance &amp; Removal of Debris &middot; 0.25% on &#8377;' + fmt(q.debrisSI), '&#8377;' + fmt(q.p.debris));
   h += line('Sub total', '&#8377;' + fmt(q.subtotal), 'total');
   if(q.discAmt) h += line('Discount ' + q.discPct + '% (not on STFI / EQ / terrorism)', '&minus; &#8377;' + fmt(q.discAmt), 'sub');
-  if(q.shortPct < 100) h += line('Short period &middot; ' + q.shortPct + '% of annual premium', '&minus; &#8377;' + fmt(q.annualNet - q.net), 'sub');
+  if(q.shortPct < 100) h += line('Short period &middot; ' + q.shortPct + '% of annual premium (earthquake pro-rata)', '&minus; &#8377;' + fmt(q.annualNet - q.net), 'sub');
   h += line('Net Premium (before GST)', '&#8377;' + fmt(q.net), 'total');
   h += line('GST @ 18%', '&#8377;' + fmt(q.gst));
   $('cpmBreakdown').innerHTML = h;
@@ -6898,7 +6900,7 @@ function buildPDF(returnBlob){
   if(q.p.debris) ext.push({ label:'Clearance & Removal of Debris', value:R(netOf(q.p.debris)) });
   if(ext.length){ const k = keys.length === 2 ? 'C' : 'B'; ext.push({ label:'Extensions (' + k + ')', value:R(netOf(q.p.esc + q.p.tpl + q.p.osp + q.p.debris)), total:true }); right.push({ sub:'Section ' + k + ' \u2013 Extensions', rows:ext }); keys.push(k); }
   const fin = [];
-  if(q.shortPct < 100) fin.push({ label:'Short period \u2013 ' + q.shortPct + '% of the annual premium', value:'- ' + R(q.annualNet - q.net) });
+  if(q.shortPct < 100) fin.push({ label:'Short period \u2013 ' + q.shortPct + '% of the annual premium (earthquake pro-rata)', value:'- ' + R(q.annualNet - q.net) });
   fin.push({ label:'Net Premium before GST [' + keys.join(' + ') + ']', value:R(q.net) });
   fin.push({ label:'GST @ 18%', value:R(q.gst) });
   fin.push({ label:'Total Premium', value:R(q.grand), total:true });
@@ -6920,7 +6922,7 @@ function buildPDF(returnBlob){
   if(returnBlob) return { blob: new Blob([out.doc.output('arraybuffer')], {type:'application/pdf'}), filename: out.filename };
   out.doc.save(out.filename);
 }
-function newQuote(){ ['cpmInsured','cpmSite','cpmTplLimit','cpmOspLimit'].forEach(id => { const e = $(id); if(e) e.value = ''; }); $('cpmDisc').value = '0'; items.length = 0; addItem(); $('cpmResultCard').style.display = 'none'; lastQuote = null; window.scrollTo({ top: Math.max(0, $('sectionCpm').offsetTop - 8), behavior:'smooth' }); }
+function newQuote(){ ['cpmInsured','cpmSite','cpmTplLimit','cpmOspLimit'].forEach(id => { const e = $(id); if(e) e.value = ''; }); $('cpmDisc').value = '0'; $('cpmPeriod').value = '12'; $('cpmZone').value = '4'; $('cpmEscPct').value = '10'; $('cpmDebrisSi').value = '100000'; ['cpmFloater','cpmUnderground'].forEach(id => $(id).checked = false); ['cpmStfi','cpmEq','cpmTerror','cpmEsc','cpmTpl','cpmOsp','cpmDebris'].forEach(id => $(id).checked = true); $('cpmFlags').style.display = 'none'; items.length = 0; addItem(); $('cpmResultCard').style.display = 'none'; lastQuote = null; window.scrollTo({ top: Math.max(0, $('sectionCpm').offsetTop - 8), behavior:'smooth' }); }
 $('cpmAddItem').addEventListener('click', () => { if(items.length >= 40){ alert('Maximum 40 items per quote'); return; } addItem(); });
 $('cpmCalcBtn').addEventListener('click', calculate);
 $('cpmPdfBtn').addEventListener('click', () => { try{ buildPDF(false); }catch(e){ console.error(e); alert('PDF generation failed: ' + (e.message || e)); } });
@@ -6936,6 +6938,8 @@ window.CPM.VERIFIED = [
     check:()=>{ const q = cpmCompute({ items:[{ id:1, code:'314', group:'III', si:12685000 }], months:12, zone:1, discPct:90, floater:true, underground:true, stfi:true, eq:true, terror:true, esc:true, escPct:10, tpl:true, tplLimit:0, osp:true, ospLimit:0, debris:true, debrisSi:100000 }); return Math.round(q.net) + '/' + q.grand; } },
   { label:'CPM (KBO calculator) cover lines: basic 1,26,850 / floater 12,685 / underground 69,768 / STFI 5,074 / EQ 6,343 / terrorism 2,918 / escalation 6,343 / TPL 3,171 / OSP 3,171 / debris 250 / subtotal 2,36,572', expect:'126850/12685/69768/5074/6343/2918/6343/3171/3171/250/236572',
     check:()=>{ const q = cpmCompute({ items:[{ id:1, code:'314', group:'III', si:12685000 }], months:12, zone:1, discPct:90, floater:true, underground:true, stfi:true, eq:true, terror:true, esc:true, escPct:10, tpl:true, tplLimit:0, osp:true, ospLimit:0, debris:true, debrisSi:100000 }); const p = q.p; return [p.basic,p.floater,p.ug,p.stfi,p.eq,p.terror,p.esc,p.tpl,p.osp,p.debris,q.subtotal].map(v=>Math.round(v)).join('/'); } },
+  { label:'CPM short period 3 months: covers at 50% of annual, earthquake extra pro-rata 3/12 (SI 10 lakh group I + EQ zone I -> 3,125)', expect:'3125',
+    check:()=>{ const q = cpmCompute({ items:[{ id:1, code:'101', group:'I', si:1000000 }], months:3, zone:1, discPct:0, floater:false, underground:false, stfi:false, eq:true, terror:false, esc:false, escPct:0, tpl:false, osp:false, debris:false, debrisSi:0 }); return String(Math.round(q.net)); } },
   { label:'CPM tariff: group rates I 0.60 / II 0.80 / III 1.00 / IV 2.00 / V 0.20 % p.a.; short period 3 months = 50%', expect:'0.6/0.8/1/2/0.2/50',
     check:()=>[CPM_GROUP_RATE.I,CPM_GROUP_RATE.II,CPM_GROUP_RATE.III,CPM_GROUP_RATE.IV,CPM_GROUP_RATE.V,CPM_SHORT[3]].join('/') },
   { label:'CPM tariff Table 3 excess: SI 12 lakh -> AOG 2% min 30,000, normal 1% min 12,500; group V flat 1,000', expect:'2% of SI, min Rs. 30,000|1% of SI, min Rs. 12,500|Rs. 1,000 flat',
@@ -23691,7 +23695,7 @@ window.FIRE = {bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQu
 #sectionCar .sw-row .sw-info .sw-t .rate-pill,#sectionCar .sw-t .rate-pill{white-space:normal;line-height:1.35;max-width:100%}
 </style>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v95 · Contractor's Plant & Machinery tab: tariff group rates, floater / underground loadings, STFI / EQ / terrorism, escalation, TPL, surrounding property, debris, short period scale, Table 3 excesses, schedule PDF · 10-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v96 · CPM: earthquake extra pro-rata on short periods, blank items skipped, New Quote restores the cover defaults · 10-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
