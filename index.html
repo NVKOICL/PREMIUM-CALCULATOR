@@ -3113,21 +3113,21 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
   <!-- YOUTH ECO CARE SECTION -->
   <div class="product-section" id="sectionFire">
     <style>#sectionFire{
-  --bg:#fbf6f1;--bg-tint:#f6ece1;--card:#ffffff;
-  --ink:#1a0f08;--ink-soft:#3a2a1c;--mute:#8a7560;
-  --accent:#E8470A;--accent-2:#F97316;--accent-dark:#B5350A;--accent-soft:#fdebd9;--accent-tint:#fbd9b8;
+  --bg:#f4f7fc;--bg-tint:#eaf0fb;--card:#ffffff;
+  --ink:#0a1733;--ink-soft:#34406a;--mute:#7e8aa6;
+  --accent:#2563eb;--accent-2:#3b82f6;--accent-dark:#1e40af;--accent-soft:#e6edff;--accent-tint:#dbe6ff;
   --success:#1f7a3e;--success-soft:#e6f4ec;--danger:#b3261e;
-  --border:#ead9c4;--border-soft:#f3e6d3;--border-strong:#d9c2a4;
+  --border:#d6def0;--border-soft:#e8edf7;--border-strong:#bccae3;
   --radius:20px;--radius-sm:14px;--radius-xs:10px;
-  --shadow-xs:0 1px 2px rgba(72,40,15,.05);
-  --shadow-sm:0 1px 2px rgba(72,40,15,.04),0 2px 6px rgba(72,40,15,.06);
-  --shadow-md:0 2px 4px rgba(72,40,15,.04),0 8px 22px rgba(72,40,15,.10);
-  --shadow-lg:0 4px 10px rgba(72,40,15,.06),0 28px 60px rgba(72,40,15,.14);
-  --shadow-accent:0 8px 24px rgba(232,71,10,.28),0 2px 6px rgba(232,71,10,.18);
+  --shadow-xs:0 1px 2px rgba(15,30,72,.05);
+  --shadow-sm:0 1px 2px rgba(15,30,72,.04),0 2px 6px rgba(15,30,72,.05);
+  --shadow-md:0 2px 4px rgba(15,30,72,.04),0 8px 22px rgba(15,30,72,.08);
+  --shadow-lg:0 4px 10px rgba(15,30,72,.06),0 28px 60px rgba(15,30,72,.14);
+  --shadow-accent:0 8px 24px rgba(37,99,235,.28),0 2px 6px rgba(37,99,235,.18);
   --shadow-inset:inset 0 1px 0 rgba(255,255,255,.6);
-  --grad-accent:linear-gradient(135deg,#F97316 0%,#E8470A 55%,#B5350A 100%);
-  --grad-ink:linear-gradient(135deg,#1a0f08 0%,#2a1810 60%,#3a2618 100%);
-  --grad-surface:linear-gradient(180deg,#ffffff 0%,#fefaf5 100%);
+  --grad-accent:linear-gradient(135deg,#3b82f6 0%,#2563eb 55%,#1e40af 100%);
+  --grad-ink:linear-gradient(135deg,#0a1733 0%,#152348 60%,#1e3066 100%);
+  --grad-surface:linear-gradient(180deg,#ffffff 0%,#fbfcff 100%);
 }#sectionFire *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}#sectionFire, #sectionFire{background:var(--bg);color:var(--ink);font-family:'DM Sans',system-ui,sans-serif;font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}#sectionFire{
   min-height:100vh;
   background-image:
@@ -6626,7 +6626,11 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
     <div class="card">
       <div class="section-label">Policy Details <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; Contractor's Plant &amp; Machinery (TAC tariff CPM/1-1-01)</span></div>
       <div class="field"><label class="lbl" for="cpmInsured">Insured Name</label><input type="text" id="cpmInsured" placeholder="M/s. ..." /></div>
-      <div class="field"><label class="lbl" for="cpmSite">Project site / location</label><input type="text" id="cpmSite" placeholder="e.g. Tunnel works, Nallamala; or Anywhere in India" /></div>
+      <div class="field" style="position:relative"><label class="lbl" for="cpmSite">Project site / location <span style="font-weight:400;color:var(--mute)">&mdash; type the district or city and the earthquake zone picks itself</span></label>
+        <input type="text" id="cpmSite" placeholder="e.g. Hyderabad, Bhuj, Guwahati" autocomplete="off" />
+        <div id="cpmLocResults" style="display:none;position:absolute;left:0;right:0;z-index:20;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:var(--shadow-md);max-height:220px;overflow:auto"></div>
+        <div class="hint" id="cpmZoneHint"></div>
+      </div>
       <div class="field-row">
         <div class="field">
           <label class="lbl" for="cpmPeriod">Policy Period</label>
@@ -6919,10 +6923,126 @@ function buildPDF(returnBlob){
     totalLabel: 'Total Premium', totalValue: R(q.grand),
     filename: 'Oriental_CPM_Quote_' + safe + '_' + String(now.getDate()).padStart(2,'0') + months[now.getMonth()] + now.getFullYear() + '.pdf'
   });
+  /* cover, exceptions, conditions and the extensions opted go out with every CPM quote */
+  try{ drawCpmCoverPages(out.doc, q); }catch(e){ console.error('CPM cover pages skipped:', e); }
   if(returnBlob) return { blob: new Blob([out.doc.output('arraybuffer')], {type:'application/pdf'}), filename: out.filename };
   out.doc.save(out.filename);
 }
+
+/* Cover & conditions pages - summarised from the Standard Policy Form and General Regulations of the
+   All India Tariff on Contractor's Plant and Machinery Insurance (TAC, CPM/1-1-01). */
+const CPM_COVER_DATA = {
+  intro: "This schedule summarises what the quoted Contractor's Plant and Machinery policy covers, the basis of the sum insured and indemnity, what is excluded, the conditions the insured must observe and the extensions opted. It is a summary only; the policy wording prevails.",
+  sections: [
+    { heading:'WHAT IS COVERED', rows:[
+      { label:'Operative clause', lines:[
+        'The Company indemnifies the insured, at its option by payment, reinstatement or repair, against unforeseen and sudden physical damage from any cause not excluded to the insured plant and machinery specified in the schedule, whilst at the location stated, necessitating its immediate repair or replacement.',
+        'Cover applies whether the items are at work or at rest, being dismantled for cleaning or overhauling, during those operations, when being shifted within the premises, or during subsequent re-erection - in every case only after successful commissioning.',
+        'Liability for any one item in any one period of insurance does not exceed the sum insured set against it; the sum insured may be reinstated after a claim for the balance period.' ] },
+      { label:'Acts of God', lines:[ 'Storm, tempest, hurricane, typhoon, cyclone, flood, inundation, landslide, rockslide and subsidence are included in the group rate. Earthquake (fire and shock) is an extra charged by zone, and is optional in Zones I and II.' ] }
+    ]},
+    { heading:'SUM INSURED & BASIS OF INDEMNITY', rows:[
+      { label:'Sum Insured', lines:[ 'Each item must be insured for the cost of replacement by new property of the same kind and capacity, including freight, dues, customs duties and erection costs. If the sum insured is less than this, the Company pays only in proportion (each item separately).' ] },
+      { label:'Repairable damage', lines:[ 'The Company pays the expenses necessary to restore the machine to its condition immediately before the accident, plus dismantling and re-erection, ordinary freight to and from a repair shop, customs duties and dues to the extent included in the sum insured. No deduction for depreciation on replaced parts except those with limited life; salvage is taken into account.' ] },
+      { label:'Total loss', lines:[ 'The Company pays the actual value of the item immediately before the loss (replacement value less proper depreciation) including ordinary freight, erection and customs duties where included in the sum insured, plus normal dismantling charges, less salvage.' ] },
+      { label:'Not payable', lines:[ 'Overtime, night work, holiday work and express freight unless specially agreed; makers\' drawings, patterns and core boxes; alterations, improvements and overhauls. Provisional repairs are paid only if they form part of the final repair and do not increase the cost. Payment is made on production of repair / replacement bills, except a total loss the insured cannot replace for reasons beyond their control, which may be settled on indemnity basis.' ] }
+    ]},
+    { heading:'EXCEPTIONS - WHAT IS NOT COVERED', rows:[
+      { label:'Exceptions', numbered:true, tint:'red', lines:[
+        'The excess stated in the schedule for each occurrence (only the highest single excess where more than one item is damaged in one occurrence).',
+        'Electrical or mechanical breakdown, failure, breakage or derangement, freezing of coolant, defective lubrication or lack of oil or coolant - though external accidental damage that follows such a breakdown is payable.',
+        'Replaceable parts and attachments: bits, drills, knives and cutting edges, saw blades, dies, moulds, patterns, crushing surfaces, screens and sieves, ropes, belts, chains, elevator and conveyor bands, batteries, tyres, connecting wires and cables, flexible pipes, joining and packing material.',
+        'Explosion of any boiler or pressure vessel under internal steam or fluid pressure, or of any internal combustion engine.',
+        'Vehicles designed and licensed for general road use unless used exclusively on the construction site.',
+        'Hull and machinery of waterborne vessels or craft (plant mounted on such vessels for the contract work remains covered).',
+        'Total or partial immersion in tidal waters.',
+        'Loss or damage in transit from one location to another; no public liability while plant is on public roads.',
+        'Wear and tear, corrosion, rust, deterioration due to lack of use and normal atmospheric conditions.',
+        'Loss while an item is undergoing a test of any kind or used for a purpose other than that for which it was designed.',
+        'Plant and machinery working underground (this does not apply to machinery used in tunnelling works; the exception can be deleted at a 50% loading).',
+        'War, invasion, hostilities, civil war, rebellion, insurrection, mutiny, civil commotion, military or usurped power, confiscation, requisition or destruction by order of any government or authority; malicious persons acting for a political organisation.',
+        'Nuclear reaction, nuclear radiation or radioactive contamination.',
+        'Faults or defects existing at inception within the knowledge of the insured or their representatives.',
+        'Wilful act or wilful negligence of the insured or their representatives.',
+        'Loss or damage for which the supplier or manufacturer is responsible by law or contract.',
+        'Consequential loss or liability of any kind.',
+        'Loss or damage discovered only at the time of taking an inventory or during routine servicing.' ] }
+    ]},
+    { heading:'CONDITIONS & OBLIGATIONS OF THE INSURED', rows:[
+      { label:'Maintenance', lines:[ 'Keep the insured property in efficient working order, never habitually or intentionally overload it, and observe the manufacturer\'s instructions for operation, inspection and overhaul together with all statutory and municipal regulations.' ] },
+      { label:'Inspection & change of risk', lines:[ 'The Company may inspect the property at all reasonable times. Any material change in the risk, alteration or addition to an item, departure from the prescribed operating conditions or change in the insured\'s interest voids the policy unless its continuance is agreed by endorsement.' ] },
+      { label:'Duties after an accident', numbered:true, lines:[
+        'Notify the Company immediately by telephone and in writing, indicating the nature and extent of the damage; a completed claim form must reach the Company within 14 days of the occurrence.',
+        'Take all reasonable steps to minimise the loss; preserve damaged or defective parts for inspection; give all information and documents required.',
+        'Minor repairs not exceeding Rs. 7,500 may be carried out after notifying the Company; in all other cases the Company\'s representative must have the opportunity to inspect before repairs or replacements are made.',
+        'Liability ceases for any item kept in operation without being repaired to the Company\'s satisfaction.',
+        'In case of theft or wilful damage, give immediate notice to the police and take all practicable steps to recover the property.' ] },
+      { label:'Other clauses', lines:[
+        'Fraudulent claims forfeit all benefits. No admission, offer, promise or payment may be made without the Company\'s written consent; the Company may take over the defence or settlement of any claim.',
+        'Other insurance: the Company pays only its rateable proportion. After a claim the sum insured for the balance period is reduced by the amount paid and must be reinstated to avoid under-insurance; the insured cannot abandon property to the Company.',
+        'Transfer of interest ends the cover for that item unless the Company consents by endorsement. The insured may cancel at any time (premium retained on the short period scale); the Company may cancel on 15 days\' notice with a pro-rata refund.',
+        'Arbitration: disputes on the amount payable, liability being admitted, go to arbitration under the Arbitration and Conciliation Act, 1996; an award is a condition precedent to any suit.' ] }
+    ]},
+    { heading:'EXCESS RULES', rows:[
+      { label:'Excess', lines:[
+        'The tariff excess for each item (shown on the quotation) applies to every claim; a separate, higher scale applies to claims arising out of Acts of God perils.',
+        'For any single loss only one excess applies - the higher of those applicable to the items or to the additional covers (debris removal, surrounding property, third party liability).',
+        'For AOG claims the excess applies separately to each incident; an incident ends only after seven consecutive days free of the peril.',
+        'Higher voluntary excesses earn discounts on the machinery rate: 2 x the minimum 10%, 5 x 20%, 10 x 30%, 20 x 42.5%.' ] }
+    ]}
+  ],
+  extensions: {
+    floater:      { t:'Floater cover (anywhere in India)', c:['Every item is declared with its identification number and value; transit from site to site remains excluded; earthquake extra for Zone I is charged for the whole policy or earthquake is excluded for Zones I and II; the machinery rate carries a 10% loading.'] },
+    underground:  { t:'Underground works - deletion of Exception K', c:['Loss of or damage to plant working underground is covered at a 50% loading on the tariff rate. Abandonment of plant working in underground mines or tunnels remains excluded. Underground proposals are referred to Head Office.'] },
+    eq:           { t:'Earthquake (fire and shock)', c:['Loss or damage caused by earthquake, including fire and shock, at the additional rate for the seismic zone of the location. Optional in Zones I and II; if opted it is charged for the entire policy period.'] },
+    stfi:         { t:'Storm, tempest, flood and inundation', c:['Charged at the minimum rate on the total sum insured; no discount is allowed on this cover.'] },
+    terror:       { t:'Terrorism', c:['Loss or damage caused by acts of terrorism, charged at the pool rate on the total sum insured; no discount is allowed on this cover.'] },
+    esc:          { t:'Escalation clause', c:['The sum insured of each selected item increases each day by 1/365th of the specified percentage per annum (maximum 25%), for an additional premium of 50% of the rate on the selected increase. The pro-rata condition of average continues to apply; the automatic increase runs from inception until the operation of any insured peril.'] },
+    tpl:          { t:'Third party liability', c:['Indemnity against legal liability for accidental damage to the property of, or fatal or non-fatal injury to, persons other than the insured, their employees, the owner of the works and its employees, and other contractors at the site - up to the limit selected (any one person Rs. 10 lakh, any one accident Rs. 25 lakh under the tariff). Excludes the policy excess, work covered under the policy itself, liability assumed by agreement, and accidents caused by road vehicles, waterborne vessels or aircraft. No admission or payment without the Company\'s consent.'] },
+    osp:          { t:'Owner\'s surrounding property', c:['Loss or damage to property located at or adjacent to the site belonging to, or in the care, custody or control of, the principal or the contractor, occurring directly due to damage to the insured items. Limited to the amount selected for any one accident and in the aggregate; the policy excess applies. For underground pipes, tunnels and cables the indemnity is restricted to the actual repair cost provided their exact positions were ascertained before work began; cracks that do not impair stability or safety are not covered.'] },
+    debris:       { t:'Clearance and removal of debris', c:['Costs of clearing and removing debris of the insured items following an insured event, up to the limit selected; the highest excess applicable to the machinery applies.'] }
+  }
+};
+function drawCpmCoverPages(doc, q){
+  if(typeof makeCoverPainter !== 'function') return;
+  const D = CPM_COVER_DATA, inp = q.inp || {};
+  const sub = (q.insured || '') + '   |   ' + q.rows.length + ' item' + (q.rows.length > 1 ? 's' : '') + '   |   ' + q.periodLabel;
+  const P = makeCoverPainter(doc, "CONTRACTOR'S PLANT & MACHINERY - SCOPE OF COVER & CONDITIONS", sub,
+    'The Oriental Insurance Company Limited   \u00b7   Summary from the policy wording; the policy wording prevails', 'Cover Schedule');
+  doc.addPage(); P.header();
+  P.note(D.intro); P.gap(8);
+  D.sections.forEach(function(sec){
+    P.section(sec.heading);
+    (sec.rows || []).forEach(function(r){ P.block(r.label, r.lines, { numbered: !!r.numbered, tint: r.tint }); });
+    P.gap(8);
+  });
+  const opted = ['floater','underground','stfi','eq','terror','esc','tpl','osp','debris'].filter(function(k){
+    if(k === 'esc') return inp.esc && q.p.esc > 0;
+    if(k === 'tpl') return q.tplLimit > 0; if(k === 'osp') return q.ospLimit > 0; if(k === 'debris') return q.debrisSI > 0;
+    return !!inp[k]; });
+  P.section('EXTENSIONS OPTED');
+  if(!opted.length) P.block('Extensions', ['No extensions are included in this quotation.']);
+  opted.forEach(function(k){ const e = D.extensions[k]; P.block(e.t, e.c); });
+  P.footer();
+}
 function newQuote(){ ['cpmInsured','cpmSite','cpmTplLimit','cpmOspLimit'].forEach(id => { const e = $(id); if(e) e.value = ''; }); $('cpmDisc').value = '0'; $('cpmPeriod').value = '12'; $('cpmZone').value = '4'; $('cpmEscPct').value = '10'; $('cpmDebrisSi').value = '100000'; ['cpmFloater','cpmUnderground'].forEach(id => $(id).checked = false); ['cpmStfi','cpmEq','cpmTerror','cpmEsc','cpmTpl','cpmOsp','cpmDebris'].forEach(id => $(id).checked = true); $('cpmFlags').style.display = 'none'; items.length = 0; addItem(); $('cpmResultCard').style.display = 'none'; lastQuote = null; window.scrollTo({ top: Math.max(0, $('sectionCpm').offsetTop - 8), behavior:'smooth' }); }
+/* earthquake zone from the site name - same district / city lookup as the Fire tab */
+(function(){
+  const inp = $('cpmSite'), box = $('cpmLocResults'), hint = $('cpmZoneHint');
+  const ZN = ['', 'I', 'II', 'III', 'IV'];
+  function pick(name, zone){ $('cpmZone').value = String(zone); inp.value = name; box.style.display = 'none'; hint.textContent = name + ' \u2192 Earthquake Zone ' + ZN[zone] + ' (' + CPM_EQ[zone].toFixed(2) + '\u2030)'; }
+  function show(){
+    const q = inp.value.trim(); if(q.length < 2 || !window.FIRE || typeof FIRE.searchLocation !== 'function'){ box.style.display = 'none'; return; }
+    const hits = FIRE.searchLocation(q).slice(0, 8);
+    if(!hits.length){ box.style.display = 'none'; return; }
+    box.innerHTML = hits.map(h => `<div class="cpm-loc-item" data-name="${String(h.name).replace(/"/g, '&quot;')}" data-zone="${h.zone}" style="padding:9px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;font-size:13px;border-bottom:1px solid var(--border-soft)"><span>${h.name}</span><span style="color:var(--accent-dark);font-weight:700;white-space:nowrap">Zone ${ZN[h.zone]} \u00b7 ${CPM_EQ[h.zone].toFixed(2)}\u2030</span></div>`).join('');
+    box.style.display = '';
+    box.querySelectorAll('.cpm-loc-item').forEach(el => el.addEventListener('mousedown', e => { e.preventDefault(); pick(el.dataset.name, parseInt(el.dataset.zone, 10)); }));
+  }
+  inp.addEventListener('input', show); inp.addEventListener('focus', show);
+  inp.addEventListener('blur', () => setTimeout(() => { box.style.display = 'none'; }, 150));
+  $('cpmZone').addEventListener('change', () => { hint.textContent = 'Zone set by hand'; });
+})();
 $('cpmAddItem').addEventListener('click', () => { if(items.length >= 40){ alert('Maximum 40 items per quote'); return; } addItem(); });
 $('cpmCalcBtn').addEventListener('click', calculate);
 $('cpmPdfBtn').addEventListener('click', () => { try{ buildPDF(false); }catch(e){ console.error(e); alert('PDF generation failed: ' + (e.message || e)); } });
@@ -6940,6 +7060,8 @@ window.CPM.VERIFIED = [
     check:()=>{ const q = cpmCompute({ items:[{ id:1, code:'314', group:'III', si:12685000 }], months:12, zone:1, discPct:90, floater:true, underground:true, stfi:true, eq:true, terror:true, esc:true, escPct:10, tpl:true, tplLimit:0, osp:true, ospLimit:0, debris:true, debrisSi:100000 }); const p = q.p; return [p.basic,p.floater,p.ug,p.stfi,p.eq,p.terror,p.esc,p.tpl,p.osp,p.debris,q.subtotal].map(v=>Math.round(v)).join('/'); } },
   { label:'CPM short period 3 months: covers at 50% of annual, earthquake extra pro-rata 3/12 (SI 10 lakh group I + EQ zone I -> 3,125)', expect:'3125',
     check:()=>{ const q = cpmCompute({ items:[{ id:1, code:'101', group:'I', si:1000000 }], months:3, zone:1, discPct:0, floater:false, underground:false, stfi:false, eq:true, terror:false, esc:false, escPct:0, tpl:false, osp:false, debris:false, debrisSi:0 }); return String(Math.round(q.net)); } },
+  { label:'CPM cover pages: 5 sections incl. 18 policy exceptions and wording for every extension', expect:'5/18/9',
+    check:()=>CPM_COVER_DATA.sections.length + '/' + CPM_COVER_DATA.sections[2].rows[0].lines.length + '/' + Object.keys(CPM_COVER_DATA.extensions).length },
   { label:'CPM tariff: group rates I 0.60 / II 0.80 / III 1.00 / IV 2.00 / V 0.20 % p.a.; short period 3 months = 50%', expect:'0.6/0.8/1/2/0.2/50',
     check:()=>[CPM_GROUP_RATE.I,CPM_GROUP_RATE.II,CPM_GROUP_RATE.III,CPM_GROUP_RATE.IV,CPM_GROUP_RATE.V,CPM_SHORT[3]].join('/') },
   { label:'CPM tariff Table 3 excess: SI 12 lakh -> AOG 2% min 30,000, normal 1% min 12,500; group V flat 1,000', expect:'2% of SI, min Rs. 30,000|1% of SI, min Rs. 12,500|Rs. 1,000 flat',
@@ -23676,7 +23798,7 @@ function newQuote(){
     const sec = document.getElementById('sectionFire'); if(sec) window.scrollTo({ top: Math.max(0, sec.offsetTop - 8), behavior:'smooth' });
   }catch(e){ console.error(e); }
 }
-window.FIRE = {bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
+window.FIRE = {searchLocation: (typeof searchLocation==='function'? searchLocation : function(){ return []; }), bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
 })();
 </script>
 <style id="mobileFixes">
@@ -23697,9 +23819,14 @@ window.FIRE = {bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQu
 #sectionCar .sw-t,#sectionCar .sw-s{white-space:normal;overflow-wrap:anywhere}
 #sectionCar .sw-t{flex-wrap:wrap;gap:4px 6px}
 #sectionCar .sw-row .sw-info .sw-t .rate-pill,#sectionCar .sw-t .rate-pill{white-space:normal;line-height:1.35;max-width:100%}
+/* v98: Fire on the common blue theme like every other product */
+#sectionFire .segmented{background:linear-gradient(180deg,#eef3fb 0%,#f4f7fc 100%)}
+#sectionFire .riskometer-panel{background:linear-gradient(135deg,#f7f9ff 0%,#eef3fb 100%)}
+#sectionFire .selected-display{background:linear-gradient(135deg,#f4f8ff 0%,#e6edff 100%)}
+#sectionFire .company-lookup-card,#sectionFire .company-card{background:var(--card)}
 </style>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v97 · two-wheeler pillion PA offered up to Rs.2 lakh · 10-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v98 · CPM cover & conditions pages on the PDF; CPM earthquake zone from the site name; Fire tab on the common theme · 10-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
