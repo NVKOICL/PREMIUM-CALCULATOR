@@ -23320,8 +23320,27 @@ function newQuote(){
 window.FIRE = {bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
 })();
 </script>
+<style id="mobileFixes">
+/* v92 phone-width layout fixes (audit 10-Sep-2026) */
+.toast:not(.show){opacity:0;visibility:hidden}
+.toast{transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .25s ease,visibility .25s ease}
+.toast.show{opacity:1;visibility:visible}
+#sectionFire .selected-display.show{flex-wrap:wrap}
+#sectionFire .selected-name{overflow-wrap:anywhere;word-break:break-word}
+@media(max-width:480px){#sectionFire .selected-rate{font-size:18px}}
+#sectionFire .risk-factor-row{gap:8px}
+#sectionFire .risk-factor-row .name{flex:1 1 auto;min-width:0}
+#sectionFire .risk-factor-row>span:last-child{white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center}
+#sectionFire .switch-row>div:first-child{flex:1 1 auto;min-width:0}
+#sectionFire .switch-row .t,#sectionFire .switch-row .s{overflow-wrap:anywhere}
+@media(max-width:480px){#sectionFire .switch-row .input-suffix{width:66px!important;margin:0 6px!important}#sectionFire .risk-factor-row .bar{width:40px;margin:0 5px}}
+#sectionCar .sw-info{flex:1 1 auto;min-width:0}
+#sectionCar .sw-t,#sectionCar .sw-s{white-space:normal;overflow-wrap:anywhere}
+#sectionCar .sw-t{flex-wrap:wrap;gap:4px 6px}
+#sectionCar .sw-row .sw-info .sw-t .rate-pill,#sectionCar .sw-t .rate-pill{white-space:normal;line-height:1.35;max-width:100%}
+</style>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v91 · Sampoorna: plain member dropdowns, PED buyback and migration as tick cards · 10-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v92 · phone-width layout fixes: hidden Saved toast no longer peeks over the Calculate bar, Fire occupancy / riskometer / add-on rows and CAR extension titles wrap cleanly · 10-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
