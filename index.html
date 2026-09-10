@@ -2877,13 +2877,10 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
   <section class="card h-calc-card">
     <div class="section-label">PED Waiting Period Buyback <span style="font-weight:400;font-size:10px;color:var(--mute);text-transform:none;letter-spacing:0">(loading on basic premium)</span></div>
     <div class="field">
-      <div class="segmented cols-2" style="grid-template-columns:repeat(3,1fr);gap:5px">
-        <input type="radio" name="hPed" id="hPedNone" value="none" checked />
-        <label for="hPedNone">None<small>Standard 2 yr wait</small></label>
-        <input type="radio" name="hPed" id="hPed21" value="y2to1" />
-        <label for="hPed21">2 &rarr; 1 Year<small>+20% loading</small></label>
-        <input type="radio" name="hPed" id="hPed20" value="y2to0" />
-        <label for="hPed20">2 &rarr; 0 Year<small>+30% loading</small></label>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">
+        <label class="addon" for="hPedNone"><input type="radio" name="hPed" id="hPedNone" value="none" checked /><span class="addon-name">None</span><small>Standard 2-year waiting period</small></label>
+        <label class="addon" for="hPed21"><input type="radio" name="hPed" id="hPed21" value="y2to1" /><span class="addon-name">Reduce to 1 year</span><small>+20% loading on the basic premium</small></label>
+        <label class="addon" for="hPed20"><input type="radio" name="hPed" id="hPed20" value="y2to0" /><span class="addon-name">Remove waiting period</span><small>+30% loading on the basic premium</small></label>
       </div>
       <div class="hint" style="margin-top:6px">Loading is charged on the basic premium <em>after</em> the zonal discount, and is not itself discounted.</div>
     </div>
@@ -2893,25 +2890,19 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
     <div class="section-label">Migration Discount <span style="font-weight:400;font-size:10px;color:var(--mute);text-transform:none;letter-spacing:0">(if migrating from existing policy)</span></div>
 
     <div class="field">
-      <div class="segmented cols-2" style="grid-template-columns:repeat(2,1fr);gap:5px">
-        <input type="radio" name="hMig" id="hMigNone" value="none" checked />
-        <label for="hMigNone">None<small>Fresh policy</small></label>
-        <input type="radio" name="hMig" id="hMigHff1" value="hff_1l" />
-        <label for="hMigHff1">HFF ₹1L<small>Year 1: 25% / Year 2: 20%</small></label>
-        <input type="radio" name="hMig" id="hMigHff" value="hff_above" />
-        <label for="hMigHff">HFF > ₹1L<small>5% one-time, +5% if higher SI</small></label>
-        <input type="radio" name="hMig" id="hMigInd" value="individual_mc" />
-        <label for="hMigInd">Individual Mediclaim<small>5% one-time, +5% if higher SI</small></label>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">
+        <label class="addon" for="hMigNone"><input type="radio" name="hMig" id="hMigNone" value="none" checked /><span class="addon-name">None</span><small>Fresh policy</small></label>
+        <label class="addon" for="hMigHff1"><input type="radio" name="hMig" id="hMigHff1" value="hff_1l" /><span class="addon-name">From Happy Family Floater ₹1 lakh</span><small>Year 1: 25% &middot; Year 2: 20%</small></label>
+        <label class="addon" for="hMigHff"><input type="radio" name="hMig" id="hMigHff" value="hff_above" /><span class="addon-name">From Happy Family Floater above ₹1 lakh</span><small>5% one-time, +5% if a higher SI is opted</small></label>
+        <label class="addon" for="hMigInd"><input type="radio" name="hMig" id="hMigInd" value="individual_mc" /><span class="addon-name">From Individual Mediclaim</span><small>5% one-time, +5% if a higher SI is opted</small></label>
       </div>
     </div>
 
     <div id="hMigYearWrap" class="field" style="display:none">
       <label class="lbl">HFF Migration Year</label>
-      <div class="segmented cols-2">
-        <input type="radio" name="hMigYear" id="hMigY1" value="1" checked />
-        <label for="hMigY1">Year 1 (25%)</label>
-        <input type="radio" name="hMigYear" id="hMigY2" value="2" />
-        <label for="hMigY2">Year 2 (20%)</label>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px">
+        <label class="addon" for="hMigY1"><input type="radio" name="hMigYear" id="hMigY1" value="1" checked /><span class="addon-name">Year 1</span><small>25% discount</small></label>
+        <label class="addon" for="hMigY2"><input type="radio" name="hMigYear" id="hMigY2" value="2" /><span class="addon-name">Year 2</span><small>20% discount</small></label>
       </div>
     </div>
 
@@ -14310,15 +14301,13 @@ function renderHMembers() {
       ${hState.basis === 'individual' ? `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">
         <label style="font-size:11px;color:var(--mute);font-weight:600;white-space:nowrap">Sum Insured:</label>
         <select class="member-si-select" data-idx="${i}" style="padding:5px 8px;border-radius:8px;border:1.5px solid var(--border);font-size:12px;font-family:inherit;font-weight:600;background:#fff">
-          <option value="">As per policy (${hSiShort(hState.si)})</option>
-          ${(OSSS.plans[hState.plan] ? OSSS.plans[hState.plan].siOptions : []).map(v => `<option value="${v}" ${m.si === v ? 'selected' : ''}>${hSiShort(v)}</option>`).join('')}
+          ${(OSSS.plans[hState.plan] ? OSSS.plans[hState.plan].siOptions : []).map(v => `<option value="${v}" ${(m.si || hState.si) === v ? 'selected' : ''}>${hSiShort(v)}</option>`).join('')}
         </select>
         <label style="font-size:11px;color:var(--mute);font-weight:600;white-space:nowrap">PED buyback:</label>
         <select class="member-ped-select" data-idx="${i}" style="padding:5px 8px;border-radius:8px;border:1.5px solid var(--border);font-size:12px;font-family:inherit;font-weight:600;background:#fff">
-          <option value="">As per policy</option>
-          <option value="none" ${m.ped === 'none' ? 'selected' : ''}>None</option>
-          <option value="y2to1" ${m.ped === 'y2to1' ? 'selected' : ''}>2 &rarr; 1 yr (+20%)</option>
-          <option value="y2to0" ${m.ped === 'y2to0' ? 'selected' : ''}>2 &rarr; 0 yr (+30%)</option>
+          <option value="none" ${(m.ped || hState.pedBuyback) === 'none' ? 'selected' : ''}>None</option>
+          <option value="y2to1" ${(m.ped || hState.pedBuyback) === 'y2to1' ? 'selected' : ''}>2 &rarr; 1 yr (+20%)</option>
+          <option value="y2to0" ${(m.ped || hState.pedBuyback) === 'y2to0' ? 'selected' : ''}>2 &rarr; 0 yr (+30%)</option>
         </select>
       </div>` : ''}
       <button class="member-remove" data-idx="${i}" title="Remove" ${hState.members.length === 1 ? 'disabled style="opacity:.3"' : ''}>&times;</button>
@@ -14328,14 +14317,15 @@ function renderHMembers() {
   list.querySelectorAll('.member-si-select').forEach(sel => {
     sel.addEventListener('change', () => {
       const idx = parseInt(sel.dataset.idx);
-      hState.members[idx].si = sel.value ? parseInt(sel.value, 10) : null;
+      const v = parseInt(sel.value, 10);
+      hState.members[idx].si = (v === hState.si) ? null : v;   /* same as the policy SI keeps following it */
       hCalcAndShow();
     });
   });
   list.querySelectorAll('.member-ped-select').forEach(sel => {
     sel.addEventListener('change', () => {
       const idx = parseInt(sel.dataset.idx);
-      hState.members[idx].ped = sel.value || null;
+      hState.members[idx].ped = (sel.value === hState.pedBuyback) ? null : sel.value;   /* same as the policy choice keeps following it */
       hCalcAndShow();
     });
   });
@@ -23331,7 +23321,7 @@ window.FIRE = {bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQu
 })();
 </script>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v90 · IMT 23 stays off once switched off on PCCV / GCCV / Misc; Motor GST rounded as CGST + SGST like INLIAS · 09-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v91 · Sampoorna: plain member dropdowns, PED buyback and migration as tick cards · 10-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
