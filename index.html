@@ -7501,7 +7501,7 @@ const RATES = {
     llPaidDriver: { privateCar:50, commercial:50, pccv:50, twoWheeler:null, twoWheelerHire:50, misc:50 },
     llNFPPPerEmp: { commercial:75, pccv:75, misc:75 }, // GCCV/PCCV/Misc: ₹75 per Non-Fare-Paying-Person
     paUnnamedPerLakh: 50,
-    paUnnamedMaxSI:   { privateCar:200000, commercial:200000, pccv:200000, twoWheeler:100000, twoWheelerHire:100000, misc:200000 },
+    paUnnamedMaxSI:   { privateCar:200000, commercial:200000, pccv:200000, twoWheeler:200000, twoWheelerHire:200000, misc:200000 },   /* 2W pillion up to Rs.2 lakh (INLIAS offers it) */
     // Per-SI rates (decimal of SI). 2W pillion = ₹0.70 per mille (₹70 per ₹1L) per Excel sheet (P5 = 0.7×SI/1000).
     // PA for Un-named Persons — the tariff prints these as "%o" (per MILLE, i.e.
     // per Rs.1,000 of SI), NOT per cent: 2-Wheeler 0.70%o, Private Car 0.50%o,
@@ -10660,6 +10660,8 @@ function miscImt23BaseFor(odBase, elec, cng, towing, imt47){
   return imt23BaseFor('misc', odBase, elec, cng, towing, imt47);
 }
 
+function paUnnamedMaxSIFor(vehicleType){ return RATES.optional.paUnnamedMaxSI[vehicleType]; }
+window.paUnnamedMaxSIFor = paUnnamedMaxSIFor;
 function getPaUnnamedPremium(vehicleType, pax, si){
   const rate = RATES.optional.paUnnamedRate && RATES.optional.paUnnamedRate[vehicleType];
   if(rate) return Math.round(pax * si * rate);
@@ -23636,6 +23638,8 @@ window.FIRE_VERIFIED = [
       } finally { Object.assign(hState, keep); } } },
   { label:'OSSS PED buyback by plan (branch note 10-Sep-2026): Premium 3y>2y 20 / 3y>1y 30 / 3y>nil 50; Elite 2y>1y 20 / 2y>nil 30; Royal 2y>1y 20 / 2y>nil 30 / 1y>nil 30', expect:'20/30/50|20/30|20/30/30',
     check:()=>['Premium','Elite','Royal'].map(p=>hPedOpts(p).map(o=>Math.round(o.pct*100)).join('/')).join('|') },
+  { label:'Two-wheeler pillion PA (unnamed) offered up to Rs.2 lakh: 1 pillion at 2 lakh = Rs.140 (0.70 per mille)', expect:'200000/140',
+    check:()=>paUnnamedMaxSIFor('twoWheeler') + '/' + getPaUnnamedPremium('twoWheeler', 1, 200000) },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -23695,7 +23699,7 @@ window.FIRE = {bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQu
 #sectionCar .sw-row .sw-info .sw-t .rate-pill,#sectionCar .sw-t .rate-pill{white-space:normal;line-height:1.35;max-width:100%}
 </style>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v96 · CPM: earthquake extra pro-rata on short periods, blank items skipped, New Quote restores the cover defaults · 10-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v97 · two-wheeler pillion PA offered up to Rs.2 lakh · 10-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
