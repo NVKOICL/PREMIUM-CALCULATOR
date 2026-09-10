@@ -19412,6 +19412,13 @@ function runSelfTest(){
     $('idv').value=snapshot.idv; $('ccSlab').innerHTML=snapshot.slabHTML; $('ccSlab').value=snapshot.slab;
     state.vehicleType=snapshot.vt; state.zone=snapshot.zone; state.fuel=snapshot.fuel;
     state.ncbYears=snapshot.ncb; state.odDiscount=snapshot.disc;
+    try{
+      const tabType = snapshot.vt==='twoWheelerHire' ? 'twoWheeler' : snapshot.vt;
+      document.querySelectorAll('.vehicle-tab').forEach(b=>b.classList.toggle('active', b.dataset.type===tabType));
+      if($('twUseWrap')) $('twUseWrap').style.display = tabType==='twoWheeler' ? 'block' : 'none';
+      syncEpCcWrap(); updateAll();
+      $('ccSlab').innerHTML=snapshot.slabHTML; $('ccSlab').value=snapshot.slab;
+    }catch(e){}
     if($('paxCount')) $('paxCount').value=snapshot.pax;
     if($('elecAcc')) $('elecAcc').value=snapshot.elec;
     if($('cngKit')) $('cngKit').value=snapshot.cng;
@@ -20011,7 +20018,7 @@ function ohGeneratePDF(){
     : 'No GST is payable \u2014 individual health insurance is exempt from GST w.e.f. 22.09.2025. The amount shown is the full premium payable.');
   notes.push('Insurance is the subject matter of the solicitation. This is a system generated quote and does not require signature.');
 
-  const safe = (PRODUCT[key] || 'Health').replace(/[^A-Za-z0-9]/g,'_').slice(0,40);
+  const safe = (PRODUCT[key] || 'Health').replace(/^\s*(Oriental|OICL)\s+/i,'').replace(/[^A-Za-z0-9]/g,'_').slice(0,40);
   const res = OICPDF.render({
     subtitle: 'Quotation Worksheet For Health Insurance \u2013 ' + String(PRODUCT[key] || 'HEALTH QUOTE').toUpperCase(),
     quoteNumber: String(Math.floor(d.getTime()/1000)).slice(-5),
@@ -23465,6 +23472,8 @@ function calculateBGR(){
   const bgrComm = Math.round(q.net * (typeof CR8811_BGR_PCT === 'number' ? CR8811_BGR_PCT : 42.5) / 100);
   html += agentCommBlock((typeof CR8811_BGR_PCT === 'number' ? CR8811_BGR_PCT : 42.5), q.net, bgrComm, 'CR-8811 \u00a74 B \u00b7 Bharat Griha Raksha', '');
   g('res-date').textContent = today;
+  g('res-policy-name').textContent = 'Bharat Griha Raksha (BGR)';
+  g('res-insured').textContent = insuredName;
   g('breakdown-body').innerHTML = html;
   g('grand-total').textContent = fmt(q.grand);
   const now = new Date();
@@ -23829,6 +23838,9 @@ window.FIRE = {searchLocation: (typeof searchLocation==='function'? searchLocati
 })();
 </script>
 <style id="mobileFixes">
+/* v101: installment schedule scrolls inside its own box on narrow screens */
+#ce-install-table{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+@media (max-width:480px){ #ce-install-table .install-table{font-size:12px} #ce-install-table .install-table th,#ce-install-table .install-table td{padding:7px 6px;white-space:nowrap} #ce-install-table .install-table td:first-child{white-space:normal;min-width:120px} }
 /* v92 phone-width layout fixes (audit 10-Sep-2026) */
 .toast:not(.show){opacity:0;visibility:hidden}
 .toast{transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .25s ease,visibility .25s ease}
@@ -23855,7 +23867,7 @@ window.FIRE = {searchLocation: (typeof searchLocation==='function'? searchLocati
 #sectionFire .company-lookup-card,#sectionFire .company-card{background:var(--card)}
 </style>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v100 · commission blocks hidden on screen for every product; commission travels only in the PDF cost code · 10-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v101 · bug sweep: BGR result card shows its own policy and insured name; CAR / EAR installment table scrolls on phones; self-test restores the vehicle tab; health PDF filename no longer doubles the brand · 10-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
