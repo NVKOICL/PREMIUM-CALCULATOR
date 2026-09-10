@@ -2877,11 +2877,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
   <section class="card h-calc-card">
     <div class="section-label">PED Waiting Period Buyback <span style="font-weight:400;font-size:10px;color:var(--mute);text-transform:none;letter-spacing:0">(loading on basic premium)</span></div>
     <div class="field">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">
-        <label class="addon" for="hPedNone"><input type="radio" name="hPed" id="hPedNone" value="none" checked /><span class="addon-name">None</span><small>Standard 2-year waiting period</small></label>
-        <label class="addon" for="hPed21"><input type="radio" name="hPed" id="hPed21" value="y2to1" /><span class="addon-name">Reduce to 1 year</span><small>+20% loading on the basic premium</small></label>
-        <label class="addon" for="hPed20"><input type="radio" name="hPed" id="hPed20" value="y2to0" /><span class="addon-name">Remove waiting period</span><small>+30% loading on the basic premium</small></label>
-      </div>
+      <div id="hPedOptions" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px"></div>
       <div class="hint" style="margin-top:6px">Loading is charged on the basic premium <em>after</em> the zonal discount, and is not itself discounted.</div>
     </div>
   </section>
@@ -14218,11 +14214,31 @@ const hState = {
   migration: 'none',
   migYear: '1',
   higherSi: false,
-  pedBuyback: 'none',       // 'none' | 'y2to1' (+20%) | 'y2to0' (+30%)
+  pedBuyback: 'none',       // 'none' or one of OSSS_PED_OPTIONS[plan] keys
   discounts: { family: false, online: false, tpa: false, ncb: false },
   addons: { pa: false, paAmounts: {} }
 };
 
+/* PED waiting-period buyback options by plan (branch note, 10-Sep-2026) - loading on the basic premium.
+   Premium: standard 3-year wait; Elite: 2-year; Royal: 2-year (1-year for entry up to 45, hence the 1y -> nil option). */
+const OSSS_PED_OPTIONS = {
+  Premium: [ { key:'y3to2', label:'3 years to 2 years', pct:0.20 }, { key:'y3to1', label:'3 years to 1 year', pct:0.30 }, { key:'y3to0', label:'3 years to nil', pct:0.50 } ],
+  Elite:   [ { key:'y2to1', label:'2 years to 1 year', pct:0.20 }, { key:'y2to0', label:'2 years to nil', pct:0.30 } ],
+  Royal:   [ { key:'y2to1', label:'2 years to 1 year', pct:0.20 }, { key:'y2to0', label:'2 years to nil', pct:0.30 }, { key:'y1to0', label:'1 year to nil', pct:0.30 } ]
+};
+function hPedOpts(plan){ return OSSS_PED_OPTIONS[plan] || OSSS_PED_OPTIONS.Elite; }
+function hPedOpt(plan, key){ return hPedOpts(plan).find(o => o.key === key) || null; }
+function hPedPct(plan, key){ const o = hPedOpt(plan, key); return o ? o.pct : 0; }
+function hPedShort(plan, key){ const o = hPedOpt(plan, key); return o ? o.label.replace(' years', 'y').replace(' year', 'y').replace(' to ', ' > ') : ''; }
+function renderHPedOptions(){
+  const box = document.getElementById('hPedOptions'); if(!box) return;
+  const opts = hPedOpts(hState.plan);
+  if(hState.pedBuyback !== 'none' && !hPedOpt(hState.plan, hState.pedBuyback)) hState.pedBuyback = 'none';
+  hState.members.forEach(m => { if(m.ped && m.ped !== 'none' && !hPedOpt(hState.plan, m.ped)) m.ped = null; });
+  const card = (key, name, small) => `<label class="addon" for="hPed_${key}"><input type="radio" name="hPed" id="hPed_${key}" value="${key}" ${hState.pedBuyback === key ? 'checked' : ''} /><span class="addon-name">${name}</span><small>${small}</small></label>`;
+  box.innerHTML = card('none', 'None', 'Standard waiting period') + opts.map(o => card(o.key, o.label, '+' + Math.round(o.pct * 100) + '% loading on the basic premium')).join('');
+  box.querySelectorAll('input[name="hPed"]').forEach(r => r.addEventListener('change', () => { if(r.checked){ hState.pedBuyback = r.value; renderHMembers(); hCalcAndShow(); } }));
+}
 function hFmt(n) { return Math.round(n).toLocaleString('en-IN'); }
 function hSiShort(si){ return si >= 10000000 ? `\u20b9${si/10000000}Cr` : si >= 100000 ? `\u20b9${si/100000}L` : `\u20b9${si/1000}K`; }
 
@@ -14306,8 +14322,7 @@ function renderHMembers() {
         <label style="font-size:11px;color:var(--mute);font-weight:600;white-space:nowrap">PED buyback:</label>
         <select class="member-ped-select" data-idx="${i}" style="padding:5px 8px;border-radius:8px;border:1.5px solid var(--border);font-size:12px;font-family:inherit;font-weight:600;background:#fff">
           <option value="none" ${(m.ped || hState.pedBuyback) === 'none' ? 'selected' : ''}>None</option>
-          <option value="y2to1" ${(m.ped || hState.pedBuyback) === 'y2to1' ? 'selected' : ''}>2 &rarr; 1 yr (+20%)</option>
-          <option value="y2to0" ${(m.ped || hState.pedBuyback) === 'y2to0' ? 'selected' : ''}>2 &rarr; 0 yr (+30%)</option>
+          ${hPedOpts(hState.plan).map(o => `<option value="${o.key}" ${(m.ped || hState.pedBuyback) === o.key ? 'selected' : ''}>${o.label} (+${Math.round(o.pct * 100)}%)</option>`).join('')}
         </select>
       </div>` : ''}
       <button class="member-remove" data-idx="${i}" title="Remove" ${hState.members.length === 1 ? 'disabled style="opacity:.3"' : ''}>&times;</button>
@@ -14630,7 +14645,6 @@ function hCalculate() {
   const sorted = members.map((m, i) => ({ ...m, origIdx: i })).sort((a, b) => b.age - a.age);
   const eldestOrigIdx = sorted[0].origIdx;
 
-  const PED_PCT = { y2to1: 0.20, y2to0: 0.30 };
   const memberResults = members.map((m, i) => {
     /* individual basis: a member may carry their own Sum Insured and their own PED buyback choice */
     const memberSi  = (!isFloater && m.si) ? m.si : si;
@@ -14648,7 +14662,7 @@ function hCalculate() {
     const loadingPct = entryAgeWaived ? 0 : baseLoadingPct;
     const loading = Math.round(basePremium * loadingPct);
     const totalMember = basePremium + loading;
-    const memberPedPct = PED_PCT[memberPed] || 0;
+    const memberPedPct = hPedPct(plan, memberPed);
     const memberPedLoad = (!isFloater && memberPedPct) ? Math.round(totalMember * memberPedPct) : 0;
     return { age: m.age, entryAge: m.entryAge, entryAgeWaived, chartPremium, pct, basePremium, loadingPct, loading, totalMember, isEldest: i === eldestOrigIdx,
              si: memberSi, ped: memberPed, pedPct: memberPedPct, pedLoad: memberPedLoad };
@@ -14713,14 +14727,14 @@ function hCalculate() {
   // loading itself is not discounted.
   //   2 yrs -> 1 yr  = +20% of basic
   //   2 yrs -> 0 yr  = +30% of basic
-  const pedPct   = PED_PCT[pedBuyback] || 0;
+  const pedPct   = hPedPct(plan, pedBuyback);
   /* floater: one choice for the policy on the whole basic; individual: each member's own choice on their own premium */
   const pedLoad  = isFloater ? (pedPct ? Math.round(totalBase * pedPct) : 0) : memberResults.reduce((t, m) => t + m.pedLoad, 0);
   const pedMixed = !isFloater && memberResults.some(m => m.ped !== memberResults[0].ped);
   const pedAll   = isFloater ? pedBuyback : (pedMixed ? 'mixed' : memberResults[0].ped);
+  const pedOptAll = hPedOpt(plan, pedAll);
   const pedLabel = pedAll === 'mixed' ? 'PED Waiting Period Buyback — member-wise (see member premiums)'
-                 : pedAll === 'y2to1' ? 'PED Waiting Period Buyback — 2 yr to 1 yr (20% on basic)'
-                 : pedAll === 'y2to0' ? 'PED Waiting Period Buyback — 2 yr to 0 yr (30% on basic)'
+                 : pedOptAll ? 'PED Waiting Period Buyback — ' + pedOptAll.label + ' (' + Math.round(pedOptAll.pct * 100) + '% on basic)'
                  : '';
   running += pedLoad;
 
@@ -14797,7 +14811,7 @@ function hCalcAndShow() {
       <div class="hm-rows">
         ${m.entryAgeWaived ? `<div class="hm-row"><span class="hk" style="color:var(--success)">Age loading waived (entry age ${m.entryAge})</span></div>` : ''}
         ${m.loadingPct > 0 ? `<div class="hm-row"><span class="hk">Age Loading (+${Math.round(m.loadingPct*100)}%)</span><span class="hv">+₹${hFmt(m.loading)}</span></div>` : ''}
-        ${m.pedLoad > 0 ? `<div class="hm-row"><span class="hk">PED buyback ${m.ped === 'y2to1' ? '2→1 yr (+20%)' : '2→0 yr (+30%)'}</span><span class="hv">+₹${hFmt(m.pedLoad)}</span></div>` : ''}
+        ${m.pedLoad > 0 ? `<div class="hm-row"><span class="hk">PED buyback ${hPedShort(hState.plan, m.ped)} (+${Math.round(m.pedPct * 100)}%)</span><span class="hv">+₹${hFmt(m.pedLoad)}</span></div>` : ''}
         <div class="hm-row"><span class="hk" style="font-weight:700;color:var(--ink)">Premium</span><span class="hv" style="color:var(--accent-dark);font-weight:700">₹${hFmt(m.totalMember)}</span></div>
       </div>
     </div>`;
@@ -14845,6 +14859,7 @@ document.querySelectorAll('#hPlanTabs .health-plan-tab').forEach(tab => {
     document.querySelectorAll('#hPlanTabs .health-plan-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     hState.plan = tab.dataset.plan;
+    renderHPedOptions();
     // Each plan carries its OWN sum-insured ladder (Premium starts at 1L,
     // Royal at 7L). Switching the tab without re-validating left hState.si on
     // a value the new plan has no row for, OSSS.getRate returned 0, and the
@@ -14979,9 +14994,7 @@ document.getElementById('hWaBtn').addEventListener('click', async () => {
 
 // ── Init health ──
 renderHSiChips();
-document.querySelectorAll('input[name="hPed"]').forEach(r => {
-  r.addEventListener('change', () => { if(r.checked){ hState.pedBuyback = r.value; hCalcAndShow(); } });
-});
+renderHPedOptions();
 renderHMembers();
 updateHFamDisc();
 updateBasisHint();
@@ -15959,8 +15972,8 @@ function drawOSSSBenefitPages(doc, selectedPlan, si, isFloater){
   section('D   WAITING PERIODS & PRE-EXISTING DISEASE');
   row('Pre-Existing Disease waiting', ['3 Years','2 Years',
       'Age up to 45: 1 Year\nAge above 45: 2 Years'], {zebra:true});
-  row('PED buyback option', ['To 2 years or 1 year','To 1 year or 0 years','To 1 year or 0 years']);
-  span('PED buyback is available on FRESH PROPOSALS ONLY \u2014 +20% premium to reduce the waiting by one year, +30% to reduce it to nil. '
+  row('PED buyback option', ['3 years to 2 / 1 / nil (+20 / 30 / 50%)','2 years to 1 / nil (+20 / 30%)','2 years to 1 / nil (+20 / 30%); 1 year to nil (+30%)']);
+  span('PED buyback is available on FRESH PROPOSALS ONLY \u2014 Premium plan: 3 years to 2 (+20%), 1 (+30%) or nil (+50%); Elite: 2 years to 1 (+20%) or nil (+30%); Royal: 2 years to 1 (+20%) or nil (+30%), and the 1-year wait to nil (+30%). '
      + 'It does not apply to the specified diseases listed in the policy (cataract, hernia, knee replacement and the rest), whose waiting periods '
      + 'apply regardless. Sum Insured enhanced at renewal carries a fresh PED waiting on the enhanced portion, with no buyback on it.');
   row('Moratorium \u2014 no contest after', ['5 Years continuous','5 Years continuous','5 Years continuous'], {zebra:true});
@@ -16237,7 +16250,7 @@ function generateHealthPDF(r, hStateSnap){
     { bar:'Member-wise Premium', rows:(r.memberResults||[]).map(function(m,i){
         const isEldest = m.isEldest && basis==='floater';
         const role = isEldest ? 'Eldest (100%)' : (r.isFloater ? (m.pct===0.55 ? 'Member (55%)' : 'Member (75%)') : 'Individual');
-        const pedTag = (basis==='individual' && m.pedLoad>0) ? (m.ped==='y2to1' ? ' | PED 2>1 yr' : ' | PED 2>0 yr') : '';
+        const pedTag = (basis==='individual' && m.pedLoad>0) ? ' | PED ' + hPedShort(plan, m.ped) : '';
         return { label:'Member '+(i+1)+' | Age '+m.age+' yr | ' + (basis==='individual' ? 'SI '+siRs(m.si || si) : role) + pedTag + (m.entryAgeWaived ? ' *' : ''),
                  value:R(m.totalMember + (basis==='individual' ? (m.pedLoad||0) : 0)) };
       }) }
@@ -23276,11 +23289,13 @@ window.FIRE_VERIFIED = [
   { label:'OSSS individual basis: members carry their own SI and PED buyback (Premium plan, Zone II, ages 35 @ 5L none / 40 @ 10L 2>1 yr)', expect:'true',
     check:()=>{ const keep = JSON.parse(JSON.stringify(hState)); try{
         hState.plan='Premium'; hState.zone='II'; hState.freq='annual'; hState.si=500000; hState.basis='individual'; hState.pedBuyback='none';
-        hState.members=[{age:35,entryAge:null,si:null,ped:null},{age:40,entryAge:null,si:1000000,ped:'y2to1'}];
+        hState.members=[{age:35,entryAge:null,si:null,ped:null},{age:40,entryAge:null,si:1000000,ped:'y3to1'}];
         hState.discounts={family:false,online:false,tpa:false,ncb:false}; hState.migration='none'; hState.addons={pa:false,paAmounts:{}};
         const r = hCalculate(); const a = OSSS.getRate('Premium','II','annual',500000,35), b = OSSS.getRate('Premium','II','annual',1000000,40);
-        return String(a>0 && b>0 && r.totalBase===a+b && r.pedLoad===Math.round(b*0.2) && r.memberResults[0].pedLoad===0);
+        return String(a>0 && b>0 && r.totalBase===a+b && r.pedLoad===Math.round(b*0.3) && r.memberResults[0].pedLoad===0);
       } finally { Object.assign(hState, keep); } } },
+  { label:'OSSS PED buyback by plan (branch note 10-Sep-2026): Premium 3y>2y 20 / 3y>1y 30 / 3y>nil 50; Elite 2y>1y 20 / 2y>nil 30; Royal 2y>1y 20 / 2y>nil 30 / 1y>nil 30', expect:'20/30/50|20/30|20/30/30',
+    check:()=>['Premium','Elite','Royal'].map(p=>hPedOpts(p).map(o=>Math.round(o.pct*100)).join('/')).join('|') },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -23340,7 +23355,7 @@ window.FIRE = {bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQu
 #sectionCar .sw-row .sw-info .sw-t .rate-pill,#sectionCar .sw-t .rate-pill{white-space:normal;line-height:1.35;max-width:100%}
 </style>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v92 · phone-width layout fixes: hidden Saved toast no longer peeks over the Calculate bar, Fire occupancy / riskometer / add-on rows and CAR extension titles wrap cleanly · 10-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v93 · Sampoorna PED buyback options by plan: Premium 3 years to 2 / 1 / nil (20 / 30 / 50%), Elite 2 years to 1 / nil (20 / 30%), Royal adds 1 year to nil (30%) · 10-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
