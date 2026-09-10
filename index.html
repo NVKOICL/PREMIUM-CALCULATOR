@@ -1385,7 +1385,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 .field.has-error .error{display:block}
 
 /* ── PRODUCT TABS ── */
-.product-tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:6px;background:linear-gradient(180deg,#eef3fb 0%,#f4f7fc 100%);border:1px solid var(--border-soft);border-radius:var(--radius-sm);margin-bottom:20px;box-shadow:inset 0 1px 2px rgba(15,30,72,.04)}
+.product-tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:6px;background:linear-gradient(180deg,#eef3fb 0%,#f4f7fc 100%);border:1px solid var(--border-soft);border-radius:var(--radius-sm);margin-bottom:20px;box-shadow:inset 0 1px 2px rgba(15,30,72,.04)}
 .product-tab{border:none;background:transparent;padding:12px 4px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:all .25s cubic-bezier(.2,.8,.2,1);display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;letter-spacing:-.005em}
 .product-tab.active{background:var(--grad-ink);color:#fff;box-shadow:0 4px 12px rgba(10,23,51,.25),var(--shadow-inset)}
 .product-tab:hover:not(.active){background:rgba(37,99,235,.07);color:var(--accent-dark)}
@@ -1772,6 +1772,10 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
     <button class="product-tab" id="tabCar" onclick="switchProduct('car')">
       <svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7" viewBox="0 0 24 24"><path d="M3 21h18M5 21V8l6-4v17M11 21V4l2 1.5M13 9l7 2v10M16 14v2M16 18v1M8 9v2M8 13v2M8 17v2"/></svg>
       CAR/EAR
+    </button>
+    <button class="product-tab" id="tabCpm" onclick="switchProduct('cpm')">
+      <svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7" viewBox="0 0 24 24"><path d="M3 20h18M5 20V9l4-2v13M9 9l5-5v16M14 6l5 3v11"/><circle cx="7" cy="16" r="1"/><circle cx="12" cy="14" r="1"/></svg>
+      CPM
     </button>
   </div>
 
@@ -6618,6 +6622,327 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
 
 
 
+  <div class="product-section" id="sectionCpm">
+    <div class="card">
+      <div class="section-label">Policy Details <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; Contractor's Plant &amp; Machinery (TAC tariff CPM/1-1-01)</span></div>
+      <div class="field"><label class="lbl" for="cpmInsured">Insured Name</label><input type="text" id="cpmInsured" placeholder="M/s. ..." /></div>
+      <div class="field"><label class="lbl" for="cpmSite">Project site / location</label><input type="text" id="cpmSite" placeholder="e.g. Tunnel works, Nallamala; or Anywhere in India" /></div>
+      <div class="field-row">
+        <div class="field">
+          <label class="lbl" for="cpmPeriod">Policy Period</label>
+          <select id="cpmPeriod">
+            <option value="12">Annual (12 months)</option>
+            <option value="8">Up to 8 months &middot; 85%</option><option value="6">Up to 6 months &middot; 75%</option>
+            <option value="4">Up to 4 months &middot; 60%</option><option value="3">Up to 3 months &middot; 50%</option>
+            <option value="2">Up to 2 months &middot; 35%</option><option value="1">Up to 1 month &middot; 25%</option><option value="0.25">Up to 1 week &middot; 10%</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="lbl" for="cpmZone">Earthquake Zone</label>
+          <select id="cpmZone"><option value="1">Zone I &middot; 0.50&permil;</option><option value="2">Zone II &middot; 0.25&permil;</option><option value="3">Zone III &middot; 0.10&permil;</option><option value="4">Zone IV &middot; 0.05&permil;</option></select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="lbl" for="cpmDisc">Discount <span style="font-weight:400;color:var(--mute)">&mdash; on machinery, escalation, TPL, surrounding property and debris; never on STFI / earthquake / terrorism</span></label>
+        <div class="input-suffix" data-suffix="%"><input type="number" id="cpmDisc" placeholder="0" min="0" max="99.99" step="0.5" value="0" inputmode="decimal"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Machinery Schedule <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; each item at its group rate (I 0.60% &middot; II 0.80% &middot; III 1.00% &middot; IV 2.00% &middot; V 0.20%)</span></div>
+      <div id="cpmItems"></div>
+      <button class="add-member-btn" id="cpmAddItem" type="button" style="margin-top:10px">+ Add machinery</button>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Covers &amp; Extensions</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">
+        <label class="addon" for="cpmFloater"><input type="checkbox" id="cpmFloater" /><span class="addon-name">Floater cover</span><small>Anywhere in India &middot; +10% on the machinery rate</small></label>
+        <label class="addon" for="cpmUnderground"><input type="checkbox" id="cpmUnderground" /><span class="addon-name">Underground / tunnel works</span><small>Exception K deleted &middot; +50% loading &middot; referred to Head Office</small></label>
+        <label class="addon" for="cpmStfi"><input type="checkbox" id="cpmStfi" checked /><span class="addon-name">STFI</span><small>0.40&permil; on total Sum Insured &middot; no discount</small></label>
+        <label class="addon" for="cpmEq"><input type="checkbox" id="cpmEq" checked /><span class="addon-name">Earthquake (fire &amp; shock)</span><small>Zone rate on total Sum Insured &middot; no discount</small></label>
+        <label class="addon" for="cpmTerror"><input type="checkbox" id="cpmTerror" checked /><span class="addon-name">Terrorism</span><small>0.23&permil; on total Sum Insured &middot; no discount</small></label>
+        <label class="addon" for="cpmEsc"><input type="checkbox" id="cpmEsc" checked /><span class="addon-name">Escalation</span><small>50% of the machinery rate on the escalation amount</small></label>
+        <label class="addon" for="cpmTpl"><input type="checkbox" id="cpmTpl" checked /><span class="addon-name">Third Party Liability</span><small>0.25% on the limit of indemnity</small></label>
+        <label class="addon" for="cpmOsp"><input type="checkbox" id="cpmOsp" checked /><span class="addon-name">Owner's Surrounding Property</span><small>0.25% on the limit</small></label>
+        <label class="addon" for="cpmDebris"><input type="checkbox" id="cpmDebris" checked /><span class="addon-name">Clearance &amp; Removal of Debris</span><small>0.25% on the limit</small></label>
+      </div>
+      <div class="field-row" style="margin-top:12px">
+        <div class="field"><label class="lbl" for="cpmEscPct">Escalation %</label><div class="input-suffix" data-suffix="%"><input type="number" id="cpmEscPct" value="10" min="0" max="50" step="1" inputmode="decimal"></div></div>
+        <div class="field"><label class="lbl" for="cpmTplLimit">TPL limit <span style="font-weight:400;color:var(--mute)">(blank = 10% of SI, max &#8377;25 lakh)</span></label><div class="input-prefix" data-prefix="&#8377;"><input type="number" id="cpmTplLimit" placeholder="auto" min="0" inputmode="numeric"></div></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label class="lbl" for="cpmOspLimit">Surrounding property limit <span style="font-weight:400;color:var(--mute)">(blank = 10% of SI, max &#8377;25 lakh)</span></label><div class="input-prefix" data-prefix="&#8377;"><input type="number" id="cpmOspLimit" placeholder="auto" min="0" inputmode="numeric"></div></div>
+        <div class="field"><label class="lbl" for="cpmDebrisSi">Debris removal limit</label><div class="input-prefix" data-prefix="&#8377;"><input type="number" id="cpmDebrisSi" value="100000" min="0" inputmode="numeric"></div></div>
+      </div>
+      <div class="info-banner show" id="cpmFlags" style="display:none"></div>
+    </div>
+
+    <div class="sticky-calc-wrap"><button class="btn btn-primary" id="cpmCalcBtn" type="button">Calculate Premium</button></div>
+
+    <div class="card" id="cpmResultCard" style="display:none">
+      <div class="section-label">Premium <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)" id="cpmResDate"></span></div>
+      <div id="cpmQuoteDetails"></div>
+      <div id="cpmBreakdown" style="margin-top:10px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:2px solid var(--border-strong)"><strong>Total Premium (incl. GST 18%)</strong><strong id="cpmGrand" style="font-size:20px;color:var(--accent-dark)">0</strong></div>
+      <div class="quote-actions">
+        <button type="button" class="btn btn-pdf" id="cpmPdfBtn">Download PDF</button>
+        <button type="button" class="btn btn-whatsapp" id="cpmWaBtn">Share PDF</button>
+        <button type="button" class="btn btn-image" id="cpmImgBtn">Share Image</button>
+        <button type="button" class="btn btn-secondary" id="cpmNewBtn">New Quote</button>
+      </div>
+    </div>
+  </div>
+<script>
+(function(){
+/* ═══════════════════════════════════════════════════════════════════════
+   CONTRACTOR'S PLANT & MACHINERY (CPM) — All India CPM Tariff (TAC, CPM/1-1-01)
+   Practice per the KBO Hyderabad "CPM CALCULATOR.ODS" (10-Sep-2026):
+     basic rate by group (% p.a.), floater +10% of the rate, underground +50% of
+     (basic + floater) rate, STFI 0.40‰, EQ by zone 0.50 / 0.25 / 0.10 / 0.05‰,
+     terrorism 0.23‰, escalation at 50% of the basic rate on the escalation amount,
+     TPL / OSP 0.25% on min(10% SI, Rs.25 lakh), debris 0.25% on Rs.1 lakh,
+     discount on everything except STFI / EQ / terrorism, GST 18%.
+   ═══════════════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const CPM_GROUP_RATE = { I:0.60, II:0.80, III:1.00, IV:2.00, V:0.20 };   /* % p.a. */
+const CPM_EQ = { 1:0.50, 2:0.25, 3:0.10, 4:0.05 };                       /* per mille */
+const CPM_STFI = 0.40, CPM_TERROR = 0.23;                                 /* per mille */
+const CPM_SHORT = { 0.25:10, 1:25, 2:35, 3:50, 4:60, 6:75, 8:85, 12:100 }; /* % of annual */
+const CPM_EQUIPMENT = [
+  ['101','I','Chain blocks and pulley blocks'],['102','I','Compressor, air tools'],['103','I','Conveyor belts, site hoists, jacks, screws'],
+  ['104','I','Cranes up to 10 tonnes (except Turner and Derrick cranes)'],['105','I','Concrete pumping plant'],['106','I','Cement silos, water containers, surveying equipment'],
+  ['107','I','Electrical / electronic equipment for non-destructive testing'],['108','I','Fork lift trucks up to 10 tonnes'],['109','I','Mixing machines, mixing plants'],
+  ['110','I','Pavers for asphalt or concrete finishing'],['111','I','Permanent way plant (track-laying machinery, track shifters, tampers)'],['112','I','Portable protection tents'],
+  ['113','I','Pumps, transformers, electric motors'],['114','I','Road rollers'],['115','I','Railway trackage'],['116','I','Rendering plant'],['117','I','Scrapers, scales'],
+  ['118','I','Vibrators (vibrating compacting rollers, tamping and concrete vibrating equipment)'],['119','I','Workshop machines, woodworking machines, bar benders, drying plant'],
+  ['120','I','Welding set'],['121','I','Surveying equipment'],['122','I','Tractor 144D'],['123','I','Mosaic polishing machines'],
+  ['201','II','Aggregate plant'],['202','II','Air locks'],['203','II','Gas power-generating plant'],['204','II','Graders, pan scrapers, rippers'],
+  ['205','II','Hauling equipment (dumpers, dump cars, dump trucks)'],['206','II','Locomotives, field and steam generating engines, track-shifting machines'],
+  ['207','II','Mobile mixing plant (incl. transformer oil filtration unit)'],['208','II','Mechanical sweepers'],['209','II','Site power-generating plant (gasoline / diesel)'],
+  ['210','II','Stone crushers, screens, separating plant'],['211','II','Tractors / trailers'],['212','II','Seismic data collection equipment'],
+  ['301','III','Bulldozers'],['302','III','Cranes above 10 tonnes, Turner cranes and Derrick cranes'],['303','III','Diving equipment'],
+  ['304','III','Excavators (shovels, drag-shovels, self-propelled excavators, bucket excavators, trenchers)'],['305','III','Loaders'],
+  ['306','III','Pile driving and pile extracting equipment'],['307','III','Bridge inspection machines'],['308','III','Mobile drilling rig (onshore)'],
+  ['309','III','Pipe jacking machine'],['310','III','Rail mounted gantry crane (RMG)'],['311','III','Ballotis'],['312','III','Top lift truck (TLT)'],
+  ['313','III','Breakdown vehicle'],['314','III','Hydraulic twin boom jumbo drilling machine / shotcrete machine'],['315','III','Electro-hydraulic digging arm loader'],
+  ['401','IV','Drilling machine for water supply'],['402','IV','Tunnel boring machines'],
+  ['501','V','Other miscellaneous items with individual value up to Rs. 10,000']
+];
+const items = [];   /* { id, code, group, desc, si, year, model, serial } */
+let seq = 0, lastQuote = null;
+function fmt(n){ return Math.round(n).toLocaleString('en-IN'); }
+function siShort(v){ return v >= 1e7 ? (v/1e7).toFixed(2).replace(/\.?0+$/,'') + ' Cr' : v >= 1e5 ? (v/1e5).toFixed(2).replace(/\.?0+$/,'') + ' L' : String(Math.round(v)); }
+/* Table 3 excesses */
+function excessFor(it){
+  const si = it.si || 0;
+  if(it.group === 'V') return { aog:'Rs. 1,000 flat', normal:'Rs. 1,000 flat' };
+  if(it.code === '302'){
+    if(si <= 1e6) return { aog:'1.5% of SI, min Rs. 10,000 (boom: 20% of claim, min Rs. 25,000)', normal:'0.8% of SI, min Rs. 5,000' };
+    if(si <= 2.5e6) return { aog:'1% of SI, min Rs. 20,000 (boom: 20% of claim, min Rs. 25,000)', normal:'0.5% of SI, min Rs. 10,000' };
+    if(si <= 5e6) return { aog:'0.7% of SI, min Rs. 25,000 (boom: 20% of claim, min Rs. 25,000)', normal:'Rs. 15,000 flat' };
+    return { aog:'0.5% of SI, min Rs. 25,000 (boom: 20% of claim, min Rs. 25,000)', normal:'Rs. 25,000 flat' };
+  }
+  if(si <= 1e5)   return { aog:'10% of SI, min Rs. 5,000',  normal:'2% of SI, min Rs. 1,500' };
+  if(si <= 5e5)   return { aog:'5% of SI, min Rs. 10,000',  normal:'1.5% of SI, min Rs. 2,000' };
+  if(si <= 1e6)   return { aog:'3% of SI, min Rs. 25,000',  normal:'1.25% of SI, min Rs. 7,500' };
+  if(si <= 2.5e6) return { aog:'2% of SI, min Rs. 30,000',  normal:'1% of SI, min Rs. 12,500' };
+  if(si <= 5e6)   return { aog:'1% of SI, min Rs. 50,000',  normal:'Rs. 25,000 flat' };
+  return { aog:'1% of SI, min Rs. 50,000', normal:'Rs. 35,000 flat' };
+}
+/* pure engine - also used by the self-test */
+function cpmCompute(inp){
+  const disc = Math.min(99.99, Math.max(0, inp.discPct || 0)) / 100;
+  const months = parseFloat(inp.months) || 12;
+  const shortPct = CPM_SHORT[months] || 100;
+  const zoneRate = CPM_EQ[inp.zone] || CPM_EQ[4];
+  let totalSI = 0; const rows = [];
+  (inp.items || []).forEach(it => {
+    const si = it.si || 0; totalSI += si;
+    const base = CPM_GROUP_RATE[it.group] || 1.00;
+    const floaterRate = inp.floater ? base * 0.10 : 0;
+    const ugRate = inp.underground ? (base + floaterRate) * 0.50 : 0;
+    const rate = base + floaterRate + ugRate;
+    const escSI = inp.esc ? si * (inp.escPct || 0) / 100 : 0;
+    rows.push({ id: it.id, code: it.code, group: it.group, desc: it.desc, si, base, floaterRate, ugRate, rate,
+      basic: si * base / 100, floater: si * floaterRate / 100, ug: si * ugRate / 100, escSI, esc: escSI * (base * 0.5) / 100, year: it.year, model: it.model, serial: it.serial });
+  });
+  const sum = k => rows.reduce((t, r) => t + r[k], 0);
+  const tplLimit = inp.tpl ? (inp.tplLimit > 0 ? inp.tplLimit : Math.min(totalSI * 0.10, 2500000)) : 0;
+  const ospLimit = inp.osp ? (inp.ospLimit > 0 ? inp.ospLimit : Math.min(totalSI * 0.10, 2500000)) : 0;
+  const debrisSI = inp.debris ? (inp.debrisSi || 0) : 0;
+  const p = {
+    basic: sum('basic'), floater: sum('floater'), ug: sum('ug'), esc: sum('esc'),
+    stfi: inp.stfi ? totalSI * CPM_STFI / 1000 : 0, eq: inp.eq ? totalSI * zoneRate / 1000 : 0, terror: inp.terror ? totalSI * CPM_TERROR / 1000 : 0,
+    tpl: tplLimit * 0.25 / 100, osp: ospLimit * 0.25 / 100, debris: debrisSI * 0.25 / 100
+  };
+  const subtotal = Object.values(p).reduce((a, b) => a + b, 0);
+  const discountable = p.basic + p.floater + p.ug + p.esc + p.tpl + p.osp + p.debris;
+  const discAmt = discountable * disc;
+  const annualNet = subtotal - discAmt;
+  const net = annualNet * shortPct / 100;
+  const gst = net * 0.18, grand = Math.round(net + gst);
+  return { rows, totalSI, zoneRate, shortPct, months, tplLimit, ospLimit, debrisSI, escSI: sum('escSI'), p, subtotal, discountable, discPct: disc * 100, discAmt, annualNet, net, gst, grand };
+}
+function readInputs(){
+  return {
+    items: items.map(it => ({ id: it.id, code: it.code, group: it.group, desc: it.desc, si: parseFloat(it.si) || 0, year: it.year, model: it.model, serial: it.serial })),
+    months: $('cpmPeriod').value, zone: $('cpmZone').value, discPct: parseFloat($('cpmDisc').value) || 0,
+    floater: $('cpmFloater').checked, underground: $('cpmUnderground').checked, stfi: $('cpmStfi').checked, eq: $('cpmEq').checked, terror: $('cpmTerror').checked,
+    esc: $('cpmEsc').checked, escPct: parseFloat($('cpmEscPct').value) || 0, tpl: $('cpmTpl').checked, tplLimit: parseFloat($('cpmTplLimit').value) || 0,
+    osp: $('cpmOsp').checked, ospLimit: parseFloat($('cpmOspLimit').value) || 0, debris: $('cpmDebris').checked, debrisSi: parseFloat($('cpmDebrisSi').value) || 0
+  };
+}
+function addItem(pre){ items.push(Object.assign({ id: ++seq, code: '305', group: 'III', desc: '', si: '', year: '', model: '', serial: '' }, pre || {})); renderItems(); }
+function renderItems(){
+  const host = $('cpmItems');
+  host.innerHTML = items.map((it, i) => `<div class="member-item" data-id="${it.id}" style="display:block;padding:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span class="member-badge">Item ${i+1}</span><span style="font-size:11px;color:var(--mute)">Group ${it.group} &middot; ${CPM_GROUP_RATE[it.group].toFixed(2)}% p.a.</span></div>
+    <div class="field"><label class="lbl">Equipment (tariff group)</label>
+      <select class="cpm-code" data-id="${it.id}">${CPM_EQUIPMENT.map(e => `<option value="${e[0]}" ${e[0]===it.code?'selected':''}>Group ${e[1]} &middot; ${e[2]}</option>`).join('')}</select></div>
+    <div class="field-row">
+      <div class="field"><label class="lbl">Description / make &amp; model</label><input type="text" class="cpm-desc" data-id="${it.id}" value="${(it.desc||'').replace(/"/g,'&quot;')}" placeholder="e.g. SDLG L933H wheel loader" /></div>
+      <div class="field"><label class="lbl">Sum Insured (new replacement value)</label><div class="input-prefix" data-prefix="&#8377;"><input type="number" class="cpm-si" data-id="${it.id}" value="${it.si}" placeholder="0" min="0" inputmode="numeric" /></div></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label class="lbl">Year of make</label><input type="text" class="cpm-year" data-id="${it.id}" value="${it.year||''}" placeholder="e.g. 2024 / New" /></div>
+      <div class="field"><label class="lbl">Serial / engine / chassis no.</label><input type="text" class="cpm-serial" data-id="${it.id}" value="${(it.serial||'').replace(/"/g,'&quot;')}" placeholder="optional" /></div>
+    </div>
+    <button class="member-remove" data-id="${it.id}" title="Remove" type="button" ${items.length===1?'disabled style="opacity:.3"':''}>&times;</button>
+  </div>`).join('');
+  const byId = id => items.find(x => x.id === parseInt(id, 10));
+  host.querySelectorAll('.cpm-code').forEach(el => el.addEventListener('change', () => { const it = byId(el.dataset.id); it.code = el.value; it.group = (CPM_EQUIPMENT.find(e => e[0] === el.value) || [,'III'])[1]; renderItems(); }));
+  host.querySelectorAll('.cpm-desc').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).desc = el.value; }));
+  host.querySelectorAll('.cpm-si').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).si = el.value; }));
+  host.querySelectorAll('.cpm-year').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).year = el.value; }));
+  host.querySelectorAll('.cpm-serial').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).serial = el.value; }));
+  host.querySelectorAll('.member-remove').forEach(b => b.addEventListener('click', () => { const i = items.findIndex(x => x.id === parseInt(b.dataset.id, 10)); if(i >= 0 && items.length > 1){ items.splice(i, 1); renderItems(); } }));
+}
+function line(k, v, cls){ return `<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:13px${cls==='total'?';font-weight:700':''}${cls==='sub'?';color:var(--mute);font-size:12px':''}"><span>${k}</span><span style="white-space:nowrap">${v}</span></div>`; }
+function calculate(){
+  const inp = readInputs();
+  if(!inp.items.length || inp.items.every(it => !(it.si > 0))){ const el = host0(); if(el){ el.style.borderColor = 'var(--danger)'; setTimeout(() => el.style.borderColor = '', 2000); el.focus(); } return; }
+  const q = cpmCompute(inp);
+  const insured = $('cpmInsured').value.trim() || 'Valued Customer';
+  const flags = [];
+  if(inp.underground) flags.push('Underground / tunnel works: all underground proposals including CPM are referred to Head Office (guidelines w.e.f. 10 Sep 2026).');
+  if(q.totalSI > 5e7) flags.push('Sum Insured above Rs. 5 crore: claims-experience discount / loading scale applies and special rating must be finalised.');
+  if(inp.tpl && q.tplLimit > 2500000) flags.push('TPL limit above Rs. 25 lakh per accident is underwritten in the Miscellaneous Department.');
+  const fl = $('cpmFlags'); fl.style.display = flags.length ? '' : 'none'; fl.innerHTML = flags.map(f => '<div>&#9888; ' + f + '</div>').join('');
+  const periodLabel = q.months >= 12 ? 'Annual' : (q.months === 0.25 ? 'Up to 1 week' : 'Up to ' + q.months + ' month' + (q.months > 1 ? 's' : '')) + (q.shortPct < 100 ? ' (' + q.shortPct + '% of annual)' : '');
+  $('cpmQuoteDetails').innerHTML = line('Total Sum Insured', '&#8377;' + fmt(q.totalSI)) + line('Machinery items', String(q.rows.length)) + line('Policy period', periodLabel) + line('Earthquake zone', 'Zone ' + ['','I','II','III','IV'][inp.zone] + ' &middot; ' + q.zoneRate.toFixed(2) + '&permil;');
+  let h = '';
+  q.rows.forEach((r, i) => {
+    h += line(`Item ${i+1} &middot; ${r.desc || (CPM_EQUIPMENT.find(e => e[0] === r.code) || [,,''])[2]} &middot; Group ${r.group} @ ${r.rate.toFixed(3)}% on &#8377;${fmt(r.si)}`, '&#8377;' + fmt(r.basic + r.floater + r.ug));
+    if(r.floater) h += line('&nbsp;&nbsp;incl. floater loading 10%', '&#8377;' + fmt(r.floater), 'sub');
+    if(r.ug) h += line('&nbsp;&nbsp;incl. underground works loading 50%', '&#8377;' + fmt(r.ug), 'sub');
+  });
+  if(q.p.stfi) h += line('STFI &middot; 0.40&permil;', '&#8377;' + fmt(q.p.stfi));
+  if(q.p.eq) h += line('Earthquake &middot; ' + q.zoneRate.toFixed(2) + '&permil;', '&#8377;' + fmt(q.p.eq));
+  if(q.p.terror) h += line('Terrorism &middot; 0.23&permil;', '&#8377;' + fmt(q.p.terror));
+  if(q.p.esc) h += line('Escalation ' + inp.escPct + '% &middot; 50% of basic rate on &#8377;' + fmt(q.escSI), '&#8377;' + fmt(q.p.esc));
+  if(q.p.tpl) h += line('Third Party Liability &middot; 0.25% on &#8377;' + fmt(q.tplLimit), '&#8377;' + fmt(q.p.tpl));
+  if(q.p.osp) h += line("Owner's Surrounding Property &middot; 0.25% on &#8377;" + fmt(q.ospLimit), '&#8377;' + fmt(q.p.osp));
+  if(q.p.debris) h += line('Clearance &amp; Removal of Debris &middot; 0.25% on &#8377;' + fmt(q.debrisSI), '&#8377;' + fmt(q.p.debris));
+  h += line('Sub total', '&#8377;' + fmt(q.subtotal), 'total');
+  if(q.discAmt) h += line('Discount ' + q.discPct + '% (not on STFI / EQ / terrorism)', '&minus; &#8377;' + fmt(q.discAmt), 'sub');
+  if(q.shortPct < 100) h += line('Short period &middot; ' + q.shortPct + '% of annual premium', '&minus; &#8377;' + fmt(q.annualNet - q.net), 'sub');
+  h += line('Net Premium (before GST)', '&#8377;' + fmt(q.net), 'total');
+  h += line('GST @ 18%', '&#8377;' + fmt(q.gst));
+  $('cpmBreakdown').innerHTML = h;
+  $('cpmGrand').textContent = '\u20b9' + fmt(q.grand);
+  const now = new Date();
+  $('cpmResDate').textContent = now.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+  lastQuote = Object.assign({ insured, site: $('cpmSite').value.trim(), inp, now, periodLabel, flags,
+    quoteRef: 'CPM-' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '-' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') }, q);
+  const card = $('cpmResultCard'); card.style.display = ''; setTimeout(() => card.scrollIntoView({ behavior:'smooth', block:'start' }), 60);
+}
+function host0(){ return document.querySelector('#cpmItems .cpm-si'); }
+function buildPDF(returnBlob){
+  const q = lastQuote; if(!q){ alert('Please calculate the premium first.'); return; }
+  const R = OICPDF.money2, inp = q.inp, now = q.now;
+  const dateStr = now.toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'}).replace(/\//g, '-');
+  let costCode = ''; try{ costCode = (typeof buildCostCode === 'function') ? buildCostCode(q.discPct, 0, 0) : ''; }catch(e){}
+  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'Vinod', phone:'7032688497'};
+  const eqName = 'Zone ' + ['','I','II','III','IV'][inp.zone];
+  const left = [
+    { bar:'Customer Details', rows:[ ['Name', q.insured], ['Mobile No', ''], ['Email', ''] ] },
+    { bar:'Employee/Intermediary Details', rows:[ ['Employee/Intermediary Code', AG.code || ''], ['Name', AG.name || ''], ['Mobile No', AG.phone || ''], ['Email', AG.email || ''] ] },
+    { bar:'Policy Details', rows:[ ['Product', "Contractor's Plant & Machinery"], ['Project site', q.site || 'As declared'], ['Policy Period', q.periodLabel], ['Earthquake Zone', eqName], ['Total Sum Insured', OICPDF.fmtIN(q.totalSI)] ] },
+    { bar:'Machinery Schedule', rows: q.rows.flatMap((r, i) => [ { label:(i+1) + '. ' + (r.desc || (CPM_EQUIPMENT.find(e => e[0] === r.code) || [,,''])[2]) + (r.year ? ' (' + r.year + ')' : '') + (r.serial ? ' \u00b7 ' + r.serial : '') }, ['    Group ' + r.group + ' \u00b7 Sum Insured', OICPDF.fmtIN(r.si)] ]) },
+    { bar:'Policy Excess (per claim)', rows: q.rows.map((r, i) => { const ex = excessFor(r); return { label:(i+1) + '. Normal: ' + ex.normal + '  |  AOG: ' + ex.aog }; }) },
+    { bar:'Covers', rows:[
+      ['Floater (anywhere in India)', inp.floater ? 'Covered' : 'Not Opted'], ['Underground works (Exception K deleted)', inp.underground ? 'Covered' : 'Not Opted'],
+      ['STFI', inp.stfi ? 'Covered' : 'Not Opted'], ['Earthquake (fire & shock)', inp.eq ? 'Covered \u00b7 ' + eqName : 'Not Opted'], ['Terrorism', inp.terror ? 'Covered' : 'Not Opted'],
+      ['Escalation', inp.esc && q.p.esc ? inp.escPct + '% \u00b7 ' + OICPDF.fmtIN(q.escSI) : 'Not Opted'], ['Third Party Liability', q.tplLimit ? 'Limit ' + OICPDF.fmtIN(q.tplLimit) : 'Not Opted'],
+      ["Owner's Surrounding Property", q.ospLimit ? 'Limit ' + OICPDF.fmtIN(q.ospLimit) : 'Not Opted'], ['Clearance & Removal of Debris', q.debrisSI ? 'Limit ' + OICPDF.fmtIN(q.debrisSI) : 'Not Opted'] ] },
+    { bar:'Documents Required', rows:[ { label:'1. Filled & signed Proposal Form with the machinery schedule' }, { label:'2. Invoice / valuation of each machine (new replacement value)' }, { label:'3. Contract / work order and site details' }, { label:'4. Claims experience of the last 5 years (renewals)' } ] }
+  ];
+  const right = [ { bar:'Premium Breakup' } ];
+  /* discount is never itemised for the customer: the discountable sections print net */
+  const d = q.discountable > 0 ? q.discAmt / q.discountable : 0;
+  const netOf = v => v * (1 - d);
+  const mach = q.rows.map((r, i) => ({ label:'Item ' + (i+1) + ' \u00b7 Group ' + r.group + (inp.floater ? ' + floater' : '') + (inp.underground ? ' + underground' : ''), value:R(netOf(r.basic + r.floater + r.ug)) }));
+  mach.push({ label:'Machinery Premium (A)', value:R(netOf(q.p.basic + q.p.floater + q.p.ug)), total:true });
+  right.push({ sub:'Section A \u2013 Machinery', rows:mach });
+  const nat = [];
+  if(q.p.stfi) nat.push({ label:'STFI @ 0.40 per mille', value:R(q.p.stfi) });
+  if(q.p.eq) nat.push({ label:'Earthquake ' + eqName + ' @ ' + q.zoneRate.toFixed(2) + ' per mille', value:R(q.p.eq) });
+  if(q.p.terror) nat.push({ label:'Terrorism @ 0.23 per mille', value:R(q.p.terror) });
+  let keys = ['A'];
+  if(nat.length){ nat.push({ label:'NATCAT & Terrorism (B)', value:R(q.p.stfi + q.p.eq + q.p.terror), total:true }); right.push({ sub:'Section B \u2013 STFI, Earthquake & Terrorism', rows:nat }); keys.push('B'); }
+  const ext = [];
+  if(q.p.esc) ext.push({ label:'Escalation ' + inp.escPct + '%', value:R(netOf(q.p.esc)) });
+  if(q.p.tpl) ext.push({ label:'Third Party Liability', value:R(netOf(q.p.tpl)) });
+  if(q.p.osp) ext.push({ label:"Owner's Surrounding Property", value:R(netOf(q.p.osp)) });
+  if(q.p.debris) ext.push({ label:'Clearance & Removal of Debris', value:R(netOf(q.p.debris)) });
+  if(ext.length){ const k = keys.length === 2 ? 'C' : 'B'; ext.push({ label:'Extensions (' + k + ')', value:R(netOf(q.p.esc + q.p.tpl + q.p.osp + q.p.debris)), total:true }); right.push({ sub:'Section ' + k + ' \u2013 Extensions', rows:ext }); keys.push(k); }
+  const fin = [];
+  if(q.shortPct < 100) fin.push({ label:'Short period \u2013 ' + q.shortPct + '% of the annual premium', value:'- ' + R(q.annualNet - q.net) });
+  fin.push({ label:'Net Premium before GST [' + keys.join(' + ') + ']', value:R(q.net) });
+  fin.push({ label:'GST @ 18%', value:R(q.gst) });
+  fin.push({ label:'Total Premium', value:R(q.grand), total:true });
+  right.push({ sub:'Final Premium Summary', rows:fin });
+  const notes = [
+    "Rates are as per the All India Tariff on Contractor's Plant and Machinery Insurance. Each machine is rated at its tariff group rate, which includes all Acts of God perils other than earthquake; earthquake, STFI and terrorism are charged at their minimum rates. This is an indicative quotation \u2014 final premium, terms and conditions are subject to underwriting and acceptance of risk.",
+    'Sum Insured is the present-day new replacement value of each machine including freight, erection and duties. Transit from site to site is not covered; shifting within the project site is covered. Mechanical / electrical breakdown is not covered under this policy.',
+    'Policies for less than 12 months are charged on the short period scale (1 week 10%, 1 month 25%, 2 months 35%, 3 months 50%, 4 months 60%, 6 months 75%, 8 months 85%). Cancellation at the request of the insured is refunded on the same scale.',
+    'Excess applies to each claim as shown in the Policy Excess table; only one excess (the higher) applies to any single loss. This is a system generated quote and does not require signature; premium and risk period may change at the time of issuance of the policy.'
+  ];
+  const safe = q.insured.replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_').substring(0, 40);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const out = OICPDF.render({
+    subtitle: "Quotation Worksheet For Engineering Insurance \u2013 CONTRACTOR'S PLANT AND MACHINERY POLICY",
+    quoteNumber: String(Math.floor(now.getTime() / 1000)).slice(-5), quoteId: q.quoteRef, dateStr, costCode, agent: AG, left, right, notes,
+    totalLabel: 'Total Premium', totalValue: R(q.grand),
+    filename: 'Oriental_CPM_Quote_' + safe + '_' + String(now.getDate()).padStart(2,'0') + months[now.getMonth()] + now.getFullYear() + '.pdf'
+  });
+  if(returnBlob) return { blob: new Blob([out.doc.output('arraybuffer')], {type:'application/pdf'}), filename: out.filename };
+  out.doc.save(out.filename);
+}
+function newQuote(){ ['cpmInsured','cpmSite','cpmTplLimit','cpmOspLimit'].forEach(id => { const e = $(id); if(e) e.value = ''; }); $('cpmDisc').value = '0'; items.length = 0; addItem(); $('cpmResultCard').style.display = 'none'; lastQuote = null; window.scrollTo({ top: Math.max(0, $('sectionCpm').offsetTop - 8), behavior:'smooth' }); }
+$('cpmAddItem').addEventListener('click', () => { if(items.length >= 40){ alert('Maximum 40 items per quote'); return; } addItem(); });
+$('cpmCalcBtn').addEventListener('click', calculate);
+$('cpmPdfBtn').addEventListener('click', () => { try{ buildPDF(false); }catch(e){ console.error(e); alert('PDF generation failed: ' + (e.message || e)); } });
+$('cpmWaBtn').addEventListener('click', async () => { try{ const r = buildPDF(true); if(!r) return; const file = new File([r.blob], r.filename, { type:'application/pdf' });
+  if(navigator.canShare && navigator.canShare({ files:[file] })){ try{ await navigator.share({ files:[file], title:'CPM Premium Quote \u2014 ' + lastQuote.insured }); return; }catch(e){ if(e.name === 'AbortError') return; } }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(r.blob); a.download = r.filename; a.click(); }catch(e){ console.error(e); alert('Share failed: ' + (e.message || e)); } });
+$('cpmImgBtn').addEventListener('click', () => { if(!lastQuote){ alert('Please calculate the premium first.'); return; } const q = lastQuote; const safe = q.insured.replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_').substring(0, 40);
+  OICIMG.shareViaBuilder(function(){ buildPDF(true); }, 'Oriental_CPM_Quote_' + safe + '.png', 'CPM Premium Quote \u2014 ' + q.insured, 'Oriental Insurance CPM quote for ' + q.insured + ' \u2014 total premium \u20b9' + fmt(q.grand) + ' (incl. GST).'); });
+addItem();
+window.CPM = { compute: cpmCompute, calculate, buildPDF, newQuote, addItem, items, excessFor, EQUIPMENT: CPM_EQUIPMENT };
+window.CPM.VERIFIED = [
+  { label:'CPM (KBO calculator): SI 1,26,85,000 group III, zone I, floater + underground + STFI + EQ + terrorism + escalation 10% + TPL + OSP + debris 1L, discount 90% -> net 36,558 / total 43,138', expect:'36558/43138',
+    check:()=>{ const q = cpmCompute({ items:[{ id:1, code:'314', group:'III', si:12685000 }], months:12, zone:1, discPct:90, floater:true, underground:true, stfi:true, eq:true, terror:true, esc:true, escPct:10, tpl:true, tplLimit:0, osp:true, ospLimit:0, debris:true, debrisSi:100000 }); return Math.round(q.net) + '/' + q.grand; } },
+  { label:'CPM (KBO calculator) cover lines: basic 1,26,850 / floater 12,685 / underground 69,768 / STFI 5,074 / EQ 6,343 / terrorism 2,918 / escalation 6,343 / TPL 3,171 / OSP 3,171 / debris 250 / subtotal 2,36,572', expect:'126850/12685/69768/5074/6343/2918/6343/3171/3171/250/236572',
+    check:()=>{ const q = cpmCompute({ items:[{ id:1, code:'314', group:'III', si:12685000 }], months:12, zone:1, discPct:90, floater:true, underground:true, stfi:true, eq:true, terror:true, esc:true, escPct:10, tpl:true, tplLimit:0, osp:true, ospLimit:0, debris:true, debrisSi:100000 }); const p = q.p; return [p.basic,p.floater,p.ug,p.stfi,p.eq,p.terror,p.esc,p.tpl,p.osp,p.debris,q.subtotal].map(v=>Math.round(v)).join('/'); } },
+  { label:'CPM tariff: group rates I 0.60 / II 0.80 / III 1.00 / IV 2.00 / V 0.20 % p.a.; short period 3 months = 50%', expect:'0.6/0.8/1/2/0.2/50',
+    check:()=>[CPM_GROUP_RATE.I,CPM_GROUP_RATE.II,CPM_GROUP_RATE.III,CPM_GROUP_RATE.IV,CPM_GROUP_RATE.V,CPM_SHORT[3]].join('/') },
+  { label:'CPM tariff Table 3 excess: SI 12 lakh -> AOG 2% min 30,000, normal 1% min 12,500; group V flat 1,000', expect:'2% of SI, min Rs. 30,000|1% of SI, min Rs. 12,500|Rs. 1,000 flat',
+    check:()=>{ const a = excessFor({ si:1200000, group:'III', code:'304' }), b = excessFor({ si:5000, group:'V', code:'501' }); return a.aog + '|' + a.normal + '|' + b.aog; } }
+];
+})();
+</script>
   <div class="product-section" id="sectionYec">
 
   <section class="card h-calc-card">
@@ -18924,6 +19249,7 @@ function runSelfTest(){
     const ALL_VERIFIED = VERIFIED_CASES.concat(
       (window.WC && Array.isArray(window.WC.VERIFIED)) ? window.WC.VERIFIED : [],
       (window.CAR && Array.isArray(window.CAR.VERIFIED)) ? window.CAR.VERIFIED : [],
+      (window.CPM && Array.isArray(window.CPM.VERIFIED)) ? window.CPM.VERIFIED : [],
       Array.isArray(window.FIRE_VERIFIED) ? window.FIRE_VERIFIED : []);
     ALL_VERIFIED.forEach(v=>{
       let got; try{ got=v.check(); }catch(e){ got='ERR '+e.message; }
@@ -23365,7 +23691,7 @@ window.FIRE = {bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQu
 #sectionCar .sw-row .sw-info .sw-t .rate-pill,#sectionCar .sw-t .rate-pill{white-space:normal;line-height:1.35;max-width:100%}
 </style>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v94 · PED buyback plan table shown under the Sampoorna options; service worker revalidates on every open so updates appear immediately · 10-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v95 · Contractor's Plant & Machinery tab: tariff group rates, floater / underground loadings, STFI / EQ / terrorism, escalation, TPL, surrounding property, debris, short period scale, Table 3 excesses, schedule PDF · 10-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
