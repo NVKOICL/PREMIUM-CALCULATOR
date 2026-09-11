@@ -13284,7 +13284,103 @@ function addOneYear(ddmmyyyy){
 }
 
 /* ================ EVENTS ================ */
-$('calcBtn').addEventListener('click', ()=>calculate(false));
+
+/* ── v102: check-before-quoting pop-up for Motor ──
+   Runs only on the Calculate button (auto-calc stays silent). Lists anything that looks
+   like a slip - wrong / missing OD discount, Nil Dep opted without its discount, PCCV
+   passenger / seating mismatch, GCCV GVW missing or left at the default - and asks the
+   user to confirm or go back. */
+function motorQuoteChecks(){
+  try{ autoApplySipDiscount(); applyAutoNilDepDisc(); }catch(e){}   /* same auto-fills calculate() would apply */
+  const vt = state.vehicleType, warns = [], facts = [];
+  const polType = $('polComp').checked ? 'comprehensive' : ($('polOD').checked ? 'odOnly' : 'thirdParty');
+  const hasOD = polType !== 'thirdParty';
+  const slabKey = $('ccSlab').value;
+  const slabObj = ((RATES.slabs[vt] || []).find(x => x.key === slabKey)) || {};
+  const slabLabel = slabObj.label || slabKey || '-';
+  const idv = parseFloat($('idv').value) || 0;
+  const VT = { privateCar:'Private Car', twoWheeler:'Two-Wheeler', twoWheelerHire:'Two-Wheeler (hire)', pccv:'PCCV', commercial:'GCCV', misc:'Misc' }[vt] || vt;
+  facts.push(['Vehicle', VT + ' \u00b7 ' + slabLabel]);
+  facts.push(['Zone / Fuel', 'Zone ' + state.zone + ' \u00b7 ' + state.fuel]);
+  facts.push(['Policy', (polType === 'comprehensive' ? 'Package' : polType === 'odOnly' ? 'Standalone OD' : 'Liability only') + ' \u00b7 ' + (state.policyTerm || '1yr')]);
+  if(hasOD) facts.push(['IDV', '\u20b9' + Math.round(idv).toLocaleString('en-IN')]);
+  facts.push(['NCB', (state.ncbYears || 0) > 0 ? state.ncbYears + ' year' + (state.ncbYears > 1 ? 's' : '') : 'Nil']);
+
+  /* OD discount vs the maximum in the discount circular */
+  if(hasOD){
+    const od = parseFloat(state.odDiscount) || 0;
+    let lk = null; try{ lk = lookupMaxDiscount2026(); }catch(e){}
+    facts.push(['OD discount', od + '%' + (lk && typeof lk.max === 'number' ? ' (maximum ' + lk.max + '%)' : '')]);
+    if(lk && typeof lk.max === 'number'){
+      if(od > lk.max) warns.push({ f:'odDiscChips', t:'OD discount ' + od + '% is ABOVE the maximum ' + lk.max + '% allowed for this vehicle (' + lk.label + ').' });
+      else if(od < lk.max) warns.push({ f:'odDiscChips', t:'OD discount is ' + od + '% but the maximum available for this vehicle is ' + lk.max + '% (' + lk.label + '). Is the lower discount intended?' });
+    } else if(od === 0){
+      warns.push({ f:'odDiscChips', t:'No OD discount has been applied.' });
+    }
+  }
+
+  /* Nil Depreciation and its discount */
+  const ndCard = document.querySelector('#addonsGrid input[data-addon="nilDep"]');
+  if(hasOD && ndCard){
+    const on = ndCard.checked, cap = nilDepDiscCapFor(vt), nd = parseFloat(state.nilDepDiscount) || 0;
+    facts.push(['Nil Depreciation', on ? ('Opted \u00b7 discount ' + nd + '%') : 'Not opted']);
+    if(on && nd === 0) warns.push({ f:'nilDepDiscChips', t:'Nil Depreciation is opted but the Nil Dep discount is 0%. The usual discount for ' + VT + ' is ' + cap + '%.' });
+    else if(on && nd !== cap) warns.push({ f:'nilDepDiscChips', t:'Nil Dep discount is ' + nd + '% - the usual discount for ' + VT + ' is ' + cap + '%.' });
+    else if(!on && !ndCard.disabled){
+      let months = null; try{ months = getAgeMonths(); }catch(e){}
+      if(months !== null && months <= 60) warns.push({ f:'addonsGrid', t:'Nil Depreciation is NOT opted for this ' + Math.floor(months/12) + '-year-old vehicle. Quote without it?' });
+    }
+  }
+
+  /* PCCV: passengers and seating vs the vehicle class */
+  if(vt === 'pccv'){
+    const pax = parseInt($('paxCount').value, 10) || 0;
+    const seat = parseInt(($('seatCap') || {}).value, 10) || 0;
+    facts.push(['Passengers (excl. driver)', String(pax)]);
+    facts.push(['Seating (incl. driver)', String(seat)]);
+    const RANGE = { autoLt6:[1,5], auto7to17:[6,17], paxUpto18:[1,18], pax19to36:[19,36], pax37to60:[37,60], paxOver60:[61,999], threeWheelOver17:[18,999], schoolBus:[6,999], staffBus:[6,999], taxiLt1000:[1,7], taxi1000to1500:[1,7], taxiOver1500:[1,9] };
+    const r = RANGE[slabKey];
+    if(pax <= 0) warns.push({ f:'paxCount', t:'Passenger capacity is not entered.' });
+    else if(r && (pax < r[0] || pax > r[1])) warns.push({ f:'paxCount', t:'Passenger capacity ' + pax + ' does not match the class "' + slabLabel + '" (' + r[0] + (r[1] >= 999 ? '+' : ' to ' + r[1]) + ' passengers).' });
+    else if(pax === 1 && !/taxi|auto/i.test(slabKey)) warns.push({ f:'paxCount', t:'Passenger capacity is still 1 (the default). Enter the actual seating for this ' + slabLabel + '.' });
+    if(seat > 0 && pax > 0 && seat !== pax + 1) warns.push({ f:'seatCap', t:'Seating capacity including driver is ' + seat + ' but passengers excluding driver are ' + pax + ' (expected ' + (pax + 1) + ').' });
+  }
+
+  /* GCCV: GVW */
+  if(vt === 'commercial'){
+    const gvw = parseInt(($('gcvActualGVW') || {}).value, 10) || 0;
+    facts.push(['GVW', gvw > 0 ? gvw.toLocaleString('en-IN') + ' kg' : 'not entered']);
+    const RANGE = { gcv3wPublic:[1,2000], gcv3wPrivate:[1,2000], s1:[1,7500], s2:[7501,12000], s3:[12001,20000], s4:[20001,40000], s5:[40001,999999] };
+    const r = RANGE[slabKey];
+    if(gvw <= 0) warns.push({ f:'gcvActualGVW', t:'GVW (gross vehicle weight) is not entered for this goods vehicle.' });
+    else if(r && (gvw < r[0] || gvw > r[1])) warns.push({ f:'gcvActualGVW', t:'GVW ' + gvw.toLocaleString('en-IN') + ' kg does not fall in the selected slab "' + slabLabel + '".' });
+    else if(typeof GCV_SLAB_GVW === 'object' && GCV_SLAB_GVW[slabKey] === gvw) warns.push({ f:'gcvActualGVW', t:'GVW is the default figure (' + gvw.toLocaleString('en-IN') + ' kg) filled by the calculator. Enter the actual GVW from the RC.' });
+  }
+  return { facts, warns };
+}
+function showQuoteCheck(res, onProceed){
+  let m = $('quoteCheckModal');
+  if(!m){
+    m = document.createElement('div'); m.id = 'quoteCheckModal'; m.className = 'qc-overlay';
+    m.innerHTML = '<div class="qc-box" role="dialog" aria-modal="true"><div class="qc-head"><span class="qc-ico">!</span><div><div class="qc-title">Please check before quoting</div><div class="qc-sub">A few entries look like they may be a slip. Confirm they are right, or go back and correct them.</div></div></div>'
+      + '<div class="qc-warns" id="qcWarns"></div><div class="qc-facts" id="qcFacts"></div>'
+      + '<div class="qc-btns"><button type="button" class="btn btn-secondary" id="qcBack">Go back &amp; correct</button><button type="button" class="btn btn-primary" id="qcOk">Yes, it is right \u2013 calculate</button></div></div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if(e.target === m) m.classList.remove('show'); });
+  }
+  $('qcWarns').innerHTML = res.warns.map(w => '<div class="qc-warn" data-f="' + (w.f || '') + '"><span class="qc-dot"></span><span>' + w.t + '</span></div>').join('');
+  $('qcFacts').innerHTML = res.facts.map(f => '<div class="qc-fact"><span>' + f[0] + '</span><b>' + f[1] + '</b></div>').join('');
+  const first = res.warns[0] && res.warns[0].f;
+  $('qcBack').onclick = () => { m.classList.remove('show'); const el = first && $(first); if(el){ setTimeout(() => { el.scrollIntoView({ behavior:'smooth', block:'center' }); if(el.focus) try{ el.focus({ preventScroll:true }); }catch(e){} el.classList.add('qc-flash'); setTimeout(() => el.classList.remove('qc-flash'), 2400); }, 60); } };
+  $('qcOk').onclick = () => { m.classList.remove('show'); onProceed(); };
+  m.querySelectorAll('.qc-warn').forEach(w => w.addEventListener('click', () => { const el = w.dataset.f && $(w.dataset.f); if(el){ m.classList.remove('show'); el.scrollIntoView({ behavior:'smooth', block:'center' }); el.classList.add('qc-flash'); setTimeout(() => el.classList.remove('qc-flash'), 2400); } }));
+  m.classList.add('show');
+}
+$('calcBtn').addEventListener('click', ()=>{
+  let res = null; try{ res = motorQuoteChecks(); }catch(e){ console.error('quote checks skipped:', e); }
+  if(res && res.warns.length){ showQuoteCheck(res, () => calculate(false)); return; }
+  calculate(false);
+});
 
 // ── Step Progress Bar ─────────────────────────────────────────────
 function updateStepProgress(){
@@ -23488,6 +23584,144 @@ function calculateBGR(){
   const card = g('result-card'); card.classList.add('visible');
   setTimeout(() => card.scrollIntoView({ behavior:'smooth', block:'start' }), 60);
 }
+
+/* ── Bharat Griha Raksha: cover & conditions pages (summarised from the OICL BGR prospectus) ── */
+const BGR_COVER_DATA = {
+  intro: 'Bharat Griha Raksha is the standard home insurance policy for the Home Building and / or Home Contents. This summary is taken from the product prospectus; each cover is subject to the terms and conditions of the policy document, which prevails for any interpretation.',
+  summary: [
+    { label:'Home Building cover', lines:[
+      'Building damaged: we pay the cost of repairs, architect / surveyor / consulting engineer fees, cost of removing debris, loss of rent and rent for alternative accommodation.',
+      'Building completely destroyed (total loss): we pay the cost of construction.',
+      'The building includes fittings and fixtures, garages, domestic outhouses, compound walls, fences, gates, retaining walls, internal roads, parking space and water tanks for residence.' ] },
+    { label:'Home Contents cover', lines:[
+      'General contents damaged: cost of repairs. Article lost or destroyed (total loss): cost of replacing it with a same or similar item.',
+      'Where the Home Building is also covered, general contents are automatically covered for 20% of the building Sum Insured up to a maximum of Rs. 10 lakh. You may opt out or increase this by declaring the details.',
+      'General contents means furniture and fittings, television sets, telephones, electronic items, antennas, water storage equipment, air conditioners, kitchen equipment and other usual household items.' ] },
+    { label:'Personal Accident (optional)', lines:[ 'If an insured peril that damages the Home Building and / or Contents also causes the death of you or your spouse, we pay Rs. 5,00,000 per person.' ] },
+    { label:'Valuable contents on agreed value basis (optional)', lines:[
+      'Jewellery, silverware, paintings, works of art, valuable carpets, antiques and curios can be covered at a value agreed on the basis of a valuation certificate.',
+      'The valuation certificate is waived where the Sum Insured opted is up to Rs. 5 lakh and no single item exceeds Rs. 1 lakh. Physical damage: cost of repair. Total loss: the agreed value.' ] }
+  ],
+  perils: [
+    ['Fire', 'Burning of insured property by order of any public authority.'],
+    ['Explosion or implosion', '-'],
+    ['Lightning', '-'],
+    ['Earthquake, volcanic eruption or other convulsions of nature', '-'],
+    ['Storm, cyclone, typhoon, tempest, hurricane, tornado, tsunami, flood and inundation', '-'],
+    ['Subsidence of the land on which the Home Building stands, landslide, rockslide', 'Normal cracking, settlement or bedding down of new structures; settlement or movement of made-up ground; coastal or river erosion; defective design, workmanship or materials; demolition, construction, structural alteration or repair of any property, ground works or excavation.'],
+    ['Bush fire, forest fire, jungle fire', '-'],
+    ['Impact damage of any kind - impact of or collision by any external physical object (vehicle, falling trees, aircraft, wall etc.)', 'Pressure waves caused by aircraft or other aerial or space devices travelling at sonic or supersonic speeds.'],
+    ['Missile testing operations', '-'],
+    ['Riot, strikes, malicious damage', 'Temporary or permanent dispossession, confiscation, commandeering, requisition or destruction by order of the government or any lawful authority; dispossession of your home by unlawful occupation by any person.'],
+    ['Acts of terrorism (as per the Terrorism Clause attached to the policy)', 'Exclusions and excess as per the Terrorism Clause.'],
+    ['Bursting or overflowing of water tanks, apparatus and pipes', '-'],
+    ['Leakage from automatic sprinkler installations', 'Repairs or alterations in your home or the building; repairs, removal or extension of any sprinkler installation; defects in the construction known to you.'],
+    ['Theft within 7 days of, and proximately caused by, any of the insured events above', 'Any article or thing outside your home, or attached from the outside of the outer walls or roof unless securely mounted.']
+  ],
+  sumInsured: [
+    { label:'Home Building', lines:[
+      'The Sum Insured is the cost of construction of the Home Building at the policy commencement date: carpet area (sq. m.) x the rate of construction declared by you and accepted by us, plus the cost of additional structures.',
+      'Annual policy: the Sum Insured increases automatically every day by 1/365th of 10% of the Sum Insured at commencement.',
+      'Long-term policy: the Sum Insured increases by 10% every year for the Home Building without additional premium, up to 100% of the Sum Insured at commencement.',
+      'If the actual carpet area is less than the declared area, the claim is calculated on the actual carpet area.' ] },
+    { label:'No underinsurance', lines:[ 'Underinsurance does not apply to this policy. If the Sum Insured worked out from the information you gave is less than the actual value at risk, the shortfall does not reduce the amount we pay.' ], tint:'green' },
+    { label:'Home Contents', lines:[
+      'In-built cover for general contents of 20% of the building Sum Insured up to Rs. 10 lakh where both covers are taken; a higher Sum Insured can be declared for additional premium.',
+      'If only Home Contents cover is bought, the Sum Insured for general contents must be declared and must be enough to replace the contents.',
+      'When we pay the full Sum Insured for any cover or item, the policy ends to that extent; otherwise cover is maintained up to the full Sum Insured throughout the policy period on payment of the proportionate additional premium.' ] }
+  ],
+  inbuilt: [
+    'Up to 5% of the claim amount for reasonable fees of architect, surveyor and consulting engineer.',
+    'Up to 2% of the claim amount for reasonable costs of removing debris from the site.',
+    'Loss of rent and rent for alternative accommodation while the Home Building is not fit for living because of physical loss from an insured event.'
+  ],
+  eligibility: [
+    { label:'Who can buy', lines:[
+      'Home Building cover: the owner; a purchaser occupying under an agreement of sale; an authorised occupier; an owner whose structure is occupied by a tenant, licensee or employee; or a tenant under a written agreement who is liable for insurance.',
+      'Home Contents cover: the owner of the articles, a buyer under instalment / hire purchase / lease, or a person responsible for them under a written contract of employment - so a tenant, lessee, licensee or employee can buy this cover.' ] },
+    { label:'Residential use', lines:[ 'The Home Building must be used for residence. Where commercial activity is carried on by employing other persons, a separate policy for commercial premises is required for that part.' ] },
+    { label:'Policy period', lines:[ 'The policy can be bought for one year or for a longer term, but the duration cannot exceed 10 years.' ] }
+  ],
+  exclusions: [
+    'Your deliberate, wilful or intentional act or omission, or that of anyone on your behalf or with your connivance.',
+    'War, invasion, act of foreign enemy, hostilities or war-like operations (whether war is declared or not), civil war, mutiny, civil commotion amounting to a popular rising, military rising, rebellion, revolution, insurrection or military or usurped power.',
+    'Ionising radiation or contamination by radioactivity from any nuclear fuel or nuclear waste, or the radioactive, toxic, explosive or other hazardous properties of any explosive nuclear assembly or component.',
+    'Pollution or contamination, unless it results from an insured event or an insured event results from it.',
+    'Loss or damage to any electrical / electronic machine, apparatus, fixture or fitting by over-running, excessive pressure, short circuiting, arcing, self-heating or leakage of electricity from whatever cause (lightning included) - applies only to the particular machine so damaged.',
+    'Bullion or unset precious stones, manuscripts, plans, drawings, securities, obligations or documents of any kind, coins or paper money, cheques, vehicles and explosive substances, unless expressly stated in the policy.',
+    'Property that is missing or mislaid, or whose disappearance cannot be linked to any single identifiable event.',
+    'Insured property removed from your home to any other place.',
+    'Loss of earnings, loss by delay, loss of market or any other consequential or indirect loss.',
+    'Any reduction in market value of the insured property after its repair or reinstatement.',
+    'Any addition, extension or alteration that increases the carpet area of the Home Building by more than 10% of the carpet area at commencement or later renewal, unless additional premium is paid and it is added by endorsement.',
+    'Costs, fees or expenses for preparing any claim.'
+  ],
+  premiumRules: [
+    'Premium is made up of the basic rate (including STFI, earthquake and terrorism), any addition for kutcha construction, additional premium for in-built / optional / add-on covers, discount or loading based on the risk factors, and taxes as applicable. Cover begins only after the premium is received.',
+    'Changes during the policy period take effect only after we accept your request and any additional premium is paid.'
+  ],
+  cancelAnnual: [
+    ['Up to 15 days', '90% of the annual rate'], ['Up to 1 month', '85%'], ['Up to 2 months', '70%'], ['Up to 3 months', '60%'],
+    ['Up to 4 months', '50%'], ['Up to 5 months', '40%'], ['Up to 6 months', '30%'], ['Up to 7 months', '25%'],
+    ['Up to 8 months', '20%'], ['Up to 9 months', '15%'], ['More than 9 months', 'Nil']
+  ],
+  cancelLongTerm: [
+    'Long-term policy (more than 1 year): refund after charging pro-rata premium for the time the policy has run plus 15% of that amount. No refund where the remaining period is less than 15% of the term opted; years run are rounded up to the next whole year.',
+    'We do not cancel the policy except for misrepresentation, non-disclosure of material facts, fraud or non-cooperation. After a total loss of the Home Building on a long-term policy settled in cash without reinstatement, the remaining years are cancelled and the proportionate premium refunded after grossing up any long-term discount.'
+  ],
+  claim: [
+    'Give notice to us immediately with the policy number, your name, details of the report made to the police and any other authority, details of the insured event, a brief statement of the loss, particulars of any other insurance and details of loss under any optional cover or add-on; submit photographs wherever possible.',
+    'Report to the police, fire authorities and appropriate legal authorities; take all reasonable steps to prevent further damage; preserve and collect evidence.',
+    'Assist us and our representatives in collecting evidence and details; give all information, books of accounts and other documents.',
+    'Submit the claim form at the earliest opportunity but within 30 days from the date you first notice the loss or damage, and prove that the insured event happened and the extent of the loss.'
+  ],
+  obligations: [
+    'Read the proposal form instructions, understand the basis of the Sum Insured, fill the form completely and answer all questions truthfully.',
+    'Take care to prevent theft, loss or damage; inform us of any change in circumstances such as change of address or additions / alterations to the Home Building; do not allow unauthorised persons to occupy the Home Building.'
+  ],
+  rebate: 'Prohibition of rebates (Section 41 of the Insurance Act 1938): no person shall allow or offer, directly or indirectly, any rebate of the whole or part of the commission payable or of the premium shown on the policy as an inducement to take out, renew or continue insurance, and no person taking out or renewing a policy shall accept any rebate except as allowed by the published prospectus or tables of the insurer. Default is punishable with a fine which may extend to ten lakh rupees.'
+};
+function drawBgrCoverPages(doc, q){
+  if(typeof makeCoverPainter !== 'function') return;
+  const D = BGR_COVER_DATA, inp = q.inp || {};
+  const R = function(n){ return 'Rs. ' + Math.round(Number(n)||0).toLocaleString('en-IN'); };
+  const sub = (q.insured || '') + '   |   Sum Insured ' + R(q.si) + '   |   ' + (q.termLabel || '1 Year');
+  const P = makeCoverPainter(doc, 'BHARAT GRIHA RAKSHA - SCOPE OF COVER & CONDITIONS', sub,
+    'The Oriental Insurance Company Limited   \u00b7   Summary from the product prospectus; the policy wording prevails', 'Cover Schedule');
+  doc.addPage(); P.header();
+  P.note(D.intro); P.gap(8);
+  P.section('SUMMARY OF INSURANCE COVERS');
+  D.summary.forEach(function(r){ P.block(r.label, r.lines); }); P.gap(8);
+  P.section('COVERS OPTED IN THIS QUOTATION');
+  const opted = [];
+  opted.push('Home Building and / or Contents - Sum Insured ' + R(q.si) + ' (' + String(q.occLabel || 'Dwelling').replace(/[–—]/g, '-') + ')');
+  if(inp.paPersons > 0) opted.push('Personal Accident - ' + inp.paPersons + ' person' + (inp.paPersons > 1 ? 's' : '') + ' x Rs. 5,00,000');
+  if(inp.lorSI > 0) opted.push('Loss of Rent - Sum Insured ' + R(inp.lorSI));
+  if(inp.aaSI > 0) opted.push('Rent for Alternative Accommodation - Sum Insured ' + R(inp.aaSI));
+  opted.push(inp.terror === false ? 'Terrorism cover not opted' : 'Terrorism cover included');
+  P.block('Opted', opted, { numbered:true }); P.gap(8);
+  P.section('INSURED EVENTS - WHAT IS COVERED AND WHAT IS NOT');
+  P.table2(['We cover physical loss, damage or destruction caused by', 'We do not cover loss caused by'], D.perils, 0.42); P.gap(8);
+  P.section('SUM INSURED');
+  D.sumInsured.forEach(function(r){ P.block(r.label, r.lines, { tint:r.tint }); }); P.gap(8);
+  P.section('IN-BUILT COVERS');
+  P.block('The policy also pays', D.inbuilt, { numbered:true }); P.gap(8);
+  P.section('WHO CAN PURCHASE AND POLICY PERIOD');
+  D.eligibility.forEach(function(r){ P.block(r.label, r.lines); }); P.gap(8);
+  P.section('EXCLUSIONS - WHAT WE DO NOT PAY');
+  P.block('Excluded', D.exclusions, { numbered:true, tint:'red' }); P.gap(8);
+  P.section('PREMIUM, CHANGES AND CANCELLATION');
+  P.block('Premium and changes', D.premiumRules);
+  P.table2(['Annual policy cancelled after', 'Refund of premium'], D.cancelAnnual, 0.5);
+  P.block('Long-term policies and cancellation by us', D.cancelLongTerm); P.gap(8);
+  P.section('MAKING A CLAIM');
+  P.block('You must', D.claim, { numbered:true }); P.gap(8);
+  P.section("YOUR OBLIGATIONS - DO'S AND DON'TS");
+  P.block('Before and during the policy', D.obligations, { numbered:true }); P.gap(8);
+  P.note(D.rebate);
+  P.footer();
+}
+window.BGR_COVER_DATA = BGR_COVER_DATA;
 function buildBgrPDF(returnBlob){
   const q = lastQuote; if(!q || !q.bgr) return;
   const R = OICPDF.money2;
@@ -23566,6 +23800,7 @@ function buildBgrPDF(returnBlob){
     totalValue: R(q.grand),
     filename: 'Oriental_BGR_Quote_' + safeName + '_' + dStr + '.pdf'
   });
+  try{ drawBgrCoverPages(out.doc, q); }catch(e){ console.error('BGR cover pages skipped:', e); }
   if(returnBlob) return new Blob([out.doc.output('arraybuffer')], {type:'application/pdf'});
   out.doc.save(out.filename);
 }
@@ -23798,6 +24033,8 @@ window.FIRE_VERIFIED = [
     check:()=>paUnnamedMaxSIFor('twoWheeler') + '/' + getPaUnnamedPremium('twoWheeler', 1, 200000) },
   { label:'CR-8811 §5 Engineering: CPM annual 21%; project 27.5% (SI < 2,500 Cr) / 21.5% (SI >= 2,500 Cr); +5% for listed occupancies; §3.2 Employer\'s Liability 21.5%', expect:'21/27.5/21.5/32.5/26.5/27.5/21.5',
     check:()=>[CR8811_ENG.annual, engProjectCommPct(1e9,'Factory Sheds'), engProjectCommPct(3e11,'Factory Sheds'), engProjectCommPct(1e9,'Residential/Commercial \u2013 RCC framed'), engProjectCommPct(3e11,'Roads \u2013 In plain areas'), engProjectCommPct(1e9,'Roads \u2013 In hilly / ghat areas'), CR8811_WC].join('/') },
+  { label:'BGR cover pages: 14 insured events, 12 exclusions, 11 cancellation rows in the prospectus summary', expect:'14/12/11',
+    check:()=>[window.BGR_COVER_DATA.perils.length, window.BGR_COVER_DATA.exclusions.length, window.BGR_COVER_DATA.cancelAnnual.length].join('/') },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -23838,6 +24075,24 @@ window.FIRE = {searchLocation: (typeof searchLocation==='function'? searchLocati
 })();
 </script>
 <style id="mobileFixes">
+/* v102: check-before-quoting pop-up (Motor) */
+.qc-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10050;display:none;align-items:flex-end;justify-content:center;padding:12px}
+.qc-overlay.show{display:flex}
+.qc-box{background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:18px 18px 14px}
+@media (min-width:640px){.qc-overlay{align-items:center}}
+.qc-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+.qc-ico{flex:0 0 34px;height:34px;border-radius:50%;background:#fef3c7;color:#b45309;font-weight:900;font-size:20px;display:flex;align-items:center;justify-content:center}
+.qc-title{font-weight:800;font-size:16px;color:#0f172a}
+.qc-sub{font-size:12px;color:#64748b;margin-top:2px;line-height:1.4}
+.qc-warn{display:flex;gap:9px;align-items:flex-start;background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:9px 11px;margin-bottom:7px;font-size:13px;line-height:1.45;color:#7c2d12;cursor:pointer}
+.qc-dot{flex:0 0 8px;height:8px;border-radius:50%;background:#ea580c;margin-top:6px}
+.qc-facts{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin:12px 0 6px;padding:10px 12px;background:#f8fafc;border-radius:10px}
+.qc-fact{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#475569;min-width:0}
+.qc-fact b{color:#0f172a;text-align:right;font-weight:700}
+@media (max-width:480px){.qc-facts{grid-template-columns:1fr}}
+.qc-btns{display:flex;gap:10px;margin-top:12px}
+.qc-btns .btn{flex:1;justify-content:center}
+.qc-flash{outline:3px solid #f59e0b!important;outline-offset:3px;border-radius:8px;transition:outline-color .3s}
 /* v101: installment schedule scrolls inside its own box on narrow screens */
 #ce-install-table{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
 @media (max-width:480px){ #ce-install-table .install-table{font-size:12px} #ce-install-table .install-table th,#ce-install-table .install-table td{padding:7px 6px;white-space:nowrap} #ce-install-table .install-table td:first-child{white-space:normal;min-width:120px} }
@@ -23867,7 +24122,7 @@ window.FIRE = {searchLocation: (typeof searchLocation==='function'? searchLocati
 #sectionFire .company-lookup-card,#sectionFire .company-card{background:var(--card)}
 </style>
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v101 · bug sweep: BGR result card shows its own policy and insured name; CAR / EAR installment table scrolls on phones; self-test restores the vehicle tab; health PDF filename no longer doubles the brand · 10-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v102 · Bharat Griha Raksha cover & conditions pages on the BGR PDF; Motor check-before-quoting pop-up (OD discount vs maximum, Nil Dep without discount, PCCV passengers / seating, GCCV GVW) · 11-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
