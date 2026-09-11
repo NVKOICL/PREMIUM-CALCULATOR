@@ -24211,13 +24211,13 @@ window.FIRE = {searchLocation: (typeof searchLocation==='function'? searchLocati
     t.onclick = () => splash(true);
     host.insertAdjacentElement('afterend', t);
   }
-  function boot(){ tag(); splash(false); }
+  function boot(){ tag(); }   /* v107: no automatic pop-up - the tag under the title opens the banner on tap */
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
   window.OICFD.open = () => splash(true);
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v106 · Foundation Day banner, title tag and PDF badge end at midnight 12-Sep-2026 · 11-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v107 · Foundation Day pop-up removed; the 80th tag under the title (tap to view the banner) and the PDF badge stay until midnight 12-Sep-2026 · 11-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
