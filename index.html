@@ -24078,6 +24078,9 @@ window.FIRE = {searchLocation: (typeof searchLocation==='function'? searchLocati
 </script>
 <style id="mobileFixes">
 /* v103: Foundation Day splash */
+.fd-tag{display:inline-flex;align-items:center;gap:6px;margin:8px auto 0;padding:5px 12px 5px 6px;border-radius:999px;border:1px solid #d4b45a;background:linear-gradient(90deg,#fff8e1,#fffdf5);color:#0c2a5c;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 1px 4px rgba(184,147,47,.25)}
+.fd-tag-80{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:22px;padding:0 6px;border-radius:999px;background:linear-gradient(135deg,#f4d06f,#b8932f);color:#fff;font-size:12px;font-weight:900;letter-spacing:.2px}
+.fd-tag-80 sup{font-size:8px;margin-left:1px}
 .fd-overlay{position:fixed;inset:0;background:rgba(6,20,50,.72);z-index:10060;display:flex;align-items:center;justify-content:center;padding:14px;opacity:0;transition:opacity .35s ease}
 .fd-overlay.show{opacity:1}
 .fd-box{position:relative;background:#fff;border-radius:18px;max-width:760px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.45);overflow:hidden;transform:translateY(12px) scale(.98);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
@@ -24182,26 +24185,39 @@ window.FIRE = {searchLocation: (typeof searchLocation==='function'? searchLocati
   hook();
 
   /* Website: splash once a day per device while the window is open */
-  function splash(){
+  function splash(force){
     if(!active()) return;
+    if(document.getElementById('fdSplash')) return;
     const key = 'fdSplash-' + todayISO();
-    try{ if(localStorage.getItem(key)) return; }catch(e){}
+    if(!force){ try{ if(sessionStorage.getItem(key)) return; }catch(e){} }
     const o = document.createElement('div'); o.id = 'fdSplash'; o.className = 'fd-overlay';
     o.innerHTML = '<div class="fd-box" role="dialog" aria-modal="true"><button type="button" class="fd-close" id="fdClose" aria-label="Close">\u00d7</button>'
       + '<img src="' + FD_IMG + '" alt="Oriental Insurance 80th Foundation Day, 12 September 2026">'
       + '<div class="fd-cap"><b>80<sup>th</sup> Foundation Day \u00b7 12 September 2026</b><span>1947 \u2013 2026 \u00b7 Celebrating 8 decades of trust, service &amp; protection</span></div>'
       + '<button type="button" class="btn btn-primary fd-ok" id="fdOk">Continue to the calculator</button></div>';
     document.body.appendChild(o);
-    const close = () => { o.classList.remove('show'); setTimeout(() => o.remove(), 350); try{ localStorage.setItem(key, '1'); }catch(e){} };
+    const close = () => { o.classList.remove('show'); setTimeout(() => o.remove(), 350); try{ sessionStorage.setItem(key, '1'); }catch(e){} };
     o.querySelector('#fdClose').onclick = close; o.querySelector('#fdOk').onclick = close;
     o.addEventListener('click', e => { if(e.target === o) close(); });
     requestAnimationFrame(() => o.classList.add('show'));
   }
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', splash); else splash();
+  function tag(){
+    if(!active()) return;
+    const host = document.querySelector('header p.subtitle, .app-header .subtitle, header p, .hero p, .tagline') || document.querySelector('h1');
+    if(!host || document.getElementById('fdTag')) return;
+    const t = document.createElement('button'); t.type = 'button'; t.id = 'fdTag'; t.className = 'fd-tag';
+    t.innerHTML = '<span class="fd-tag-80">80<sup>th</sup></span> Foundation Day · 12 Sep 2026';
+    t.title = 'Open the Foundation Day banner';
+    t.onclick = () => splash(true);
+    host.insertAdjacentElement('afterend', t);
+  }
+  function boot(){ tag(); splash(false); }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+  window.OICFD.open = () => splash(true);
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v104 · 80th Foundation Day: small 80th badge at the top-right of page 1 on every quote PDF (replaces the banner page); website splash once a day, 11 to 19 Sep 2026 · 11-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v105 · Foundation Day banner shows on every fresh open of the site (not once a day) and a gold 80th tag under the title reopens it any time; PDF badge unchanged · 11-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
