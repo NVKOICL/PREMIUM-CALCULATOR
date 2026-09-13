@@ -24269,9 +24269,26 @@ window.OICI18N = (function(){
       btn.insertAdjacentElement('beforebegin', makeSel());
     });
   }
+  /* a PDF / share button pressed before the chosen language has finished loading: wait, then continue the same click */
+  function guard(e){
+    if(lang === 'en' || dicts[lang]) return;
+    const btn = e.target && e.target.closest && e.target.closest('button, a');
+    if(!btn) return;
+    const txt = ((btn.textContent || '') + ' ' + (btn.id || '') + ' ' + (btn.className || '')).toLowerCase();
+    const isPdf = /pdf|whatsapp|share/.test(txt) && !/image/.test(txt);
+    if(!isPdf) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    if(typeof toast === 'function') toast('Loading ' + LANGS[lang].name + ' wordings… the PDF will open in a moment');
+    btn.disabled = true;
+    load(lang).then(d => { btn.disabled = false; if(d) btn.click(); else if(typeof toast === 'function') toast(LANGS[lang].name + ' wordings could not be loaded – check the connection and try again'); });
+  }
   function boot(){
     attach();
     try{ new MutationObserver(() => attach()).observe(document.body, { childList:true, subtree:true }); }catch(e){}
+    document.addEventListener('click', guard, true);
+    /* warm both languages in the background so the first download is never delayed (cached by the service worker afterwards) */
+    const warm = () => { load('te'); setTimeout(() => load('hi'), 1500); };
+    if('requestIdleCallback' in window) requestIdleCallback(warm, { timeout: 8000 }); else setTimeout(warm, 4000);
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
   return { LANGS, get lang(){ return lang; }, set, load, tr, pages, isCanvasDoc, dicts, attach };
@@ -24356,7 +24373,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v111 · Telugu / Hindi pages stored as lossless palette PNG (crisp text, smaller files); translated text sized for breathing room · 13-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v112 · PDF waits for the chosen language to finish loading instead of silently falling back to English; Telugu and Hindi wordings pre-loaded in the background · 13-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
