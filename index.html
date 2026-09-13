@@ -1802,15 +1802,6 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
           <input type="tel" id="agentPhoneInput" placeholder="10-digit mobile" inputmode="numeric" autocomplete="tel" maxlength="15" />
         </div>
       </div>
-      <div class="field" style="margin:12px 0 0">
-        <label for="pdfLangSel">PDF wordings language</label>
-        <select id="pdfLangSel" style="width:100%;padding:11px">
-          <option value="en">English only</option>
-          <option value="te">English + Telugu (తెలుగు)</option>
-          <option value="hi">English + Hindi (हिन्दी)</option>
-        </select>
-        <div class="hint" id="pdfLangHint" style="margin-top:6px">The quote page stays in English. The cover &amp; conditions pages are printed in English and then again in the chosen language, with a note that the English wording prevails.</div>
-      </div>
     </div>
   </details>
 
@@ -24049,8 +24040,8 @@ window.FIRE_VERIFIED = [
     check:()=>[window.BGR_COVER_DATA.perils.length, window.BGR_COVER_DATA.exclusions.length, window.BGR_COVER_DATA.cancelAnnual.length].join('/') },
   { label:'Foundation Day banner: window 11-12 Sep 2026, jsPDF save/output hooked, image embedded', expect:'2026-09-11/2026-09-12/true/true',
     check:()=>[OICFD.window.from, OICFD.window.to, !!(window.jspdf.jsPDF.API.__fdHooked), OICFD.img.length > 100000].join('/') },
-  { label:'Local-language wordings: selector present, Telugu and Hindi defined, canvas multi-page mode works', expect:'true/te,hi/3',
-    check:()=>{ const cd = new OICIMG.CanvasDoc({ all:true, scale:0.5 }); cd.addPage(); cd.text('x', 10, 10); cd.addPage(); cd.text('y', 10, 10); return [!!document.getElementById('pdfLangSel'), Object.keys(OICI18N.LANGS).join(','), cd.canvases.length].join('/'); } },
+  { label:'Local-language wordings: a language dropdown beside every Download PDF button, Telugu and Hindi defined, canvas multi-page mode works', expect:'true/te,hi/3',
+    check:()=>{ const cd = new OICIMG.CanvasDoc({ all:true, scale:0.5 }); cd.addPage(); cd.text('x', 10, 10); cd.addPage(); cd.text('y', 10, 10); return [document.querySelectorAll('select.pdf-lang').length >= 5, Object.keys(OICI18N.LANGS).join(','), cd.canvases.length].join('/'); } },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -24091,6 +24082,9 @@ window.FIRE = {searchLocation: (typeof searchLocation==='function'? searchLocati
 })();
 </script>
 <style id="mobileFixes">
+/* v109: PDF language dropdown beside Download PDF */
+select.pdf-lang{appearance:auto;-webkit-appearance:menulist;padding:9px 10px;border-radius:10px;border:1.5px solid #d4b45a;background:linear-gradient(90deg,#fff8e1,#fffdf5);color:#0c2a5c;font-weight:700;font-size:12.5px;max-width:100%;cursor:pointer}
+.quote-actions select.pdf-lang{flex:1 1 100%;width:100%;grid-column:1 / -1}
 /* v103: Foundation Day splash */
 .fd-tag{display:inline-flex;align-items:center;gap:6px;margin:8px auto 0;padding:5px 12px 5px 6px;border-radius:999px;border:1px solid #d4b45a;background:linear-gradient(90deg,#fff8e1,#fffdf5);color:#0c2a5c;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 1px 4px rgba(184,147,47,.25)}
 .fd-tag-80{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:22px;padding:0 6px;border-radius:999px;background:linear-gradient(135deg,#f4d06f,#b8932f);color:#fff;font-size:12px;font-weight:900;letter-spacing:.2px}
@@ -24162,9 +24156,7 @@ window.OICI18N = (function(){
     hi: { name:'Hindi', native:'\u0939\u093f\u0928\u094d\u0926\u0940', font:'"Noto Sans Devanagari", "Nirmala UI", "Mangal", "Kohinoor Devanagari", "Noto Serif Devanagari"',
           note:'\u092f\u0939 \u092a\u0943\u0937\u094d\u0920 \u0915\u0947\u0935\u0932 \u0938\u0939\u093e\u092f\u0924\u093e \u0915\u0947 \u0932\u093f\u090f \u0905\u0928\u0941\u0935\u093e\u0926 \u0939\u0948\u0964 \u0915\u093f\u0938\u0940 \u092d\u0940 \u0905\u0902\u0924\u0930 \u0915\u0940 \u0938\u094d\u0925\u093f\u0924\u093f \u092e\u0947\u0902 \u0905\u0902\u0917\u094d\u0930\u0947\u091c\u093c\u0940 \u0936\u092c\u094d\u0926\u093e\u0935\u0932\u0940 \u0939\u0940 \u092e\u093e\u0928\u094d\u092f \u0939\u094b\u0917\u0940\u0964' }
   };
-  const KEY = 'oicPdfLang';
-  let lang = 'en'; try{ lang = localStorage.getItem(KEY) || 'en'; }catch(e){}
-  if(!LANGS[lang]) lang = 'en';
+  let lang = 'en';   /* English every time the app opens; the dropdown choice lasts for the session */
   const dicts = {}, loading = {};
   function load(code){
     if(!LANGS[code] || dicts[code]) return Promise.resolve(dicts[code]);
@@ -24209,17 +24201,28 @@ window.OICI18N = (function(){
   }
   function set(code, silent){
     lang = LANGS[code] ? code : 'en';
-    try{ localStorage.setItem(KEY, lang); }catch(e){}
-    const sel = document.getElementById('pdfLangSel'); if(sel && sel.value !== lang) sel.value = lang;
+    document.querySelectorAll('select.pdf-lang').forEach(sel => { if(sel.value !== lang) sel.value = lang; });
     if(lang !== 'en') load(lang).then(d => { if(!silent && typeof toast === 'function') toast(d ? (LANGS[lang].name + ' wordings ready') : (LANGS[lang].name + ' wordings could not be loaded')); });
   }
+  function makeSel(){
+    const sel = document.createElement('select'); sel.className = 'pdf-lang'; sel.title = 'Language of the wordings pages in the PDF';
+    sel.innerHTML = '<option value="en">PDF: English</option><option value="te">PDF: English + \u0c24\u0c46\u0c32\u0c41\u0c17\u0c41</option><option value="hi">PDF: English + \u0939\u093f\u0928\u094d\u0926\u0940</option>';
+    sel.value = lang; sel.addEventListener('change', () => set(sel.value));
+    return sel;
+  }
+  /* one dropdown before every Download PDF button (quote bars are re-rendered on some tabs, so watch for new ones) */
+  function attach(){
+    document.querySelectorAll('.btn-pdf').forEach(btn => {
+      if(btn.previousElementSibling && btn.previousElementSibling.classList && btn.previousElementSibling.classList.contains('pdf-lang')) return;
+      btn.insertAdjacentElement('beforebegin', makeSel());
+    });
+  }
   function boot(){
-    const sel = document.getElementById('pdfLangSel');
-    if(sel){ sel.value = lang; sel.addEventListener('change', () => set(sel.value)); }
-    if(lang !== 'en') load(lang);
+    attach();
+    try{ new MutationObserver(() => attach()).observe(document.body, { childList:true, subtree:true }); }catch(e){}
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
-  return { LANGS, get lang(){ return lang; }, set, load, tr, pages, isCanvasDoc, dicts };
+  return { LANGS, get lang(){ return lang; }, set, load, tr, pages, isCanvasDoc, dicts, attach };
 })();
 </script>
 <script>
@@ -24301,7 +24304,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v108 · PDF wordings in Telugu or Hindi alongside English: language selector in Agent/Officer Details, cover & conditions pages of every product repeated in the chosen language · 13-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v109 · PDF language dropdown beside every Download PDF button (English by default on each open; English + Telugu or English + Hindi for the session) · 13-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
