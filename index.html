@@ -926,6 +926,10 @@ var OIC_WORD_AR  = 640/103;
         return out; },
       text: function(str, x, y, o){ if(!on()) return api; o = o || {};
         var lines = (Array.isArray(str) ? str.slice() : [String(str == null ? '' : str)]).map(function(l){ return String(T(l)); });
+        /* translated footer lines can outgrow the English and run into the page label: clip them with an ellipsis */
+        if(tr && y > H - 30 && (!o.align || o.align === 'left') && lines.length === 1){
+          var lim = W * 0.66 - x; if(api.getTextWidth(lines[0]) > lim){ var t0 = lines[0]; while(t0.length > 4 && api.getTextWidth(t0 + '…') > lim) t0 = t0.slice(0, -2); lines[0] = t0 + '…'; }
+        }
         if(o.maxWidth){ var wrapped = []; lines.forEach(function(l){ wrapped = wrapped.concat(api.splitTextToSize(l, o.maxWidth)); }); lines = wrapped; }
         ctx.font = fontStr(); ctx.fillStyle = rgb(st.text); ctx.textBaseline = 'alphabetic';
         ctx.textAlign = o.align === 'center' ? 'center' : (o.align === 'right' ? 'right' : 'left');
@@ -24147,6 +24151,20 @@ select.pdf-lang{appearance:auto;-webkit-appearance:menulist;padding:9px 10px;bor
 <div id="selfTestPanel" style="display:none;position:fixed;left:12px;right:12px;bottom:34px;max-height:62vh;overflow:auto;z-index:9998;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Self-test</b><span><button onclick="runSelfTest()" style="font-size:12px;padding:4px 10px;margin-right:6px">Re-run</button><button onclick="document.getElementById('selfTestPanel').style.display='none'" style="font-size:12px;padding:4px 10px">Close</button></span></div><div id="selfTestOut"></div></div>
 
 
+<style id="notoIndic">
+@font-face{font-family:'Noto Sans Devanagari';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/NotoSansDevanagari-400-1.woff2) format('woff2');unicode-range:U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF, U+11B00-11B09;}
+@font-face{font-family:'Noto Sans Devanagari';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/NotoSansDevanagari-400-2.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;}
+@font-face{font-family:'Noto Sans Devanagari';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/NotoSansDevanagari-400-3.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face{font-family:'Noto Sans Devanagari';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/NotoSansDevanagari-700-4.woff2) format('woff2');unicode-range:U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF, U+11B00-11B09;}
+@font-face{font-family:'Noto Sans Devanagari';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/NotoSansDevanagari-700-5.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;}
+@font-face{font-family:'Noto Sans Devanagari';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/NotoSansDevanagari-700-6.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face{font-family:'Noto Sans Telugu';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/NotoSansTelugu-400-7.woff2) format('woff2');unicode-range:U+0951-0952, U+0964-0965, U+0C00-0C7F, U+1CDA, U+1CF2, U+200C-200D, U+25CC;}
+@font-face{font-family:'Noto Sans Telugu';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/NotoSansTelugu-400-8.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;}
+@font-face{font-family:'Noto Sans Telugu';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/NotoSansTelugu-400-9.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face{font-family:'Noto Sans Telugu';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/NotoSansTelugu-700-10.woff2) format('woff2');unicode-range:U+0951-0952, U+0964-0965, U+0C00-0C7F, U+1CDA, U+1CF2, U+200C-200D, U+25CC;}
+@font-face{font-family:'Noto Sans Telugu';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/NotoSansTelugu-700-11.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;}
+@font-face{font-family:'Noto Sans Telugu';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/NotoSansTelugu-700-12.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+</style>
 <script>
 /* ── v108: PDF wordings in a local language (English pages first, then the same pages in the chosen language) ── */
 window.OICI18N = (function(){
@@ -24161,8 +24179,10 @@ window.OICI18N = (function(){
   function load(code){
     if(!LANGS[code] || dicts[code]) return Promise.resolve(dicts[code]);
     if(loading[code]) return loading[code];
-    loading[code] = fetch('i18n/' + code + '.json', { cache:'no-cache' }).then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-      .then(d => { dicts[code] = d; return d; })
+    const fam = code === 'te' ? 'Noto Sans Telugu' : 'Noto Sans Devanagari';
+    const fonts = (document.fonts && document.fonts.load) ? Promise.all([document.fonts.load('400 14px "' + fam + '"'), document.fonts.load('700 14px "' + fam + '"')]).catch(() => null) : Promise.resolve();
+    loading[code] = Promise.all([fetch('i18n/' + code + '.json', { cache:'no-cache' }).then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }), fonts])
+      .then(([d]) => { dicts[code] = d; return d; })
       .catch(e => { delete loading[code]; console.error('wordings dictionary not available:', code, e); return null; });
     return loading[code];
   }
@@ -24173,8 +24193,18 @@ window.OICI18N = (function(){
     const t = k.trim(); if(t && d[t]) return k.replace(t, d[t]);
     const m = t.match(/^((?:\d+|[a-z]|[ivx]+)[.)]\s+|[\u2022\-]\s+)(.*)$/i);   /* "1.  text" -> translate the text part */
     if(m && d[m[2]]) return k.replace(t, m[1] + d[m[2]]);
+    for(const tp of TEMPLATES){ const mm = t.match(tp.re); if(mm) return k.replace(t, tp[lang] ? tp[lang](mm) : t); }
     return k;
   }
+  /* lines composed at quote time (numbers change per quote) */
+  const TEMPLATES = [
+    { re:/^Vehicle age must not exceed ([\d.]+) years\. This vehicle: ([\d.]+) years - (eligible|not eligible)$/i,
+      te: m => '\u0c35\u0c3e\u0c39\u0c28 \u0c35\u0c2f\u0c38\u0c4d\u0c38\u0c41 ' + m[1] + ' \u0c38\u0c02\u0c35\u0c24\u0c4d\u0c38\u0c30\u0c3e\u0c32\u0c15\u0c41 \u0c2e\u0c3f\u0c02\u0c1a\u0c15\u0c42\u0c21\u0c26\u0c41. \u0c08 \u0c35\u0c3e\u0c39\u0c28\u0c02: ' + m[2] + ' \u0c38\u0c02\u0c35\u0c24\u0c4d\u0c38\u0c30\u0c3e\u0c32\u0c41 - ' + (/not/i.test(m[3]) ? '\u0c05\u0c30\u0c4d\u0c39\u0c24 \u0c32\u0c47\u0c26\u0c41' : '\u0c05\u0c30\u0c4d\u0c39\u0c24 \u0c09\u0c02\u0c26\u0c3f'),
+      hi: m => '\u0935\u093e\u0939\u0928 \u0915\u0940 \u0906\u092f\u0941 ' + m[1] + ' \u0935\u0930\u094d\u0937 \u0938\u0947 \u0905\u0927\u093f\u0915 \u0928\u0939\u0940\u0902 \u0939\u094b\u0928\u0940 \u091a\u093e\u0939\u093f\u090f\u0964 \u092f\u0939 \u0935\u093e\u0939\u0928: ' + m[2] + ' \u0935\u0930\u094d\u0937 - ' + (/not/i.test(m[3]) ? '\u0905\u092a\u093e\u0924\u094d\u0930' : '\u092a\u093e\u0924\u094d\u0930') },
+    { re:/^Premium Rs\. ([\d,]+)$/, te: m => '\u0c2a\u0c4d\u0c30\u0c40\u0c2e\u0c3f\u0c2f\u0c02 Rs. ' + m[1], hi: m => '\u092a\u094d\u0930\u0940\u092e\u093f\u092f\u092e Rs. ' + m[1] },
+    { re:/^Sum Insured Rs\. ([\d,]+)$/, te: m => '\u0c2c\u0c40\u0c2e\u0c3e \u0c2e\u0c4a\u0c24\u0c4d\u0c24\u0c02 Rs. ' + m[1], hi: m => '\u092c\u0940\u092e\u093f\u0924 \u0930\u093e\u0936\u093f Rs. ' + m[1] },
+    { re:/^Vehicle age ([\d.]+) years$/, te: m => '\u0c35\u0c3e\u0c39\u0c28 \u0c35\u0c2f\u0c38\u0c4d\u0c38\u0c41 ' + m[1] + ' \u0c38\u0c02\u0c35\u0c24\u0c4d\u0c38\u0c30\u0c3e\u0c32\u0c41', hi: m => '\u0935\u093e\u0939\u0928 \u0915\u0940 \u0906\u092f\u0941 ' + m[1] + ' \u0935\u0930\u094d\u0937' }
+  ];
   function isCanvasDoc(doc){ return !!(doc && doc.canvas && typeof HTMLCanvasElement !== 'undefined' && doc.canvas instanceof HTMLCanvasElement); }
   /* draw the English pages with `paint(doc)`, then the same pages in the selected language */
   function pages(doc, paint){
@@ -24182,20 +24212,20 @@ window.OICI18N = (function(){
     try{
       if(lang === 'en' || !dicts[lang] || !doc || isCanvasDoc(doc) || !doc.addImage) return;
       const L = LANGS[lang];
-      const cd = new OICIMG.CanvasDoc({ all:true, scale:1.8, fontFamily:L.font, tr:tr });
+      const cd = new OICIMG.CanvasDoc({ all:true, scale:2.5, fontFamily:L.font, tr:tr });
       paint(cd);
       const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
       cd.canvases.forEach((c, i) => {
         if(!cd.dirtyPages[i]) return;
         const x = c.getContext('2d'), S = c.width / W;
-        x.fillStyle = '#ffffff'; x.fillRect(0, c.height - 13*S, c.width, 13*S);
-        x.fillStyle = '#6e7d96'; x.textAlign = 'center'; x.textBaseline = 'alphabetic';
-        x.font = (6.6*S) + 'px ' + L.font + ', Helvetica, Arial, sans-serif';
-        x.fillText(L.note, c.width/2, c.height - 6.5*S);
-        x.font = 'bold ' + (5.6*S) + 'px Helvetica, Arial, sans-serif';
-        x.fillText(L.name + ' translation for guidance only. In case of any difference, the English wording prevails.', c.width/2, c.height - 1.2*S);
+        /* translation note in the top margin (above the banner, clear of the page footer) */
+        x.fillStyle = '#5a6a86'; x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+        x.font = (6.4*S) + 'px ' + L.font + ', Helvetica, Arial, sans-serif';
+        x.fillText(L.note, c.width/2, 11*S);
+        x.font = 'bold ' + (5.4*S) + 'px Helvetica, Arial, sans-serif';
+        x.fillText(L.name + ' translation for guidance only. In case of any difference, the English wording prevails.', c.width/2, 19.5*S);
         doc.addPage();
-        doc.addImage(c.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, W, H);
+        doc.addImage(c.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, W, H);
       });
     }catch(e){ console.error('local-language pages skipped:', e); }
   }
@@ -24304,7 +24334,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v109 · PDF language dropdown beside every Download PDF button (English by default on each open; English + Telugu or English + Hindi for the session) · 13-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v110 · Telugu / Hindi pages: bundled Noto Sans fonts, sharper rendering, translation note moved to the top margin, eligibility lines translated · 13-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
