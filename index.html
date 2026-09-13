@@ -24189,7 +24189,8 @@ window.OICI18N = (function(){
     if(!LANGS[code] || dicts[code]) return Promise.resolve(dicts[code]);
     if(loading[code]) return loading[code];
     const fam = code === 'te' ? 'Noto Sans Telugu' : 'Noto Sans Devanagari';
-    const fonts = (document.fonts && document.fonts.load) ? Promise.all([document.fonts.load('400 14px "' + fam + '"'), document.fonts.load('700 14px "' + fam + '"')]).catch(() => null) : Promise.resolve();
+    const fontLoad = (document.fonts && document.fonts.load) ? Promise.all([document.fonts.load('400 14px "' + fam + '"'), document.fonts.load('700 14px "' + fam + '"')]).catch(() => null) : Promise.resolve();
+    const fonts = Promise.race([fontLoad, new Promise(res => setTimeout(res, 4000))]);   /* a stuck font never blocks the PDF */
     loading[code] = Promise.all([fetch('i18n/' + code + '.json', { cache:'no-cache' }).then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }), fonts])
       .then(([d]) => { dicts[code] = d; return d; })
       .catch(e => { delete loading[code]; console.error('wordings dictionary not available:', code, e); return null; });
@@ -24280,7 +24281,7 @@ window.OICI18N = (function(){
     e.preventDefault(); e.stopImmediatePropagation();
     if(typeof toast === 'function') toast('Loading ' + LANGS[lang].name + ' wordings… the PDF will open in a moment');
     btn.disabled = true;
-    load(lang).then(d => { btn.disabled = false; if(d) btn.click(); else if(typeof toast === 'function') toast(LANGS[lang].name + ' wordings could not be loaded – check the connection and try again'); });
+    load(lang).then(d => { btn.disabled = false; const live = (btn.id && document.getElementById(btn.id)) || btn; if(d) live.click(); else if(typeof toast === 'function') toast(LANGS[lang].name + ' wordings could not be loaded – check the connection and try again'); });
   }
   function boot(){
     attach();
@@ -24367,13 +24368,21 @@ window.OICI18N = (function(){
     t.onclick = () => splash(true);
     host.insertAdjacentElement('afterend', t);
   }
-  function boot(){ tag(); }   /* v107: no automatic pop-up - the tag under the title opens the banner on tap */
+  function buildTag(){
+    const host = document.querySelector('header p.subtitle'); const st = document.getElementById('buildStamp'); if(!host || !st) return;
+    const m = (st.textContent || '').match(/build (v\d+)/); if(!m) return;
+    const b = document.createElement('div'); b.id = 'buildTag'; b.textContent = m[1]; b.title = 'Installed version';
+    b.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:4px;letter-spacing:.06em';
+    (document.getElementById('fdTag') || host).insertAdjacentElement('afterend', b);
+  }
+
+  function boot(){ tag(); try{ buildTag(); }catch(e){} }   /* v107: no automatic pop-up - the tag under the title opens the banner on tap */
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
   window.OICFD.open = () => splash(true);
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v112 · PDF waits for the chosen language to finish loading instead of silently falling back to English; Telugu and Hindi wordings pre-loaded in the background · 13-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v113 · language load hardened (font wait capped at 4 s, re-rendered buttons handled); version number shown under the title · 13-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
