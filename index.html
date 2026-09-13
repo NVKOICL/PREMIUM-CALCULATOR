@@ -6741,6 +6741,86 @@ const CPM_EQUIPMENT = [
   ['401','IV','Drilling machine for water supply'],['402','IV','Tunnel boring machines'],
   ['501','V','Other miscellaneous items with individual value up to Rs. 10,000']
 ];
+
+/* ── v114: plain-language / brand / model lookup for the tariff category ──
+   kw: words as they appear on invoices (brands, model prefixes, trade names); code: CPM_EQUIPMENT code;
+   name: what the agent sees; hint: shown under the suggestion. Order within a match = priority. */
+const CPM_ALIASES = [
+  { code:'304', name:'Excavator', hint:'Hydraulic / crawler / mini excavator, digger, dredger', kw:['excavator','excavators','digger','dredger','mini excavator','hydraulic excavator','crawler excavator','poclain','hitachi','tata hitachi','zaxis','zx','ex 70','ex 110','ex 200','ex 210','ex200','ex210','komatsu pc','pc 200','pc 210','pc 300','pc200','pc210','pc300','pc 71','kobelco','sk 140','sk 210','sk140','sk210','sany sy','sy 215','sy215','sy 140','doosan','dx 225','dx225','hyundai r','r 215','r215','r 220','r220','volvo ec','ec 210','ec210','ec 140','cat 320','cat 323','cat 336','320d','320 d','307','liugong 9','xcmg xe','jcb js','js 205','js205','js 140','js140','kubota u','trencher','drag shovel','shovel','backhoe excavator'] },
+  { code:'305', name:'Loader / backhoe loader', hint:'JCB 3DX type backhoe loader, wheel loader, skid steer, telehandler', kw:['loader','loaders','backhoe','backhoe loader','jcb','3dx','3 dx','3cx','jcb 3dx','4dx','wheel loader','front end loader','skid steer','bobcat','sdlg','l933','l955','l&t 9020','9020','komatsu wa','wa 200','wa200','wa 380','cat 950','cat 966','cat 424','424','liugong 856','856','hyundai hl','earthmaster','mahindra earthmaster','case 770','case 851','terex tlb','escorts digmax','digmax','telehandler','manitou','jcb 530','jcb 432','432','loadall','tlb','mini loader'] },
+  { code:'301', name:'Bulldozer', hint:'Crawler dozer', kw:['bulldozer','dozer','beml d','d 155','d155','d 65','d65','cat d6','cat d8','d6','d8','komatsu d','crawler dozer','angle dozer'] },
+  { code:'302', name:'Crane above 10 tonnes', hint:'Hydra, pick-and-carry, telescopic, crawler, tower crane - capacity over 10 t (check the invoice)', kw:['crane','cranes','hydra','hydra crane','pick and carry','pick & carry','ace','ace hydra','escorts','escorts crane','f 15','f15','ace 14','ace 12','ace 15','tadano','kato','crawler crane','tower crane','potain','telescopic crane','mobile crane','sany crane','xcmg crane','zoomlion','liebherr','manitowoc','kobelco crane','truck crane','rough terrain crane','derrick','turner crane','goliath crane','ntc 55','stc 250','hydraulic crane'] },
+  { code:'104', name:'Crane up to 10 tonnes', hint:'Small hydra / pick-and-carry / mini crane - capacity 10 t or less', kw:['crane','cranes','hydra','hydra crane','pick and carry','pick & carry','ace','ace hydra','escorts','escorts crane','mini crane','small crane','ace 8','ace 10','ace 9','f 10','f10','jib crane','mobile crane','hydraulic crane','tower crane','crawler crane'] },
+  { code:'108', name:'Forklift (up to 10 t)', hint:'Fork lift truck', kw:['forklift','fork lift','fork-lift','godrej forklift','toyota forklift','voltas forklift','kion','linde','jungheinrich','hyster','electric forklift','diesel forklift','stacker','pallet truck'] },
+  { code:'205', name:'Dumper / tipper / dump truck', hint:'Hauling equipment', kw:['dumper','dumpers','tipper','tippers','dump truck','dump car','hauler','articulated hauler','articulated dump truck','adt','beml bh','bh 35','cat 740','volvo a30','volvo a40','tata prima tipper','bharat benz tipper','ashok leyland tipper','eicher tipper','mini dumper','site dumper','haulage','hauling'] },
+  { code:'204', name:'Motor grader / ripper / pan scraper', hint:'Graders, pan scrapers, rippers', kw:['grader','graders','motor grader','cat 120','cat 140','120k','140k','komatsu gd','gd 511','gd511','l&t grader','beml grader','ripper','pan scraper','sany grader','xcmg grader'] },
+  { code:'109', name:'Concrete mixer / batching plant / transit mixer', hint:'Mixing machines and mixing plants', kw:['mixer','mixers','concrete mixer','transit mixer','tm','batching plant','rmc plant','rmc','ready mix','schwing stetter','stetter','schwing','ajax fiori','ajax','fiori','self loading mixer','argo','apollo batching','batching','mixing plant','mixing machine','cement mixer','drum mixer','reversible drum mixer','concrete batching'] },
+  { code:'207', name:'Mobile mixing plant', hint:'Mobile / trailer-mounted mixing plant, transformer oil filtration unit', kw:['mobile mixing plant','mobile batching plant','mobile plant','oil filtration','transformer oil filtration','filtration unit'] },
+  { code:'105', name:'Concrete pump', hint:'Boom pump, line pump, concrete pumping plant', kw:['concrete pump','boom pump','line pump','stationary pump','putzmeister','schwing pump','concrete pumping','pumping plant','boom placer','placing boom','sany pump','zoomlion pump','truck mounted concrete pump'] },
+  { code:'110', name:'Paver', hint:'Asphalt / concrete paver, sensor paver, slipform paver', kw:['paver','pavers','asphalt paver','sensor paver','wirtgen','vogele','vögele','apollo paver','concrete paver','slipform','slip form','paver finisher','finisher','bitumen paver','gomaco','wet mix paver','wmm paver','sp 15','sp15'] },
+  { code:'114', name:'Road roller', hint:'Vibratory / tandem / soil compactor / pneumatic roller', kw:['roller','rollers','road roller','vibratory roller','tandem roller','soil compactor','compactor','ptr','pneumatic tyre roller','hamm','dynapac','ammann','bomag','cat cs','cs 533','cs533','escorts roller','jcb 116','jcb vm','volvo sd','sd 110','sd110','single drum','double drum','mini roller','baby roller','plate compactor','rammer','tamping rammer'] },
+  { code:'118', name:'Vibrator / vibrating equipment', hint:'Vibrating compacting rollers, needle vibrators, tampers', kw:['vibrator','vibrators','needle vibrator','concrete vibrator','vibrating','tamper','tamping','compacting roller','earth rammer','vibrating plate','vibratory plate'] },
+  { code:'210', name:'Stone crusher / screening plant', hint:'Jaw / cone / VSI crusher, screens, separating plant, sand plant', kw:['crusher','crushers','stone crusher','jaw crusher','cone crusher','vsi','impact crusher','crushing plant','screen','screening','vibrating screen','sand plant','m sand','msand','puzzolana','metso','kleemann','sandvik crusher','terex crusher','separating plant','washing plant','sand washing','trommel'] },
+  { code:'209', name:'Generator / DG set', hint:'Site power-generating plant (diesel / petrol)', kw:['generator','generators','dg set','dg','genset','gen set','diesel generator','kirloskar','koel','cummins','mahindra powerol','powerol','ashok leyland genset','greaves','sudhir','jakson','silent genset','power generating','generating set','kva','kva dg'] },
+  { code:'203', name:'Gas power-generating plant', hint:'Gas generator', kw:['gas generator','gas genset','gas engine','biogas generator','gas power'] },
+  { code:'102', name:'Air compressor / air tools', hint:'Compressor, jack hammer, breaker, pneumatic tools', kw:['compressor','compressors','air compressor','elgi','atlas copco','ingersoll rand','ingersoll','chicago pneumatic','kirloskar compressor','jack hammer','jackhammer','breaker','rock breaker','pneumatic','air tools','screw compressor','portable compressor','tractor compressor','cpm compressor'] },
+  { code:'113', name:'Pump / transformer / electric motor', hint:'Dewatering pumps, transformers, motors', kw:['pump','pumps','dewatering pump','water pump','submersible pump','transformer','transformers','electric motor','motor pump','monoblock','kirloskar pump','crompton pump','cri pump','mud pump','sludge pump','trash pump','diesel pump'] },
+  { code:'120', name:'Welding set', hint:'Welding machine / generator', kw:['welding','welding set','welding machine','welder','ador','esab','arc welding','mig','tig','diesel welding','welding generator'] },
+  { code:'401', name:'Drilling machine for water supply', hint:'Borewell / water-well rig', kw:['borewell','bore well','water well','water well rig','borewell rig','water supply drilling','well drilling','tube well','tubewell','dth rig for water','pvr rig','prd rig'] },
+  { code:'308', name:'Mobile drilling rig (onshore)', hint:'Rock drill, crawler drill, DTH drill, blast-hole rig, core drilling', kw:['drilling rig','drill rig','crawler drill','rock drill','dth','dth rig','blast hole','blasthole','core drilling','drilling machine','drill','boomer','sandvik','epiroc','atlas copco drill','wagon drill','jumbo drill','onshore rig','mining drill','rig'] },
+  { code:'306', name:'Piling rig / pile driving equipment', hint:'Hydraulic rotary piling rig, vibro hammer, pile extractor', kw:['piling','pile','piling rig','pile driving','pile driver','rotary rig','hydraulic rotary','bauer','soilmec','mait','casagrande','imt','vibro hammer','vibrohammer','pile extractor','pile hammer','sheet pile','bore pile','kelly bar','rotary drilling rig'] },
+  { code:'402', name:'Tunnel boring machine', hint:'TBM', kw:['tunnel boring','tbm','tunnel machine','herrenknecht','robbins','road header','roadheader'] },
+  { code:'211', name:'Tractor / trailer', hint:'Agricultural / construction tractor, trolley, trailer', kw:['tractor','tractors','trailer','trailers','trolley','mahindra tractor','swaraj','sonalika','john deere','new holland','massey','eicher tractor','escorts tractor','farmtrac','powertrac','tractor trolley','tractor trailer','low bed trailer','lowbed','flatbed trailer','water tanker trailer','tanker'] },
+  { code:'122', name:'Tractor 144D', hint:'Tariff item 122', kw:['144d','tractor 144d'] },
+  { code:'103', name:'Hoist / conveyor / jacks / lifts', hint:'Builder hoist, passenger hoist, conveyor belt, jacks, scissor / boom lift', kw:['hoist','hoists','builder hoist','material hoist','passenger hoist','conveyor','conveyor belt','belt conveyor','jack','jacks','hydraulic jack','screw jack','winch','scissor lift','boom lift','aerial work platform','awp','jlg','genie','man lift','manlift','cherry picker','lift','elevator','mast climber','monkey hoist','mini hoist','rope hoist','wire rope hoist'] },
+  { code:'101', name:'Chain block / pulley block', hint:'Chain pulley block', kw:['chain block','chain pulley','pulley','pulley block','chain hoist','lever hoist','chain pulley block'] },
+  { code:'106', name:'Cement silo / water container / surveying equipment', hint:'Silos, tanks, survey instruments', kw:['silo','silos','cement silo','water tank','water container','storage tank','fly ash silo','bulker'] },
+  { code:'121', name:'Surveying equipment', hint:'Total station, theodolite, auto level, GPS survey', kw:['survey','surveying','total station','theodolite','auto level','dumpy level','gps survey','dgps','leica','trimble','sokkia','topcon','laser level','survey instrument'] },
+  { code:'107', name:'Testing equipment (NDT)', hint:'Electrical / electronic non-destructive testing equipment', kw:['ndt','non destructive','testing equipment','ultrasonic','rebound hammer','testing machine','lab equipment','laboratory equipment','soil testing','concrete testing','ctm','compression testing'] },
+  { code:'119', name:'Workshop / bar bending / woodworking machines', hint:'Bar bender, bar cutter, lathe, drying plant', kw:['bar bending','bar bender','bar cutting','bar cutter','rebar','rod bending','rod cutting','lathe','workshop','woodworking','wood working','drying plant','grinder','cutting machine','planer','saw','band saw','circular saw','shearing','press','drill press','milling'] },
+  { code:'123', name:'Mosaic / floor polishing machine', hint:'Polishing machines', kw:['polishing','polisher','mosaic','floor polishing','marble polishing','grinding machine','floor grinder'] },
+  { code:'117', name:'Scrapers / scales', hint:'Scrapers, weighing scales', kw:['scraper','scrapers','scale','scales','weighbridge','weigh bridge','weighing'] },
+  { code:'116', name:'Rendering plant', hint:'Plastering / rendering machine', kw:['rendering','plaster','plastering','plastering machine','rendering machine','putty machine','spray plaster'] },
+  { code:'112', name:'Portable protection tents', hint:'Site tents', kw:['tent','tents','protection tent','shelter'] },
+  { code:'111', name:'Permanent way plant (track machinery)', hint:'Track laying machinery, track shifters, tampers', kw:['track laying','track machine','track shifter','track tamper','permanent way','railway machine','rail machine','tamping machine','ballast regulator','track relaying'] },
+  { code:'115', name:'Railway trackage', hint:'Rail track', kw:['trackage','rail track','railway track','rails'] },
+  { code:'206', name:'Locomotive / steam engine', hint:'Locomotives, field engines, track-shifting machines', kw:['locomotive','loco','steam engine','field engine','track shifting'] },
+  { code:'201', name:'Aggregate plant', hint:'Aggregate processing plant', kw:['aggregate plant','aggregate','wmm plant','wet mix plant','wet mix macadam','hot mix plant','hmp','asphalt plant','drum mix plant','bitumen plant','batch mix plant'] },
+  { code:'202', name:'Air locks', hint:'Air lock equipment', kw:['air lock','airlock','air locks'] },
+  { code:'208', name:'Mechanical sweeper', hint:'Road sweeper', kw:['sweeper','sweepers','road sweeper','mechanical sweeper','broomer','broom'] },
+  { code:'212', name:'Seismic data collection equipment', hint:'Seismic survey equipment', kw:['seismic','geophone','seismograph'] },
+  { code:'303', name:'Diving equipment', hint:'Diving gear', kw:['diving','diver','dive equipment','underwater'] },
+  { code:'307', name:'Bridge inspection machine', hint:'Bridge inspection unit / snooper', kw:['bridge inspection','snooper','under bridge','bridge inspection unit'] },
+  { code:'309', name:'Pipe jacking machine', hint:'Microtunnelling / pipe jacking', kw:['pipe jacking','microtunnel','micro tunnel','microtunnelling','pipe jack'] },
+  { code:'310', name:'Rail mounted gantry crane (RMG)', hint:'Gantry crane on rails, RTG, goliath', kw:['gantry','gantry crane','rmg','rtg','rail mounted','goliath','portal crane','eot crane','overhead crane'] },
+  { code:'311', name:'Ballotis', hint:'Tariff item 311', kw:['ballotis','balloti'] },
+  { code:'312', name:'Top lift truck / reach stacker', hint:'Container handler, reach stacker', kw:['top lift','top lift truck','tlt','reach stacker','reachstacker','container handler','kalmar','empty container handler','container lifter'] },
+  { code:'313', name:'Breakdown / recovery vehicle', hint:'Recovery van, tow truck', kw:['breakdown','breakdown vehicle','recovery','recovery vehicle','recovery van','tow truck','towing vehicle','wrecker'] },
+  { code:'314', name:'Jumbo drilling / shotcrete machine', hint:'Hydraulic twin boom jumbo, shotcrete / guniting machine', kw:['jumbo','twin boom','shotcrete','gunite','guniting','shotcrete machine','sprayer','concrete sprayer','tunnel jumbo'] },
+  { code:'315', name:'Electro-hydraulic digging arm loader', hint:'Tariff item 315', kw:['digging arm','digging arm loader','electro hydraulic loader','electro-hydraulic'] },
+  { code:'501', name:'Miscellaneous small items (each up to Rs. 10,000)', hint:'Hand tools, small equipment', kw:['misc','miscellaneous','small tools','hand tools','tools','minor equipment','small items','sundry'] }
+];
+function cpmFindEquipment(q){
+  q = String(q || '').toLowerCase().replace(/[^a-z0-9&+ ]/g, ' ').replace(/\s+/g, ' ').trim();
+  if(q.length < 2) return [];
+  const toks = q.split(' ').filter(t => t.length >= 2);
+  const hits = [];
+  CPM_ALIASES.forEach((a, order) => {
+    let score = 0, why = '';
+    a.kw.forEach(k => {
+      if(q === k) { if(score < 100){ score = 100; why = k; } }
+      else if(q.indexOf(k) >= 0 && k.length >= 3) { const sc = 60 + Math.min(30, k.length * 2); if(sc > score){ score = sc; why = k; } }
+      else if(k.indexOf(q) === 0) { const sc = 40 + Math.min(20, q.length * 2); if(sc > score){ score = sc; why = k; } }
+      else { const kt = k.split(' '); const m = toks.filter(t => kt.some(x => x === t || (t.length >= 4 && x.indexOf(t) === 0))).length; if(m){ const sc = 20 + m * 12; if(sc > score){ score = sc; why = k; } } }
+    });
+    if(score) hits.push({ code:a.code, group:(CPM_EQUIPMENT.find(e => e[0] === a.code) || [,'III'])[1], name:a.name, hint:a.hint, tariff:(CPM_EQUIPMENT.find(e => e[0] === a.code) || [,,''])[2], score, order, why });
+  });
+  /* also the tariff list itself */
+  CPM_EQUIPMENT.forEach(e => { const n = e[2].toLowerCase(); const m = toks.filter(t => n.indexOf(t) >= 0).length; if(m && !hits.some(h => h.code === e[0])) hits.push({ code:e[0], group:e[1], name:e[2], hint:'Tariff list', tariff:e[2], score:10 + m * 8, order:999, why:'' }); });
+  hits.sort((a, b) => b.score - a.score || a.order - b.order);
+  return hits.slice(0, 6);
+}
+window.cpmFindEquipment = cpmFindEquipment;
 const items = [];   /* { id, code, group, desc, si, year, model, serial } */
 let seq = 0, lastQuote = null;
 function fmt(n){ return Math.round(n).toLocaleString('en-IN'); }
@@ -6812,11 +6892,14 @@ function renderItems(){
   const host = $('cpmItems');
   host.innerHTML = items.map((it, i) => `<div class="member-item" data-id="${it.id}" style="display:block;padding:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span class="member-badge">Item ${i+1}</span><span style="font-size:11px;color:var(--mute)">Group ${it.group} &middot; ${CPM_GROUP_RATE[it.group].toFixed(2)}% p.a.</span></div>
-    <div class="field"><label class="lbl">Equipment (tariff group)</label>
+    <div class="field" style="position:relative"><label class="lbl">Machine as on the invoice <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; type the make / model / name, the category is picked for you</span></label>
+      <input type="text" class="cpm-desc" data-id="${it.id}" value="${(it.desc||'').replace(/"/g,'&quot;')}" placeholder="e.g. JCB 3DX, Tata Hitachi EX 210, ACE hydra 14T, Kirloskar 62.5 kVA DG" autocomplete="off" />
+      <div class="cpm-sugg" data-id="${it.id}" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:30;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.14);overflow:hidden;max-height:280px;overflow-y:auto"></div>
+      <div class="hint cpm-pick-hint" data-id="${it.id}" style="margin-top:6px">${it.picked ? '&#10003; Category: <b>' + ((CPM_ALIASES.find(a => a.code === it.code) || {}).name || (CPM_EQUIPMENT.find(e => e[0] === it.code) || [,,''])[2]) + '</b> &middot; Group ' + it.group + ' &middot; ' + CPM_GROUP_RATE[it.group].toFixed(2) + '% p.a.' : 'Start typing and pick the matching machine from the list. If nothing matches, choose the tariff category below.'}</div></div>
+    <div class="field"><label class="lbl">Tariff category <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; auto-picked from the name above; change only if you know better</span></label>
       <select class="cpm-code" data-id="${it.id}">${CPM_EQUIPMENT.map(e => `<option value="${e[0]}" ${e[0]===it.code?'selected':''}>Group ${e[1]} &middot; ${e[2]}</option>`).join('')}</select></div>
     <div class="field-row">
-      <div class="field"><label class="lbl">Description / make &amp; model</label><input type="text" class="cpm-desc" data-id="${it.id}" value="${(it.desc||'').replace(/"/g,'&quot;')}" placeholder="e.g. SDLG L933H wheel loader" /></div>
-      <div class="field"><label class="lbl">Sum Insured (new replacement value)</label><div class="input-prefix" data-prefix="&#8377;"><input type="number" class="cpm-si" data-id="${it.id}" value="${it.si}" placeholder="0" min="0" inputmode="numeric" /></div></div>
+      <div class="field"><label class="lbl">Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; invoice value of a new machine incl. GST (new replacement value)</span></label><div class="input-prefix" data-prefix="&#8377;"><input type="number" class="cpm-si" data-id="${it.id}" value="${it.si}" placeholder="0" min="0" inputmode="numeric" /></div></div>
     </div>
     <div class="field-row">
       <div class="field"><label class="lbl">Year of make</label><input type="text" class="cpm-year" data-id="${it.id}" value="${it.year||''}" placeholder="e.g. 2024 / New" /></div>
@@ -6825,8 +6908,22 @@ function renderItems(){
     <button class="member-remove" data-id="${it.id}" title="Remove" type="button" ${items.length===1?'disabled style="opacity:.3"':''}>&times;</button>
   </div>`).join('');
   const byId = id => items.find(x => x.id === parseInt(id, 10));
-  host.querySelectorAll('.cpm-code').forEach(el => el.addEventListener('change', () => { const it = byId(el.dataset.id); it.code = el.value; it.group = (CPM_EQUIPMENT.find(e => e[0] === el.value) || [,'III'])[1]; renderItems(); }));
-  host.querySelectorAll('.cpm-desc').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).desc = el.value; }));
+  host.querySelectorAll('.cpm-code').forEach(el => el.addEventListener('change', () => { const it = byId(el.dataset.id); it.code = el.value; it.group = (CPM_EQUIPMENT.find(e => e[0] === el.value) || [,'III'])[1]; it.picked = true; renderItems(); }));
+  host.querySelectorAll('.cpm-desc').forEach(el => {
+    const box = host.querySelector('.cpm-sugg[data-id="' + el.dataset.id + '"]');
+    const show = () => {
+      const it = byId(el.dataset.id); it.desc = el.value;
+      const hits = cpmFindEquipment(el.value);
+      if(!hits.length){ box.style.display = 'none'; return; }
+      box.innerHTML = hits.map(h => `<div class="cpm-sugg-item" data-code="${h.code}" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border-soft);display:flex;justify-content:space-between;gap:10px;align-items:center">
+        <div><div style="font-size:13px;font-weight:600;color:var(--ink)">${h.name}</div><div style="font-size:11px;color:var(--mute)">${h.hint}${h.why ? ' &middot; matched &ldquo;' + h.why + '&rdquo;' : ''}</div></div>
+        <div style="font-size:11px;font-weight:700;color:var(--accent);white-space:nowrap">Group ${h.group} &middot; ${CPM_GROUP_RATE[h.group].toFixed(2)}%</div></div>`).join('');
+      box.style.display = '';
+      box.querySelectorAll('.cpm-sugg-item').forEach(d => d.addEventListener('mousedown', ev => { ev.preventDefault(); const it2 = byId(el.dataset.id); it2.code = d.dataset.code; it2.group = (CPM_EQUIPMENT.find(e => e[0] === d.dataset.code) || [,'III'])[1]; it2.picked = true; it2.desc = el.value; renderItems(); }));
+    };
+    el.addEventListener('input', show); el.addEventListener('focus', () => { if(el.value.trim().length >= 2) show(); });
+    el.addEventListener('blur', () => setTimeout(() => { box.style.display = 'none'; }, 150));
+  });
   host.querySelectorAll('.cpm-si').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).si = el.value; }));
   host.querySelectorAll('.cpm-year').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).year = el.value; }));
   host.querySelectorAll('.cpm-serial').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).serial = el.value; }));
@@ -24044,6 +24141,8 @@ window.FIRE_VERIFIED = [
     check:()=>[window.BGR_COVER_DATA.perils.length, window.BGR_COVER_DATA.exclusions.length, window.BGR_COVER_DATA.cancelAnnual.length].join('/') },
   { label:'Foundation Day banner: window 11-12 Sep 2026, jsPDF save/output hooked, image embedded', expect:'2026-09-11/2026-09-12/true/true',
     check:()=>[OICFD.window.from, OICFD.window.to, !!(window.jspdf.jsPDF.API.__fdHooked), OICFD.img.length > 100000].join('/') },
+  { label:'CPM invoice-name lookup: JCB 3DX -> Loaders 305, Tata Hitachi EX 210 -> Excavators 304, ACE hydra -> crane (302 / 104 offered), Kirloskar DG -> 209, transit mixer -> 109, Hamm roller -> 114', expect:'305/304/302,104/209/109/114',
+    check:()=>[cpmFindEquipment('JCB 3DX')[0].code, cpmFindEquipment('Tata Hitachi EX 210')[0].code, cpmFindEquipment('ACE hydra 14T').slice(0,2).map(h=>h.code).sort().reverse().join(','), cpmFindEquipment('Kirloskar 62.5 kVA DG set')[0].code, cpmFindEquipment('Schwing Stetter transit mixer')[0].code, cpmFindEquipment('Hamm 311 roller')[0].code].join('/') },
   { label:'Local-language pages: palette PNG encoder present', expect:'function', check:()=>typeof (window.UPNG && UPNG.encode) },
   { label:'Local-language wordings: a language dropdown beside every Download PDF button, Telugu and Hindi defined, canvas multi-page mode works', expect:'true/te,hi/3',
     check:()=>{ const cd = new OICIMG.CanvasDoc({ all:true, scale:0.5 }); cd.addPage(); cd.text('x', 10, 10); cd.addPage(); cd.text('y', 10, 10); return [document.querySelectorAll('select.pdf-lang').length >= 5, Object.keys(OICI18N.LANGS).join(','), cd.canvases.length].join('/'); } },
@@ -24382,7 +24481,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v113 · language load hardened (font wait capped at 4 s, re-rendered buttons handled); version number shown under the title · 13-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v114 · CPM: type the machine as on the invoice (JCB 3DX, Hitachi EX 210, ACE hydra, DG set...) and the tariff category is picked automatically; category dropdown kept as override · 13-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
