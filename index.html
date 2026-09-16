@@ -7066,7 +7066,11 @@ function renderMembers(){
   host.querySelectorAll('.ps-emisi').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).emiSi = parseInt(el.value, 10); }));
   host.querySelectorAll('.ps-cov').forEach(b => b.addEventListener('click', () => {
     const m = byId(b.dataset.id); m.cov = m.cov || {}; const k = b.dataset.cov; m.cov[k] = !m.cov[k];
-    if(k === 'ttd' && m.cov.ttd){ const cap = nearestTtd(floorLakh(m.csi * 0.25)); m.ttdSi = cap > 0 ? cap : PS_TTD_SI[0]; }
+    if(k === 'ttd' && m.cov.ttd){
+      const cap = nearestTtd(floorLakh(m.csi * 0.25));
+      /* suggest the maximum only the first time, and never leave a figure above the cap */
+      if(!m.ttdSi || m.ttdSi > cap) m.ttdSi = cap > 0 ? cap : PS_TTD_SI[0];
+    }
     renderMembers();
   }));
   host.querySelectorAll('.ps-flag').forEach(b => b.addEventListener('click', () => { const m = byId(b.dataset.id); m[b.dataset.flag] = !m[b.dataset.flag]; renderMembers(); }));
@@ -7394,7 +7398,8 @@ const PAPS_VERIFIED = [
 document.querySelectorAll('#psPlanTabs .health-plan-tab').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('#psPlanTabs .health-plan-tab').forEach(x => x.classList.remove('active'));
   b.classList.add('active'); psPlan = b.dataset.plan;
-  if(psPlan === 'P') members.forEach(m => { if(m.cov){ m.cov.loan = false; m.cov.emi = false; } });
+  /* Loan Secure and EMI Protection are kept but simply not priced under the Premium Plan, so an
+     agent comparing the two plans does not lose the selection on the way back to Elite. */
   $('psPlanHint').textContent = psPlan === 'E'
     ? 'Elite doubles most benefit caps and adds air ambulance, prosthetics, imported medicines, Loan Secure and EMI Protection.'
     : 'Premium Plan covers the same benefits at lower caps. Air ambulance, prosthetics, imported medicines, Loan Secure and EMI Protection are not available.';
@@ -7420,7 +7425,10 @@ $('psImgBtn').addEventListener('click', () => {
     'Oriental Insurance personal accident quote for ' + q.proposer + ' — total premium ₹' + fmt(q.grand) + ' (incl. GST).');
 });
 $('psNewBtn').addEventListener('click', newQuote);
-$('psStaff').addEventListener('change', () => { if($('psStaff').checked) $('psNcd').value = '0'; });
+/* the staff discount bars the No Claim Discount, so grey it out rather than wiping the agent's
+   entry, and psCompute ignores it while staff is ticked either way */
+function psSyncNcd(){ const off = $('psStaff').checked; $('psNcd').disabled = off; $('psNcd').style.opacity = off ? '.5' : ''; }
+$('psStaff').addEventListener('change', psSyncNcd); psSyncNcd();
 addMember();
 
 window.PAPS = { compute: psCompute, checks: psChecks, calculate, buildPDF, generatePDF, newQuote, addMember,
