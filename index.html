@@ -6853,6 +6853,16 @@ function planKey(base, plan){ return base + '_' + (plan === 'E' ? 'E' : 'P'); }
 function floorLakh(v){ return Math.max(0, Math.floor(v / 100000) * 100000); }
 function nearestCsi(v){ let best = PS_CSI[0]; for(const c of PS_CSI){ if(c <= v) best = c; else break; } return best; }
 function nearestTtd(v){ let best = 0; for(const c of PS_TTD_SI){ if(c <= v) best = c; else break; } return best; }
+/* A figure that is not on the published ladder must never silently price at zero: fall back to the
+   nearest tabulated figure at or below it, and let the caller tell the agent that it did. */
+function ladderIdx(ladder, v){
+  const exact = ladder.indexOf(v);
+  if(exact >= 0) return { i:exact, used:v, snapped:false };
+  let i = -1;
+  for(let k = 0; k < ladder.length; k++){ if(ladder[k] <= v) i = k; else break; }
+  if(i < 0) i = 0;
+  return { i, used:ladder[i], snapped:true };
+}
 
 /* ── pure engine, also used by the self-test ───────────────────────────── */
 function psCompute(inp){
@@ -6862,19 +6872,24 @@ function psCompute(inp){
   const term = v => years === 1 ? v : Math.round(v * years * (1 - lt));   /* exactly how the 2Y / 3Y charts were built */
 
   const rows = (inp.members || []).map(m => {
-    const i = PS_CSI.indexOf(m.csi);
+    const csiL = ladderIdx(PS_CSI, m.csi), i = csiL.i;
+    const snaps = [];
+    if(csiL.snapped) snaps.push({ what:'Capital Sum Insured', asked:m.csi, used:csiL.used });
     const parts = [];
     const push = (k, label, annual) => { if(annual > 0) parts.push({ k, label, annual, amount: term(annual) }); };
     push('base', 'In-built covers on CSI ' + siLabel(m.csi), rateAt(planKey('BASE', plan), i));
     if(m.ptd2) push('ptd2', 'Permanent Total Disablement Option II', rateAt(planKey('PTD', plan), i));
     const cov = m.cov || {};
-    if(cov.ttd){ const j = PS_TTD_SI.indexOf(m.ttdSi); push('ttd', 'Temporary Total Disablement on ' + siLabel(m.ttdSi), rateAt(planKey('TTD', plan), j)); }
+    if(cov.ttd){ const t = ladderIdx(PS_TTD_SI, m.ttdSi); if(t.snapped) snaps.push({ what:'TTD Sum Insured', asked:m.ttdSi, used:t.used });
+      push('ttd', 'Temporary Total Disablement on ' + siLabel(t.used), rateAt(planKey('TTD', plan), t.i)); }
     if(cov.med) push('med', 'Medical Expenses', rateAt(planKey('MED', plan), i));
     if(cov.ahc) push('ahc', 'Accident Hospital Cash', rateAt(planKey('AHC', plan), i));
     if(cov.eld) push('eld', 'Elderly Care', rateAt(planKey('ELD', plan), i));
     if(cov.chf) push('chf', 'Chauffeur Plan', rateAt(planKey('CHF', plan), i));
-    if(plan === 'E' && cov.loan) push('loan', 'Loan Secure on ' + siLabel(m.loanSi), rateAt('LOAN_E', PS_CSI.indexOf(m.loanSi)));
-    if(plan === 'E' && cov.emi) push('emi', 'EMI Protection on ' + siLabel(m.emiSi), rateAt('EMI_E', PS_CSI.indexOf(m.emiSi)));
+    if(plan === 'E' && cov.loan){ const L = ladderIdx(PS_CSI, m.loanSi); if(L.snapped) snaps.push({ what:'Loan Secure Sum Insured', asked:m.loanSi, used:L.used });
+      push('loan', 'Loan Secure on ' + siLabel(L.used), rateAt('LOAN_E', L.i)); }
+    if(plan === 'E' && cov.emi){ const E = ladderIdx(PS_CSI, m.emiSi); if(E.snapped) snaps.push({ what:'EMI Protection Sum Insured', asked:m.emiSi, used:E.used });
+      push('emi', 'EMI Protection on ' + siLabel(E.used), rateAt('EMI_E', E.i)); }
     const gross = parts.reduce((t, p) => t + p.amount, 0);
     const riskPct = PS_RISK[m.risk] || 0;
     const preExPct = m.preEx ? PS_PREEX_LOAD : 0;
@@ -6882,7 +6897,7 @@ function psCompute(inp){
     const load = gross * loadPct / 100;
     return { id:m.id, rel:m.rel, name:m.name, age:m.age, earning:!!m.earning, risk:m.risk, csi:m.csi,
              ttdSi:m.ttdSi, loanSi:m.loanSi, emiSi:m.emiSi, cov:cov, ptd2:!!m.ptd2, preEx:!!m.preEx,
-             parts, gross, riskPct, preExPct, loadPct, load, premium: gross + load };
+             parts, gross, riskPct, preExPct, loadPct, load, premium: gross + load, snaps };
   });
 
   const subtotal = rows.reduce((t, r) => t + r.premium, 0);
@@ -6908,12 +6923,21 @@ function psCompute(inp){
 /* ── underwriting checks shown with the quote ──────────────────────────── */
 function psChecks(inp, q){
   const w = [];
-  const self = (inp.members || []).find(m => m.rel === 'self');
+  const plan = inp.plan === 'E' ? 'E' : 'P';
+  const list = inp.members || [];
+  const selves = list.filter(m => m.rel === 'self');
+  const self = selves[0];
   const csiSelf = self ? self.csi : 0;
-  if((inp.members || []).length > PS_MAX_MEMBERS) w.push('More than ' + PS_MAX_MEMBERS + ' insured persons. A single policy may cover a maximum of ' + PS_MAX_MEMBERS + ' members including the proposer.');
-  if(!self) w.push('No member is marked as Self (Proposer). Every policy must cover or be proposed by an earning proposer.');
+  if(list.length > PS_MAX_MEMBERS) w.push('More than ' + PS_MAX_MEMBERS + ' insured persons. A single policy may cover a maximum of ' + PS_MAX_MEMBERS + ' members including the proposer.');
+  if(!self) w.push('No insured person is marked as Self (Proposer). Every policy must be proposed by an earning proposer.');
+  if(selves.length > 1) w.push(selves.length + ' insured persons are marked Self (Proposer). Only one person on the policy can be the proposer.');
+  if(self && self.earning === false) w.push('The proposer is marked as not earning. The proposer must be an earning member, and the Capital Sum Insured is set from the monthly gainful income.');
   (inp.members || []).forEach((m, i) => {
-    const r = PS_RELBY(m.rel), who = (m.name || r.n) + ' (' + r.n + ')';
+    const r = PS_RELBY(m.rel);
+    const sameRel = list.filter(x => x.rel === m.rel).length;
+    const who = m.name ? (m.name + ' (' + r.n + ')') : (sameRel > 1 ? r.n + ' ' + (i + 1) : r.n);
+    ((q.rows && q.rows[i] && q.rows[i].snaps) || []).forEach(sn => w.push(who + ': ' + sn.what + ' ' + siLabel(sn.asked) + ' is not a figure in the premium chart, so the quote uses the next lower tabulated figure, ' + siLabel(sn.used) + '.'));
+    if(m.cov && m.cov.ttd && floorLakh(m.csi * 0.25) > PS_TTD_SI[PS_TTD_SI.length - 1]) w.push(who + ': 25% of the CSI is ' + siLabel(floorLakh(m.csi * 0.25)) + ', but the premium chart stops at a TTD Sum Insured of ' + siLabel(PS_TTD_SI[PS_TTD_SI.length - 1]) + ', which is the most that can be quoted.');
     if(m.csi < PS_MIN_CSI) w.push(who + ': Capital Sum Insured ' + siLabel(m.csi) + ' is below the minimum of Rs.5,00,000.');
     if(m.age > 70) w.push(who + ': entry age ' + m.age + ' exceeds the maximum entry age of 70 years.');
     if(!r.dep && m.age < 18) w.push(who + ': the proposer must be at least 18 years old.');
@@ -6942,7 +6966,7 @@ function psChecks(inp, q){
     if(mult > 100) w.push('Proposer CSI is ' + mult.toFixed(0) + ' times the monthly income. Above 100 times is outside the guideline.');
     else if(mult > 72) w.push('Proposer CSI is ' + mult.toFixed(0) + ' times the monthly income, so the proposal goes to the Regional Office underwriter (up to 72 times needs no escalation).');
   }
-  if(psPlan === 'P' && (inp.members || []).some(m => m.cov && (m.cov.loan || m.cov.emi))) w.push('Loan Secure and EMI Protection are available only under the Elite Plan.');
+  if(plan === 'P' && list.some(m => m.cov && (m.cov.loan || m.cov.emi))) w.push('Loan Secure and EMI Protection are available only under the Elite Plan.');
   if(q.rawDisc > PS_DISC_CAP) w.push('Discounts add up to ' + q.rawDisc.toFixed(2) + '%, so the total has been capped at ' + PS_DISC_CAP + '%.');
   if(inp.staff) w.push('Staff discount is applied, so the family discount, the No Claim Discount and agency commission are not allowed.');
   if(q.minApplied) w.push('The calculated premium is below the minimum of Rs.' + PS_MIN_PREMIUM + ', so the minimum premium has been charged.');
@@ -6963,7 +6987,8 @@ function addMember(pre){
 function byId(id){ return members.find(m => m.id === parseInt(id, 10)); }
 
 function csiOptions(sel, from){
-  return PS_CSI.filter(v => v >= (from || PS_MIN_CSI)).map(v => '<option value="' + v + '"' + (v === sel ? ' selected' : '') + '>&#8377; ' + siLabel(v) + '</option>').join('');
+  /* always keep the stored figure in the list, otherwise the select would show one amount while the quote used another */
+  return PS_CSI.filter(v => v >= (from || PS_MIN_CSI) || v === sel).map(v => '<option value="' + v + '"' + (v === sel ? ' selected' : '') + '>&#8377; ' + siLabel(v) + '</option>').join('');
 }
 function ttdOptions(sel){
   return PS_TTD_SI.map(v => '<option value="' + v + '"' + (v === sel ? ' selected' : '') + '>&#8377; ' + siLabel(v) + '</option>').join('');
@@ -7092,6 +7117,9 @@ function newQuote(){
   $('psProposer').value = ''; $('psMonthlyIncome').value = '';
   $('psTerm').value = '1'; $('psNcd').value = '0';
   $('psOnline').checked = false; $('psStaff').checked = false;
+  psPlan = 'P';
+  document.querySelectorAll('#psPlanTabs .health-plan-tab').forEach(b => b.classList.toggle('active', b.dataset.plan === 'P'));
+  $('psPlanHint').textContent = 'Premium Plan covers the same benefits at lower caps. Air ambulance, prosthetics, imported medicines, Loan Secure and EMI Protection are not available.';
   members = []; seq = 0; lastQuote = null;
   $('psResultCard').style.display = 'none'; $('psFlags').style.display = 'none';
   addMember();
@@ -7136,9 +7164,9 @@ function buildPDF(returnBlob){
     if(r.ptd2) rows.push({ label:'PTD Option II', value: q.plan === 'E' ? '200% of CSI' : '150% of CSI' });
     PS_OPT.forEach(o => { if(r.cov && r.cov[o.k]){
       let v = 'Opted';
-      if(o.k === 'ttd') v = 'Sum Insured ' + R(r.ttdSi);
-      if(o.k === 'loan') v = 'Sum Insured ' + R(r.loanSi);
-      if(o.k === 'emi') v = 'Sum Insured ' + R(r.emiSi);
+      if(o.k === 'ttd') v = R(r.ttdSi);
+      if(o.k === 'loan') v = R(r.loanSi);
+      if(o.k === 'emi') v = R(r.emiSi);
       rows.push({ label:o.s, value:v });
     }});
     rows.push({ label:'Premium for this person', value:R(share[i]) });
@@ -7320,6 +7348,16 @@ const PAPS_VERIFIED = [
                 return [two.familyPct, three.familyPct, staff.discPct, staff.commAmt].join('/'); } },
   { label:'PAPS: minimum premium Rs.100 exclusive of tax, and GST at 18% charged as CGST plus SGST', expect:'100/18',
     check:()=>{ const q = psCompute({ plan:'P', term:1, staff:true, online:true, members:[{id:1,rel:'son',age:10,risk:'I',csi:100000,cov:{}}] }); return [q.net, q.gst].join('/'); } },
+  { label:'PAPS: a Sum Insured that is not on the published ladder falls back to the next lower tabulated figure instead of pricing at zero (CSI 10,50,000 prices as 10,00,000 = 1014) and the quote says so', expect:'1014/1/true',
+    check:()=>{ const q = psCompute({ plan:'P', term:1, members:[{ id:1, rel:'self', age:35, earning:true, risk:'I', csi:1050000, cov:{} }] });
+                const w = psChecks({ plan:'P', term:1, members:[{ id:1, rel:'self', age:35, earning:true, risk:'I', csi:1050000, cov:{} }] }, q);
+                return [q.rows[0].parts[0].amount, q.rows[0].snaps.length, w.some(x => x.indexOf('next lower tabulated figure') >= 0)].join('/'); } },
+  { label:'PAPS: the quote warns when the proposer is not an earning member, when more than one person is marked Self, and when no one is', expect:'true/true/true',
+    check:()=>{ const mk = ms => psChecks({ plan:'P', term:1, members:ms }, psCompute({ plan:'P', term:1, members:ms }));
+                const a = mk([{ id:1, rel:'self', age:35, earning:false, risk:'I', csi:1000000, cov:{} }]).some(x => x.indexOf('not earning') >= 0);
+                const b = mk([{ id:1, rel:'self', age:35, earning:true, risk:'I', csi:1000000, cov:{} }, { id:2, rel:'self', age:40, earning:true, risk:'I', csi:1000000, cov:{} }]).some(x => x.indexOf('marked Self') >= 0);
+                const c = mk([{ id:1, rel:'spouse', age:35, earning:false, risk:'I', csi:1000000, cov:{} }]).some(x => x.indexOf('No insured person is marked as Self') >= 0);
+                return [a, b, c].join('/'); } },
   { label:'PAPS: Loan Secure and EMI Protection are priced only under the Elite Plan', expect:'0/30',
     check:()=>{ const p = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
                 const e = psCompute({ plan:'E', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
@@ -25146,7 +25184,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v115 · new product: Oriental Personal Accident Parivaar Suraksha (Premium / Elite, up to 10 insured persons, in-built and optional covers, chart rates with occupation, family, portal, staff and long-term factors) · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v116 · Parivaar fixes: an off-chart Sum Insured falls back to the next tabulated figure instead of pricing at zero, New Quote resets the plan, and the quote warns about a non-earning proposer, duplicate proposers and the TTD chart ceiling · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
