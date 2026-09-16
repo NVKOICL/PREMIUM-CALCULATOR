@@ -8949,7 +8949,12 @@ const CR8811_WC  = 21.5;                                                        
    motels, restaurants, hospitals, airport buildings, theatres / auditoriums / cinema halls, roads in plain and
    township areas, bridges / flyovers on land */
 function carCommUplift(riskName){
-  return /residential|commercial|office|school|universit|hotel|motel|restaurant|hospital|airport|theatre|auditorium|cinema|roads \u2013 in (townships|plain)|bridges\/flyovers on land|road bridges on land/i.test(String(riskName || ''));
+  const name = String(riskName || '');
+  /* The circular says "airport buildings". The only schedule entry carrying the word is
+     "Runways, Aprons and Air Taxiways at Airports", which is pavement, not a building, so
+     the bare word was paying the building uplift on runway work and on nothing else. */
+  if(/runway|apron|taxiway/i.test(name)) return false;
+  return /residential|commercial|office|school|universit|hotel|motel|restaurant|hospital|airport|theatre|auditorium|cinema|roads \u2013 in (townships|plain)|bridges\/flyovers on land|road bridges on land/i.test(name);
 }
 /* Rs.2,500 crore = 2500 x 10^7 = 2.5e10. It had been written 2.5e11, i.e. Rs.25,000 crore, so
    every real project took the 27.5% slab where 21.5% applies. The Fire module already carried
@@ -20652,6 +20657,8 @@ function ohFmt(n){ return Math.round(n).toLocaleString('en-IN'); }
    Kept together so the figure and the rule that produced it stay in one place. */
 const OH_LIMITS = {
   ompCoPayMinSI:      200000,   // "earns a matching discount (sum insured Rs. 2 lakh and above)"
+  ompPaChildMaxSI:    400000,   // "up to Rs. 10 lakh per adult (maximum Rs. 4 lakh below 18)"
+  ompPaChildAge:      18,
   ompLateJoinerMaxSI: 500000,   // "A person joining after age 65 can take a maximum of Rs. 5 lakh."
   hffSeniorEntryFrom: 66,       // "Ages 66 to 70 can join Silver or Gold only"
   hffSeniorEntryTo:   70,
@@ -20696,9 +20703,21 @@ function ohCalc(){
     if($('ohPA').checked){
       const psi=parseInt($('ohPASI').value,10)||0;
       const tbl=(freq==='half')?OMP_PA_H:OMP_PA_Y;
-      if(tbl[psi]){ ompPA=tbl[psi]*ages.length;
+      if(tbl[psi]){
+        /* "up to Rs. 10 lakh per adult (maximum Rs. 4 lakh below 18)" - every member used to be
+           charged the proposer's capital sum insured, so a child was priced for cover the policy
+           caps at Rs.4 lakh. Rate each member on the sum insured that member can actually hold. */
+        let capped = 0;
+        ompPA = ages.reduce((sum, a) => {
+          const mSI = (a < OH_LIMITS.ompPaChildAge) ? Math.min(psi, OH_LIMITS.ompPaChildMaxSI) : psi;
+          if(mSI !== psi) capped++;
+          return sum + (tbl[mSI] != null ? tbl[mSI] : tbl[psi]);
+        }, 0);
         if(ages.length>1) ompPA=Math.round(ompPA*0.90);
-        ompPARow={label:'Add: Personal Accident (SI \u20b9'+ohFmt(psi)+' \u00d7 '+ages.length+')',amt:ompPA}; }
+        ompPARow={label:'Add: Personal Accident (SI \u20b9'+ohFmt(psi)+' \u00d7 '+ages.length
+          +(capped ? ', '+capped+' below '+OH_LIMITS.ompPaChildAge+' at the \u20b9'+ohFmt(OH_LIMITS.ompPaChildMaxSI)+' maximum' : '')+')',amt:ompPA};
+        if(capped) notes.push('⚠ Personal Accident cover below age '+OH_LIMITS.ompPaChildAge+' is capped at ₹'+ohFmt(OH_LIMITS.ompPaChildMaxSI)+'. '+capped+' member(s) have been rated at that maximum, not at the ₹'+ohFmt(psi)+' selected.');
+      }
     }
     const cop=parseInt($('ohCoPay').value,10)||0;
     if(cop && si < OH_LIMITS.ompCoPayMinSI){
@@ -23969,7 +23988,17 @@ function calculate(){
 
   // ── Commission ──
   const comm = getCommission(currentPolicy, selectedOcc, si);
-  const commAmt = totalNet * (comm.rate / 100);
+  /* CR-8811 D rates the terrorism premium at the pool figure, not at the occupancy rate.
+     getCommission has carried a terrorismPool option for it all along, but nothing ever
+     asked for it, so the terrorism premium sat in the net premium and earned the occupancy
+     rate - as much as 36% on a cover the pool pays 5% on. Split the base. */
+  const terrorNetTotal = (terrorOn && terrorNet > 0) ? terrorNet * period : 0;
+  const commBase = Math.max(totalNet - terrorNetTotal, 0);
+  const terrorComm = terrorNetTotal > 0
+    ? getCommission(currentPolicy, selectedOcc, si, { terrorismPool:true })
+    : null;
+  const commAmt = commBase * (comm.rate / 100)
+                + (terrorComm ? terrorNetTotal * (terrorComm.rate / 100) : 0);
   const commColor = comm.category === 'refer-ho'  ? 'var(--danger)' :
                     comm.category === 'low-band'  ? '#b45309' :
                     comm.category === 'high-band' ? '#1a7a4a' :
@@ -23990,6 +24019,9 @@ function calculate(){
   html += `<div class="agent-comm" style="display:none">
     <div class="line section-divider"><span class="k">Agent Commission</span><span class="v"></span></div>
     <div class="line"><span class="k" style="font-size:11px;color:var(--ink-soft)">${comm.label}${commBadge}</span><span class="v" style="color:${commColor};font-weight:600">${comm.rate.toFixed(2)}%</span></div>
+    ${terrorComm ? `<div class="line"><span class="k" style="font-size:11px;color:var(--ink-soft)">${terrorComm.label}${_pill('#fef9c3','#854d0e','TERRORISM POOL')}</span><span class="v" style="font-weight:600">${terrorComm.rate.toFixed(2)}%</span></div>
+    <div class="line sub"><span class="k">Occupancy-rated base (net less terrorism)</span><span class="v">${fmtR(commBase)}</span></div>
+    <div class="line sub"><span class="k">Pool-rated base (terrorism)</span><span class="v">${fmtR(terrorNetTotal)}</span></div>` : ''}
     <div class="line net-line"><span class="k">Commission on Net Premium</span><span class="v" style="color:${commColor}">${fmtR(commAmt)}</span></div>
     </div>`;
 
@@ -25123,6 +25155,16 @@ window.FIRE_VERIFIED = [
   { label:'Health eligibility limits match the prospectus: the OMP voluntary co-pay discount starts at a sum insured of Rs.2 lakh, a person joining after 65 is capped at Rs.5 lakh, a Happy Family Floater needs at least 2 members, ages 66-70 may join Silver or Gold only, and the Overseas policy covers at most 7 persons', expect:'200000/500000/2/Silver,Gold/7',
     check:()=>{ const L = window.OH_LIMITS;
                 return [L.ompCoPayMinSI, L.ompLateJoinerMaxSI, L.hffMinMembers, L.hffSeniorPlans.join(','), L.omiMaxTravellers].join('/'); } },
+  { label:'The 5% engineering uplift is for airport BUILDINGS: runways, aprons and air taxiways are pavement and do not earn it, while terminal-type buildings on the same list still do', expect:'false/true/true/true',
+    check:()=>[carCommUplift('Runways, Aprons and Air Taxiways at Airports'),
+               carCommUplift('Residential/Commercial \u2013 RCC framed, \u22645 storeys'),
+               carCommUplift('Theatres/Auditoriums \u2013 Height \u226422m, Span \u226410m'),
+               carCommUplift('Roads \u2013 In plain areas')].map(String).join('/') },
+  { label:'Terrorism premium earns the pool commission of 5% (CR-8811 D), not the occupancy rate which runs to 36%', expect:'5/terrorism',
+    check:()=>{ const c = getCommission('fire', 'Office Premises/Meeting Rooms', 10000000, { terrorismPool:true });
+                return [c.rate, c.category].join('/'); } },
+  { label:'Individual Mediclaim personal accident is capped at Rs.4 lakh below age 18, so a child cannot be charged the adult Rs.10 lakh rate', expect:'400000/18',
+    check:()=>[window.OH_LIMITS.ompPaChildMaxSI, window.OH_LIMITS.ompPaChildAge].join('/') },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -25460,7 +25502,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v124 · health eligibility limits the prospectus states and the chart ignored: the voluntary co-pay discount starts at Rs.2 lakh, a late joiner is capped at Rs.5 lakh, a family floater needs two members, ages 66-70 join Silver or Gold only, and the overseas policy covers seven · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v125 · the 5% engineering uplift is for airport buildings and no longer paid on runways, the terrorism premium earns the pool commission of 5% instead of the occupancy rate, and a child's personal accident cover is rated at its Rs.4 lakh maximum · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
