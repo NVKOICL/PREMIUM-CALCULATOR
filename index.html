@@ -10205,11 +10205,18 @@ function lookupMaxDiscount2026(){
     }
     /* Taxi. The circular heads these rows "up to 6 seating capacity" and puts anything larger in
        the seating-wise table below, so the seating has to be read. Seating capacity includes the
-       driver; take the larger of the seating field and passengers-plus-driver, which keeps the
-       lower (safer) cap when the two disagree. */
+       driver, and it is the authority whenever the agent has entered it; passengers-plus-driver
+       is only the fallback for a blank field.
+       v122 took the LARGER of the two, meaning to keep the safer cap where they disagreed. It did
+       the opposite in the field: a passenger count typed as the vehicle's seating - 6 against a
+       seating field of 4 - overrode the seating altogether and dropped a four-seat taxi onto the
+       6-17 seat rows at 70%, where the taxi rows give 75%. A disagreement between the two fields
+       is already raised by the entry check, which is where it belongs. */
     if(slab === 'taxiLt1000' || slab === 'taxi1000to1500' || slab === 'taxiOver1500'){
-      const seatsTx = Math.max(parseInt(($('seatCap') || {}).value, 10) || 0,
-                               (parseInt(($('paxCount') || {}).value, 10) || 0) + 1);
+      const seatEnteredTx = parseInt(($('seatCap') || {}).value, 10) || 0;
+      const seatsTx = seatEnteredTx > 0
+        ? seatEnteredTx
+        : ((parseInt(($('paxCount') || {}).value, 10) || 0) + 1);
       if(seatsTx <= 6){
         const ageKey = years <= 1 ? 'new'   /* band-months: <=1 flips exactly ON the 1st birthday */ : (years <= 10 ? 'le10' : 'gt10');
         const row = DISC_2026.pccv.taxi6[ageKey];
@@ -25788,6 +25795,22 @@ window.FIRE_VERIFIED = [
     check:()=>[pccvImt23Eligible('taxiLt1000', 4), pccvImt23Eligible('taxiOver1500', 6),
                pccvImt23Eligible('taxiLt1000', 20), pccvImt23Eligible('autoLt6', 0),
                pccvImt23Eligible('schoolBus', 0)].map(String).join('/') },
+  { label:'A taxi is rated on the seating capacity entered for it, not on whatever passenger count was typed: a 4-seat taxi of 3 years with no NCB keeps the taxi row at 75% even when the passenger box says 6, and a genuine 8-seat taxi still falls to the 6-17 seat row at 70%, while a blank seating field still derives 21 seats from a passenger count of 20 and lands on the 17-36 seat row at 65% (reported from the field 16-09-2026)', expect:'75/75/70/65',
+    check:()=>{ const sc = $('seatCap'), pc = $('paxCount'), cs = $('ccSlab');
+                if(!sc || !pc || !cs) return '75/75/70/70';
+                const keep = { seat:sc.value, pax:pc.value, slab:cs.value, vt:state.vehicleType, ncb:state.ncbYears, html:cs.innerHTML };
+                const read = (seat, pax) => { sc.value = seat; pc.value = pax; let r = null; try{ r = lookupMaxDiscount2026(); }catch(e){}
+                                              return r ? r.max : 'err'; };
+                state.vehicleType = 'pccv'; state.ncbYears = 0;
+                try{ renderSlabs(); }catch(e){}
+                cs.value = 'taxiLt1000';
+                const d = new Date(); d.setFullYear(d.getFullYear() - 3);
+                const rd = $('regDate'), keepDate = rd.value;
+                rd.value = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+                const out = [read('4','1'), read('4','6'), read('8','1'), read('','20')];
+                sc.value = keep.seat; pc.value = keep.pax; cs.innerHTML = keep.html; cs.value = keep.slab;
+                state.vehicleType = keep.vt; state.ncbYears = keep.ncb; rd.value = keepDate;
+                return out.join('/'); } },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -26125,7 +26148,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v134 · PA Parivaar: type the occupation as the customer gives it and the risk category sets itself, the way the Contractor's Plant tab reads an invoice description - the class stays editable beside it, and the occupation now prints on the schedule · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v135 · a taxi is rated on the seating capacity entered for it: a passenger count typed as the vehicle's seating no longer overrides the seating field and drop a four-seat taxi from 75% onto the 6-17 seat row at 70% · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
