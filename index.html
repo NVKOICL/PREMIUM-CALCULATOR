@@ -1755,7 +1755,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
   <header class="header">
     <div class="brand-mark">Oriental Insurance · Premium Calculator</div>
     <h1 class="title">Premium <em>Calculator</em></h1>
-    <p class="subtitle">Motor &middot; Health &middot; Fire &middot; WC &middot; CAR/EAR &middot; Instant quotes.</p>
+    <p class="subtitle">Motor &middot; Health &middot; Fire &middot; WC &middot; CAR/EAR &middot; CPM &middot; PA &middot; Instant quotes.</p>
   </header>
 
   <!-- PRODUCT SWITCHER -->
@@ -1783,6 +1783,10 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
     <button class="product-tab" id="tabCpm" onclick="switchProduct('cpm')">
       <svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7" viewBox="0 0 24 24"><path d="M3 20h18M5 20V9l4-2v13M9 9l5-5v16M14 6l5 3v11"/><circle cx="7" cy="16" r="1"/><circle cx="12" cy="14" r="1"/></svg>
       CPM
+    </button>
+    <button class="product-tab" id="tabPaps" onclick="switchProduct('paps')">
+      <svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7" viewBox="0 0 24 24"><path d="M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM5 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M19.5 12.5l1.8.9-.3 2 1.2 1.6-1.6 1.2-.9 1.8-2-.3"/></svg>
+      PA Parivaar
     </button>
   </div>
 
@@ -6705,6 +6709,658 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
       </div>
     </div>
   </div>
+
+  <div class="product-section" id="sectionPaps">
+    <div class="card">
+      <div class="section-label">Policy Details <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; Oriental Personal Accident Parivaar Suraksha, individual Sum Insured for each insured person</span></div>
+      <div class="field"><label class="lbl" for="psProposer">Proposer Name <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; must be an earning member</span></label><input type="text" id="psProposer" placeholder="Name of the proposer" /></div>
+      <div class="field">
+        <label class="lbl">Plan <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; one plan applies to every insured person on the policy</span></label>
+        <div class="health-plan-tabs" id="psPlanTabs" style="grid-template-columns:repeat(2,1fr)">
+          <button class="health-plan-tab active" type="button" data-plan="P">Premium Plan<small>lower caps</small></button>
+          <button class="health-plan-tab" type="button" data-plan="E">Elite Plan<small>higher caps &middot; more covers</small></button>
+        </div>
+        <div class="hint" id="psPlanHint">Elite doubles most benefit caps and adds air ambulance, prosthetics, imported medicines, Loan Secure and EMI Protection.</div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="lbl" for="psTerm">Policy Term</label>
+          <select id="psTerm">
+            <option value="1">1 Year</option>
+            <option value="2">2 Years &middot; 4% long-term discount</option>
+            <option value="3">3 Years &middot; 7% long-term discount</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="lbl" for="psMonthlyIncome">Proposer monthly income <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; optional, checks the CSI</span></label>
+          <div class="input-prefix" data-prefix="&#8377;"><input type="number" id="psMonthlyIncome" placeholder="e.g. 60000" min="0" step="1000" inputmode="numeric" /></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Insured Persons <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; maximum 10 including the proposer, entry age 18 to 70 (children from 90 days)</span></div>
+      <div id="psMembers"></div>
+      <button class="add-member-btn" id="psAddMember" type="button" style="margin-top:10px">+ Add insured person</button>
+      <div class="info-banner show" id="psFlags" style="display:none"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Discounts</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">
+        <label class="addon" for="psOnline"><input type="checkbox" id="psOnline" /><span class="addon-name">Direct / portal business</span><small>10% where the policy is bought online with no intermediary</small></label>
+        <label class="addon" for="psStaff"><input type="checkbox" id="psStaff" /><span class="addon-name">Staff of Oriental Insurance</span><small>33.33% &middot; family discount and commission are not allowed with it</small></label>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label class="lbl" for="psNcd">No Claim Discount <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; renewal only, 2% per claim-free year, chosen instead of Cumulative Bonus</span></label>
+        <select id="psNcd">
+          <option value="0">Nil &middot; fresh policy or Cumulative Bonus opted</option>
+          <option value="2">2% &middot; 1 claim-free year</option>
+          <option value="4">4% &middot; 2 claim-free years</option>
+          <option value="6">6% &middot; 3 claim-free years</option>
+          <option value="8">8% &middot; 4 claim-free years</option>
+          <option value="10">10% &middot; 5 claim-free years</option>
+          <option value="12">12% &middot; 6 claim-free years</option>
+          <option value="14">14% &middot; 7 claim-free years</option>
+          <option value="16">16% &middot; 8 claim-free years</option>
+          <option value="18">18% &middot; 9 claim-free years</option>
+          <option value="20">20% &middot; 10 claim-free years (maximum)</option>
+        </select>
+        <div class="hint">Family discount is added automatically: 5% for two insured persons, 10% for three or more. Every discount together is capped at 40%.</div>
+      </div>
+    </div>
+
+    <div class="sticky-calc-wrap"><button class="btn btn-primary" id="psCalcBtn" type="button">Calculate Premium</button></div>
+
+    <div class="card" id="psResultCard" style="display:none">
+      <div class="section-label">Premium <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)" id="psResDate"></span></div>
+      <div id="psQuoteDetails"></div>
+      <div id="psBreakdown" style="margin-top:10px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:2px solid var(--border-strong)"><strong>Total Premium (incl. GST 18%)</strong><strong style="font-size:20px;color:var(--accent)">&#8377;<span id="psGrandTotal">0</span></strong></div>
+      <div class="quote-actions">
+        <button type="button" class="btn btn-pdf" id="psPdfBtn">Download PDF</button>
+        <button type="button" class="btn btn-whatsapp" id="psWaBtn">Share PDF</button>
+        <button type="button" class="btn btn-image" id="psImgBtn">Share Image</button>
+        <button type="button" class="btn btn-secondary" id="psNewBtn">New Quote</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ══════════ ORIENTAL PERSONAL ACCIDENT PARIVAAR SURAKSHA (PAPS) ══════════
+   UIN OICPAIP26048V012627.  Sources in the project folder: Policy Wordings,
+   Prospectus, Customer Information Sheet, Underwriting Guidelines and
+   Annexure A Rates Chart.  Premiums are the published chart values; the 2 and
+   3 year charts are exactly the annual figure x years x (1 - long term
+   discount) rounded to the rupee, so only the annual chart is carried here.  */
+(function(){
+const $ = id => document.getElementById(id);
+
+const PS_RATE = {BASE_P:[103,207,309,411,512,612,713,813,914,1014,1114,1214,1314,1414,1514,1614,1714,1813,1913,2013,2113,2213,2313,2413,2513,2613,2713,2812,2912,3012,3112,3212,3312,3412,3512,3612,3711,3811,3911,4011,4108,4205,4302,4400,4497,4594,4691,4788,4885,4982,5053,5124,5195,5266,5337,5408,5479,5550,5621,5692,5763,5834,5905,5976,6047,6118,6189,6260,6331,6402,6473,6544,6615,6686,6757,6828,6899,6970,7041,7112,7183,7254,7325,7396,7467,7538,7609,7680,7751,7822,7893,7964,8035,8106,8177,8248,8319,8390,8461,8532,8886,9241,9596,9951,10306,10661,11016,11371,11726,12081,12436,12791,13146,13500,13855,14210,14565,14920,15275,15630,15985,16340,16695,17050,17405,17759,18114,18469,18824,19179,19534,19889,20244,20599,20954,21309,21664,22018,22373,22728,23083,23438,23793,24148,24503,24858,25213,25568,25923,26278,26632,26987,27342,27697,28052,28407,28762,29117,29472,29827,30182,30537,30891,31246,31601,31956,32311,32666,33021,33376,33731,34086,34441,34796,35150,35505,35860,36215,36570,36925],BASE_E:[144,287,431,575,718,862,1005,1149,1292,1436,1579,1722,1864,2006,2148,2290,2432,2574,2715,2857,2997,3137,3276,3416,3555,3695,3834,3974,4114,4253,4393,4532,4672,4812,4951,5091,5230,5370,5510,5649,5723,5798,5872,5946,6020,6095,6169,6243,6317,6391,6466,6540,6614,6688,6763,6837,6911,6985,7060,7134,7208,7282,7356,7431,7505,7579,7653,7728,7802,7876,7950,8025,8099,8173,8247,8321,8396,8470,8544,8618,8690,8761,8833,8904,8976,9047,9119,9190,9262,9333,9405,9476,9547,9619,9690,9762,9833,9905,9976,10048,10405,10762,11120,11477,11834,12192,12549,12906,13264,13621,13978,14336,14693,15050,15408,15765,16122,16480,16837,17194,17552,17909,18266,18624,18981,19338,19696,20053,20410,20768,21125,21482,21840,22197,22554,22912,23269,23626,23984,24341,24698,25056,25413,25770,26128,26485,26842,27200,27557,27914,28272,28629,28986,29344,29701,30058,30416,30773,31130,31488,31845,32202,32560,32917,33274,33632,33989,34346,34704,35061,35418,35776,36133,36490,36848,37205,37562,37920,38277,38634],PTD_P:[3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93,96,99,102,105,108,111,114,117,120,123,126,129,132,135,138,141,144,147,150,153,156,159,162,165,168,171,174,177,180,183,186,189,192,195,198,201,204,207,210,213,216,219,222,225,228,231,234,237,240,243,246,249,252,255,258,261,264,267,270,273,276,279,282,285,288,291,294,297,300,315,330,345,360,375,390,405,420,435,450,465,480,495,510,525,540,555,570,585,600,615,630,645,660,675,690,705,720,735,750,765,780,795,810,825,840,855,870,885,900,915,930,945,960,975,990,1005,1020,1035,1050,1065,1080,1095,1110,1125,1140,1155,1170,1185,1200,1215,1230,1245,1260,1275,1290,1305,1320,1335,1350,1365,1380,1395,1410,1425,1440,1455,1470,1485,1500],PTD_E:[6,12,18,24,30,36,42,48,54,60,66,72,78,84,90,96,102,108,114,120,126,132,138,144,150,156,162,168,174,180,186,192,198,204,210,216,222,228,234,240,246,252,258,264,270,276,282,288,294,300,306,312,318,324,330,336,342,348,354,360,366,372,378,384,390,396,402,408,414,420,426,432,438,444,450,456,462,468,474,480,486,492,498,504,510,516,522,528,534,540,546,552,558,564,570,576,582,588,594,600,630,660,690,720,750,780,810,840,870,900,930,960,990,1020,1050,1080,1110,1140,1170,1200,1230,1260,1290,1320,1350,1380,1410,1440,1470,1500,1530,1560,1590,1620,1650,1680,1710,1740,1770,1800,1830,1860,1890,1920,1950,1980,2010,2040,2070,2100,2130,2160,2190,2220,2250,2280,2310,2340,2370,2400,2430,2460,2490,2520,2550,2580,2610,2640,2670,2700,2730,2760,2790,2820,2850,2880,2910,2940,2970,3000],MED_P:[13,26,39,52,65,78,91,104,117,128.7,140.4,152.1,163.8,175.5,185.9,196.3,206.7,217.1,227.5,237.25,247,256.75,266.5,276.25,286,295.75,305.5,315.25,325,334.1,343.2,352.3,361.4,370.5,379.6,388.7,397.8,406.9,416,425.1,434.2,443.3,452.4,461.5,470.6,479.7,488.8,497.9,507,514.8,522.6,530.4,538.2,546,553.8,561.6,569.4,577.2,585,592.8,600.6,608.4,616.2,624,631.8,639.6,647.4,655.2,663,670.15,677.3,684.45,691.6,698.75,705.9,713.05,720.2,727.35,734.5,741.65,748.8,755.95,763.1,770.25,777.4,784.55,791.7,798.85,806,812.5,819,825.5,832,838.5,845,851.5,858,864.5,871,876.85,882.7,888.55,894.4,900.25,906.1,911.95,917.8,923.65,929.5,934.7,939.9,945.1,950.3,955.5,960.7,965.9,971.1,976.3,981.5,986.05,990.6,995.15,999.7,1004.25,1008.8,1013.35,1017.9,1022.45,1027,1031.55,1036.1,1040.65,1045.2,1049.75,1054.3,1058.85,1063.4,1067.95,1072.5,1077.05,1081.6,1086.15,1090.7,1095.25,1099.8,1104.35,1108.9,1113.45,1118,1122.55,1127.1,1131.65,1136.2,1140.75,1145.3,1149.85,1154.4,1158.95,1163.5,1168.05,1172.6,1177.15,1181.7,1186.25,1190.8,1195.35,1199.9,1204.45,1209,1213.55,1218.1,1222.65,1227.2,1231.75,1236.3,1240.85,1245.4,1249.95,1254.5,1259.05],MED_E:[26,52,78,104,130,156,182,208,234,257.4,280.8,304.2,327.6,351,371.8,392.6,413.4,434.2,455,474.5,494,513.5,533,552.5,572,591.5,611,630.5,650,668.2,686.4,704.6,722.8,741,759.2,777.4,795.6,813.8,832,850.2,868.4,886.6,904.8,923,941.2,959.4,977.6,995.8,1014,1029.6,1045.2,1060.8,1076.4,1092,1107.6,1123.2,1138.8,1154.4,1170,1185.6,1201.2,1216.8,1232.4,1248,1263.6,1279.2,1294.8,1310.4,1326,1340.3,1354.6,1368.9,1383.2,1397.5,1411.8,1426.1,1440.4,1454.7,1469,1483.3,1497.6,1511.9,1526.2,1540.5,1554.8,1569.1,1583.4,1597.7,1612,1625,1638,1651,1664,1677,1690,1703,1716,1729,1742,1753.7,1765.4,1777.1,1788.8,1800.5,1812.2,1823.9,1835.6,1847.3,1859,1869.4,1879.8,1890.2,1900.6,1911,1921.4,1931.8,1942.2,1952.6,1963,1972.1,1981.2,1990.3,1999.4,2008.5,2017.6,2026.7,2035.8,2044.9,2054,2063.1,2072.2,2081.3,2090.4,2099.5,2108.6,2117.7,2126.8,2135.9,2145,2154.1,2163.2,2172.3,2181.4,2190.5,2199.6,2208.7,2217.8,2226.9,2236,2245.1,2254.2,2263.3,2272.4,2281.5,2290.6,2299.7,2308.8,2317.9,2327,2336.1,2345.2,2354.3,2363.4,2372.5,2381.6,2390.7,2399.8,2408.9,2418,2427.1,2436.2,2445.3,2454.4,2463.5,2472.6,2481.7,2490.8,2499.9,2509,2518.1],AHC_P:[5,10,15,20,25,30,35,40,45,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50],AHC_E:[5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125,125],ELD_P:[4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,144,148,152,156,160,164,168,172,176,180,184,188,192,196,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200,200],ELD_E:[9,18,27,36,45,54,63,72,81,90,99,108,117,126,135,144,153,162,171,180,189,198,207,216,225,234,243,252,261,270,279,288,297,306,315,324,333,342,351,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360,360],CHF_P:[2,4,6,8,10,12,14,16,18,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20],CHF_E:[4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100],TTD_P:[57,114,171,228,285,342,399,456,513,570,627,684,741,798,855,912,969,1026,1083,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140,1140],TTD_E:[57,114,171,228,285,342,399,456,513,570,627,684,741,798,855,912,969,1026,1083,1140,1197,1254,1311,1368,1425,1482,1539,1596,1653,1710,1767,1824,1881,1938,1995,2052,2109,2166,2223,2280,2337,2394,2451,2508,2565,2622,2679,2736,2793,2850,2850,2850,2850,2850,2850],LOAN_E:[30,60,90,120,150,180,210,240,270,300,330,360,390,420,450,480,510,540,570,600,630,660,690,720,750,780,810,840,870,900,930,960,990,1020,1050,1080,1110,1140,1170,1200,1230,1260,1290,1320,1350,1380,1410,1440,1470,1500,1530,1560,1590,1620,1650,1680,1710,1740,1770,1800,1830,1860,1890,1920,1950,1980,2010,2040,2070,2100,2130,2160,2190,2220,2250,2280,2310,2340,2370,2400,2430,2460,2490,2520,2550,2580,2610,2640,2670,2700,2730,2760,2790,2820,2850,2880,2910,2940,2970,3000,3150,3300,3450,3600,3750,3900,4050,4200,4350,4500,4650,4800,4950,5100,5250,5400,5550,5700,5850,6000,6150,6300,6450,6600,6750,6900,7050,7200,7350,7500,7650,7800,7950,8100,8250,8400,8550,8700,8850,9000,9150,9300,9450,9600,9750,9900,10050,10200,10350,10500,10650,10800,10950,11100,11250,11400,11550,11700,11850,12000,12150,12300,12450,12600,12750,12900,13050,13200,13350,13500,13650,13800,13950,14100,14250,14400,14550,14700,14850,15000],EMI_E:[30,60,90,120,150,180,210,240,270,300,330,360,390,420,450,480,510,540,570,600,630,660,690,720,750,780,810,840,870,900,930,960,990,1020,1050,1080,1110,1140,1170,1200,1230,1260,1290,1320,1350,1380,1410,1440,1470,1500,1530,1560,1590,1620,1650,1680,1710,1740,1770,1800,1830,1860,1890,1920,1950,1980,2010,2040,2070,2100,2130,2160,2190,2220,2250,2280,2310,2340,2370,2400,2430,2460,2490,2520,2550,2580,2610,2640,2670,2700,2730,2760,2790,2820,2850,2880,2910,2940,2970,3000,3150,3300,3450,3600,3750,3900,4050,4200,4350,4500,4650,4800,4950,5100,5250,5400,5550,5700,5850,6000,6150,6300,6450,6600,6750,6900,7050,7200,7350,7500,7650,7800,7950,8100,8250,8400,8550,8700,8850,9000,9150,9300,9450,9600,9750,9900,10050,10200,10350,10500,10650,10800,10950,11100,11250,11400,11550,11700,11850,12000,12150,12300,12450,12600,12750,12900,13050,13200,13350,13500,13650,13800,13950,14100,14250,14400,14550,14700,14850,15000]};
+
+/* Capital Sum Insured ladder of the chart: 1 to 99 lakh in 1 lakh steps, then
+   1 crore to 5 crore in 5 lakh steps.  TTD has its own ladder, 1 to 55 lakh. */
+const PS_CSI = (function(){ const a = []; for(let i = 1; i <= 99; i++) a.push(i * 100000); for(let i = 0; i <= 80; i++) a.push(10000000 + i * 500000); return a; })();
+const PS_TTD_SI = (function(){ const a = []; for(let i = 1; i <= 55; i++) a.push(i * 100000); return a; })();
+
+const PS_LT = { 1: 0, 2: 0.04, 3: 0.07 };          /* long term discount, already the basis of the 2Y / 3Y charts */
+const PS_RISK = { I: 0, II: 25, III: 50 };          /* occupation loading on premium */
+const PS_PREEX_LOAD = 30;                           /* pre-existing physical / medical condition */
+const PS_MIN_CSI = 500000, PS_MAX_CSI = 50000000;   /* underwriting guideline 4.8 */
+const PS_MIN_PREMIUM = 100;                         /* guideline 8, exclusive of tax */
+const PS_MAX_MEMBERS = 10;
+const PS_DISC_CAP = 40;
+const PS_COMM_PCT = 21.5;                           /* CR-8811 table 3.2 sr 14 Individual Personal Accident Policy */
+
+const PS_REL = [
+  { k:'self',    n:'Self (Proposer)',  dep:false, cap:1.00, capAbs:PS_MAX_CSI, minAge:18, maxAge:70 },
+  { k:'spouse',  n:'Spouse',           dep:true,  cap:0.50, capAbs:5000000,    minAge:18, maxAge:70 },
+  { k:'son',     n:'Son',              dep:true,  cap:0.25, capAbs:2500000,    minAge:0,  maxAge:25 },
+  { k:'daughter',n:'Daughter',         dep:true,  cap:0.25, capAbs:2500000,    minAge:0,  maxAge:25 },
+  { k:'father',  n:'Father',           dep:true,  cap:0.25, capAbs:2500000,    minAge:18, maxAge:70 },
+  { k:'mother',  n:'Mother',           dep:true,  cap:0.25, capAbs:2500000,    minAge:18, maxAge:70 },
+  { k:'fil',     n:'Father-in-law',    dep:true,  cap:0.25, capAbs:2500000,    minAge:18, maxAge:70 },
+  { k:'mil',     n:'Mother-in-law',    dep:true,  cap:0.25, capAbs:2500000,    minAge:18, maxAge:70 }
+];
+const PS_RELBY = k => PS_REL.find(r => r.k === k) || PS_REL[0];
+
+/* optional covers: key, label, short label for the PDF, rate column, plans */
+const PS_OPT = [
+  { k:'ttd', n:'Temporary Total Disablement (weekly benefit)', s:'Temporary Total Disablement', col:'TTD', plans:'PE', ownSI:'ttd',
+    d:'1% of the TTD Sum Insured a week while totally disabled, up to 100 weeks' },
+  { k:'med', n:'Medical Expenses (accidental hospitalisation)', s:'Medical Expenses', col:'MED', plans:'PE',
+    d:'10% of CSI towards hospitalisation after an accident' },
+  { k:'ahc', n:'Accident Hospital Cash', s:'Accident Hospital Cash', col:'AHC', plans:'PE',
+    d:'0.1% of CSI a day for up to 30 days in a policy year' },
+  { k:'eld', n:'Elderly Care', s:'Elderly Care', col:'ELD', plans:'PE',
+    d:'Support for an elderly insured person after an accident' },
+  { k:'chf', n:'Chauffeur Plan', s:'Chauffeur Plan', col:'CHF', plans:'PE',
+    d:'0.1% of CSI a day towards a driver, up to 30 days in a policy year' },
+  { k:'loan', n:'Loan Secure (home loan)', s:'Loan Secure', col:'LOAN', plans:'E', ownSI:'loan',
+    d:'Outstanding principal of one eligible home loan on accidental death or PTD' },
+  { k:'emi', n:'EMI Protection (household loan)', s:'EMI Protection', col:'EMI', plans:'E', ownSI:'emi',
+    d:'Up to 12 EMIs of an eligible household-goods loan from the date of the accident' }
+];
+
+let members = [], seq = 0, psPlan = 'P', lastQuote = null;
+
+const fmt = n => Math.round(n).toLocaleString('en-IN');
+const siLabel = v => v >= 10000000 ? ((v / 10000000).toFixed(2).replace(/\.?0+$/, '') + ' Cr')
+                   : v >= 100000 ? ((v / 100000).toFixed(2).replace(/\.?0+$/, '') + ' Lakh') : String(v);
+function rateAt(key, i){ const a = PS_RATE[key]; return (a && i >= 0 && i < a.length && typeof a[i] === 'number') ? a[i] : 0; }
+function planKey(base, plan){ return base + '_' + (plan === 'E' ? 'E' : 'P'); }
+/* percentage caps on an optional Sum Insured are rounded down to the nearest lakh (guideline 19 note) */
+function floorLakh(v){ return Math.max(0, Math.floor(v / 100000) * 100000); }
+function nearestCsi(v){ let best = PS_CSI[0]; for(const c of PS_CSI){ if(c <= v) best = c; else break; } return best; }
+function nearestTtd(v){ let best = 0; for(const c of PS_TTD_SI){ if(c <= v) best = c; else break; } return best; }
+
+/* ── pure engine, also used by the self-test ───────────────────────────── */
+function psCompute(inp){
+  const plan = inp.plan === 'E' ? 'E' : 'P';
+  const years = [1, 2, 3].indexOf(Number(inp.term)) >= 0 ? Number(inp.term) : 1;
+  const lt = PS_LT[years] || 0;
+  const term = v => years === 1 ? v : Math.round(v * years * (1 - lt));   /* exactly how the 2Y / 3Y charts were built */
+
+  const rows = (inp.members || []).map(m => {
+    const i = PS_CSI.indexOf(m.csi);
+    const parts = [];
+    const push = (k, label, annual) => { if(annual > 0) parts.push({ k, label, annual, amount: term(annual) }); };
+    push('base', 'In-built covers on CSI ' + siLabel(m.csi), rateAt(planKey('BASE', plan), i));
+    if(m.ptd2) push('ptd2', 'Permanent Total Disablement Option II', rateAt(planKey('PTD', plan), i));
+    const cov = m.cov || {};
+    if(cov.ttd){ const j = PS_TTD_SI.indexOf(m.ttdSi); push('ttd', 'Temporary Total Disablement on ' + siLabel(m.ttdSi), rateAt(planKey('TTD', plan), j)); }
+    if(cov.med) push('med', 'Medical Expenses', rateAt(planKey('MED', plan), i));
+    if(cov.ahc) push('ahc', 'Accident Hospital Cash', rateAt(planKey('AHC', plan), i));
+    if(cov.eld) push('eld', 'Elderly Care', rateAt(planKey('ELD', plan), i));
+    if(cov.chf) push('chf', 'Chauffeur Plan', rateAt(planKey('CHF', plan), i));
+    if(plan === 'E' && cov.loan) push('loan', 'Loan Secure on ' + siLabel(m.loanSi), rateAt('LOAN_E', PS_CSI.indexOf(m.loanSi)));
+    if(plan === 'E' && cov.emi) push('emi', 'EMI Protection on ' + siLabel(m.emiSi), rateAt('EMI_E', PS_CSI.indexOf(m.emiSi)));
+    const gross = parts.reduce((t, p) => t + p.amount, 0);
+    const riskPct = PS_RISK[m.risk] || 0;
+    const preExPct = m.preEx ? PS_PREEX_LOAD : 0;
+    const loadPct = riskPct + preExPct;                 /* loadings are additive, not multiplicative (guideline 10) */
+    const load = gross * loadPct / 100;
+    return { id:m.id, rel:m.rel, name:m.name, age:m.age, earning:!!m.earning, risk:m.risk, csi:m.csi,
+             ttdSi:m.ttdSi, loanSi:m.loanSi, emiSi:m.emiSi, cov:cov, ptd2:!!m.ptd2, preEx:!!m.preEx,
+             parts, gross, riskPct, preExPct, loadPct, load, premium: gross + load };
+  });
+
+  const subtotal = rows.reduce((t, r) => t + r.premium, 0);
+  const n = rows.length;
+  const staff = !!inp.staff;
+  const familyPct = staff ? 0 : (n >= 3 ? 10 : (n === 2 ? 5 : 0));
+  const onlinePct = inp.online ? 10 : 0;
+  const staffPct = staff ? 33.33 : 0;
+  const ncdPct = staff ? 0 : Math.min(20, Math.max(0, Number(inp.ncd) || 0));
+  const rawDisc = familyPct + onlinePct + staffPct + ncdPct;
+  const discPct = Math.min(PS_DISC_CAP, rawDisc);      /* every discount together is capped at 40% */
+  const discAmt = subtotal * discPct / 100;
+  let net = Math.round(subtotal - discAmt);
+  const minApplied = net < PS_MIN_PREMIUM;
+  if(minApplied) net = PS_MIN_PREMIUM;
+  const gst = 2 * Math.round(net * 0.09);
+  const grand = net + gst;
+  const commAmt = staff ? 0 : Math.round(net * PS_COMM_PCT / 100);
+  return { plan, years, lt, rows, subtotal, familyPct, onlinePct, staffPct, ncdPct, rawDisc, discPct, discAmt,
+           net, minApplied, gst, grand, commAmt, commPct: staff ? 0 : PS_COMM_PCT, memberCount: n };
+}
+
+/* ── underwriting checks shown with the quote ──────────────────────────── */
+function psChecks(inp, q){
+  const w = [];
+  const self = (inp.members || []).find(m => m.rel === 'self');
+  const csiSelf = self ? self.csi : 0;
+  if((inp.members || []).length > PS_MAX_MEMBERS) w.push('More than ' + PS_MAX_MEMBERS + ' insured persons. A single policy may cover a maximum of ' + PS_MAX_MEMBERS + ' members including the proposer.');
+  if(!self) w.push('No member is marked as Self (Proposer). Every policy must cover or be proposed by an earning proposer.');
+  (inp.members || []).forEach((m, i) => {
+    const r = PS_RELBY(m.rel), who = (m.name || r.n) + ' (' + r.n + ')';
+    if(m.csi < PS_MIN_CSI) w.push(who + ': Capital Sum Insured ' + siLabel(m.csi) + ' is below the minimum of Rs.5,00,000.');
+    if(m.age > 70) w.push(who + ': entry age ' + m.age + ' exceeds the maximum entry age of 70 years.');
+    if(!r.dep && m.age < 18) w.push(who + ': the proposer must be at least 18 years old.');
+    if((m.rel === 'son' || m.rel === 'daughter') && m.age > 25) w.push(who + ': a dependent child can be covered only up to 18 years, or 25 years while a full-time student.');
+    if(r.dep && m.rel !== 'spouse' && csiSelf && m.csi > floorLakh(csiSelf * r.cap)) w.push(who + ': CSI ' + siLabel(m.csi) + ' is above 25% of the proposer CSI (' + siLabel(floorLakh(csiSelf * r.cap)) + ').');
+    if(m.rel === 'spouse' && !m.earning && csiSelf && m.csi > floorLakh(csiSelf * 0.5)) w.push(who + ': a non-earning spouse is limited to 50% of the proposer CSI (' + siLabel(floorLakh(csiSelf * 0.5)) + ').');
+    if(r.dep && m.csi > r.capAbs) w.push(who + ': CSI ' + siLabel(m.csi) + ' is above the dependent ceiling of ' + siLabel(r.capAbs) + '.');
+    if(m.cov && m.cov.ttd){
+      if(m.ttdSi > floorLakh(m.csi * 0.25)) w.push(who + ': TTD Sum Insured ' + siLabel(m.ttdSi) + ' is above 25% of the CSI (' + siLabel(floorLakh(m.csi * 0.25)) + ').');
+      if(m.ttdSi > 2500000) w.push(who + ': TTD Sum Insured above Rs.25 lakh is referred to the Head Office underwriter.');
+      else if(m.ttdSi > 1000000) w.push(who + ': TTD Sum Insured above Rs.10 lakh is referred to the Regional Office underwriter.');
+      if(m.ttdSi > 500000) w.push(who + ': income proof is required because the TTD Sum Insured exceeds Rs.5,00,000.');
+    }
+    ['loan', 'emi'].forEach(k => {
+      if(m.cov && m.cov[k]){
+        const si = k === 'loan' ? m.loanSi : m.emiSi;
+        if(si > m.csi) w.push(who + ': the ' + (k === 'loan' ? 'Loan Secure' : 'EMI Protection') + ' Sum Insured cannot exceed the Accidental Death CSI.');
+      }
+    });
+    if(m.csi > 2000000) w.push(who + ': income proof is required because the Accidental Death CSI exceeds Rs.20,00,000.');
+    if(m.csi > 5000000) w.push(who + ': Accidental Death CSI above Rs.50 lakh is referred to the Regional Office underwriter.');
+  });
+  const inc = Number(inp.monthlyIncome) || 0;
+  if(inc > 0 && csiSelf){
+    const mult = csiSelf / inc;
+    if(mult > 100) w.push('Proposer CSI is ' + mult.toFixed(0) + ' times the monthly income. Above 100 times is outside the guideline.');
+    else if(mult > 72) w.push('Proposer CSI is ' + mult.toFixed(0) + ' times the monthly income, so the proposal goes to the Regional Office underwriter (up to 72 times needs no escalation).');
+  }
+  if(psPlan === 'P' && (inp.members || []).some(m => m.cov && (m.cov.loan || m.cov.emi))) w.push('Loan Secure and EMI Protection are available only under the Elite Plan.');
+  if(q.rawDisc > PS_DISC_CAP) w.push('Discounts add up to ' + q.rawDisc.toFixed(2) + '%, so the total has been capped at ' + PS_DISC_CAP + '%.');
+  if(inp.staff) w.push('Staff discount is applied, so the family discount, the No Claim Discount and agency commission are not allowed.');
+  if(q.minApplied) w.push('The calculated premium is below the minimum of Rs.' + PS_MIN_PREMIUM + ', so the minimum premium has been charged.');
+  return w;
+}
+
+/* ── member rows ───────────────────────────────────────────────────────── */
+function addMember(pre){
+  if(members.length >= PS_MAX_MEMBERS) return;
+  const isFirst = members.length === 0;
+  members.push(Object.assign({
+    id: ++seq, rel: isFirst ? 'self' : 'spouse', name: '', age: isFirst ? 35 : 32,
+    earning: isFirst, risk: 'I', csi: isFirst ? 2000000 : 1000000,
+    cov: {}, ttdSi: 500000, loanSi: 1000000, emiSi: 500000, ptd2: false, preEx: false
+  }, pre || {}));
+  renderMembers();
+}
+function byId(id){ return members.find(m => m.id === parseInt(id, 10)); }
+
+function csiOptions(sel, from){
+  return PS_CSI.filter(v => v >= (from || PS_MIN_CSI)).map(v => '<option value="' + v + '"' + (v === sel ? ' selected' : '') + '>&#8377; ' + siLabel(v) + '</option>').join('');
+}
+function ttdOptions(sel){
+  return PS_TTD_SI.map(v => '<option value="' + v + '"' + (v === sel ? ' selected' : '') + '>&#8377; ' + siLabel(v) + '</option>').join('');
+}
+
+function renderMembers(){
+  const host = $('psMembers');
+  host.innerHTML = members.map((m, i) => {
+    const r = PS_RELBY(m.rel);
+    const weekly = Math.min(Math.round(m.ttdSi * 0.01), m.earning ? (psPlan === 'E' ? 50000 : 20000) : (psPlan === 'E' ? 10000 : 5000));
+    const chips = PS_OPT.filter(o => o.plans.indexOf(psPlan) >= 0).map(o =>
+      '<button type="button" class="chip ps-cov' + (m.cov && m.cov[o.k] ? ' active' : '') + '" data-id="' + m.id + '" data-cov="' + o.k + '" title="' + o.d + '">' + o.s + '</button>').join('');
+    return '<div class="member-item" data-id="' + m.id + '" style="display:block;padding:12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span class="member-badge">' + (i === 0 ? 'Proposer' : 'Member ' + (i + 1)) + '</span>' +
+        '<span style="font-size:11px;color:var(--mute)">Risk Category ' + m.risk + ' &middot; loading ' + (PS_RISK[m.risk] || 0) + '%</span></div>' +
+      '<div class="field-row">' +
+        '<div class="field"><label class="lbl">Relationship</label><select class="ps-rel" data-id="' + m.id + '"' + (i === 0 ? ' disabled' : '') + '>' +
+          PS_REL.map(x => '<option value="' + x.k + '"' + (x.k === m.rel ? ' selected' : '') + '>' + x.n + '</option>').join('') + '</select></div>' +
+        '<div class="field"><label class="lbl">Name <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">(optional)</span></label><input type="text" class="ps-name" data-id="' + m.id + '" value="' + String(m.name || '').replace(/"/g, '&quot;') + '" placeholder="' + r.n + '" /></div>' +
+      '</div>' +
+      '<div class="field-row">' +
+        '<div class="field"><label class="lbl">Age</label><input type="number" class="ps-age" data-id="' + m.id + '" value="' + m.age + '" min="0" max="99" inputmode="numeric" /></div>' +
+        '<div class="field"><label class="lbl">Occupation risk</label><select class="ps-risk" data-id="' + m.id + '">' +
+          '<option value="I"' + (m.risk === 'I' ? ' selected' : '') + '>Category I &middot; low risk &middot; +0%</option>' +
+          '<option value="II"' + (m.risk === 'II' ? ' selected' : '') + '>Category II &middot; moderate &middot; +25%</option>' +
+          '<option value="III"' + (m.risk === 'III' ? ' selected' : '') + '>Category III &middot; high &middot; +50%</option></select></div>' +
+      '</div>' +
+      '<div class="field-row">' +
+        '<div class="field"><label class="lbl">Capital Sum Insured</label><select class="ps-csi" data-id="' + m.id + '">' + csiOptions(m.csi) + '</select></div>' +
+        '<div class="field"><label class="lbl">Earning member</label><select class="ps-earn" data-id="' + m.id + '"><option value="1"' + (m.earning ? ' selected' : '') + '>Earning</option><option value="0"' + (!m.earning ? ' selected' : '') + '>Not earning</option></select></div>' +
+      '</div>' +
+      '<div class="field"><label class="lbl">Covers for this person</label><div class="chip-row">' +
+        '<button type="button" class="chip ps-flag' + (m.ptd2 ? ' active' : '') + '" data-id="' + m.id + '" data-flag="ptd2">PTD Option II &middot; ' + (psPlan === 'E' ? '200%' : '150%') + ' of CSI</button>' +
+        chips +
+        '<button type="button" class="chip ps-flag' + (m.preEx ? ' active' : '') + '" data-id="' + m.id + '" data-flag="preEx">Pre-existing condition +30%</button>' +
+      '</div></div>' +
+      (m.cov && m.cov.ttd ? '<div class="field-row"><div class="field"><label class="lbl">TTD Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; up to 25% of CSI</span></label><select class="ps-ttdsi" data-id="' + m.id + '">' + ttdOptions(m.ttdSi) + '</select><div class="hint">Weekly benefit &#8377;' + fmt(weekly) + ' for up to 100 weeks</div></div><div class="field"></div></div>' : '') +
+      ((psPlan === 'E' && m.cov && m.cov.loan) ? '<div class="field"><label class="lbl">Loan Secure Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; one home loan per policy, not above the CSI</span></label><select class="ps-loansi" data-id="' + m.id + '">' + csiOptions(m.loanSi, 100000) + '</select></div>' : '') +
+      ((psPlan === 'E' && m.cov && m.cov.emi) ? '<div class="field"><label class="lbl">EMI Protection Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; household goods loan, maximum 12 EMIs</span></label><select class="ps-emisi" data-id="' + m.id + '">' + csiOptions(m.emiSi, 100000) + '</select></div>' : '') +
+      (i === 0 ? '' : '<button class="member-remove" data-id="' + m.id + '" title="Remove" type="button">&times;</button>') +
+    '</div>';
+  }).join('');
+
+  host.querySelectorAll('.ps-rel').forEach(el => el.addEventListener('change', () => { const m = byId(el.dataset.id); m.rel = el.value; const r = PS_RELBY(m.rel); if(r.dep && m.rel !== 'spouse') m.earning = false; renderMembers(); }));
+  host.querySelectorAll('.ps-name').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).name = el.value; }));
+  host.querySelectorAll('.ps-age').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).age = parseInt(el.value, 10) || 0; }));
+  host.querySelectorAll('.ps-risk').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).risk = el.value; renderMembers(); }));
+  host.querySelectorAll('.ps-earn').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).earning = el.value === '1'; renderMembers(); }));
+  host.querySelectorAll('.ps-csi').forEach(el => el.addEventListener('change', () => {
+    const m = byId(el.dataset.id); m.csi = parseInt(el.value, 10);
+    const cap = nearestTtd(floorLakh(m.csi * 0.25)); if(cap > 0 && m.ttdSi > cap) m.ttdSi = cap;
+    if(m.loanSi > m.csi) m.loanSi = nearestCsi(m.csi); if(m.emiSi > m.csi) m.emiSi = nearestCsi(m.csi);
+    renderMembers();
+  }));
+  host.querySelectorAll('.ps-ttdsi').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).ttdSi = parseInt(el.value, 10); renderMembers(); }));
+  host.querySelectorAll('.ps-loansi').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).loanSi = parseInt(el.value, 10); }));
+  host.querySelectorAll('.ps-emisi').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).emiSi = parseInt(el.value, 10); }));
+  host.querySelectorAll('.ps-cov').forEach(b => b.addEventListener('click', () => {
+    const m = byId(b.dataset.id); m.cov = m.cov || {}; const k = b.dataset.cov; m.cov[k] = !m.cov[k];
+    if(k === 'ttd' && m.cov.ttd){ const cap = nearestTtd(floorLakh(m.csi * 0.25)); m.ttdSi = cap > 0 ? cap : PS_TTD_SI[0]; }
+    renderMembers();
+  }));
+  host.querySelectorAll('.ps-flag').forEach(b => b.addEventListener('click', () => { const m = byId(b.dataset.id); m[b.dataset.flag] = !m[b.dataset.flag]; renderMembers(); }));
+  host.querySelectorAll('.member-remove').forEach(b => b.addEventListener('click', () => { const i = members.findIndex(m => m.id === parseInt(b.dataset.id, 10)); if(i > 0){ members.splice(i, 1); renderMembers(); } }));
+}
+
+function readInputs(){
+  return { plan: psPlan, term: $('psTerm').value, online: $('psOnline').checked, staff: $('psStaff').checked,
+           ncd: parseFloat($('psNcd').value) || 0, monthlyIncome: parseFloat($('psMonthlyIncome').value) || 0,
+           members: members.map(m => Object.assign({}, m, { cov: Object.assign({}, m.cov) })) };
+}
+
+function line(k, v, cls){
+  return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:13px' +
+    (cls === 'total' ? ';font-weight:700' : '') + (cls === 'sub' ? ';color:var(--mute);font-size:12px' : '') +
+    (cls === 'head' ? ';font-weight:700;color:var(--accent);border-bottom:1.5px solid var(--border);margin-top:8px' : '') +
+    '"><span>' + k + '</span><span>' + v + '</span></div>';
+}
+
+function calculate(){
+  if(!members.length){ addMember(); return; }
+  const inp = readInputs();
+  const q = psCompute(inp);
+  const warns = psChecks(inp, q);
+  const fl = $('psFlags'); fl.style.display = warns.length ? '' : 'none';
+  fl.innerHTML = warns.map(x => '<div>&#9888; ' + x + '</div>').join('');
+
+  const termLabel = q.years === 1 ? '1 Year' : (q.years + ' Years · ' + (PS_LT[q.years] * 100) + '% long-term discount built into the chart');
+  $('psQuoteDetails').innerHTML =
+    line('Plan', q.plan === 'E' ? 'Elite Plan' : 'Premium Plan') +
+    line('Policy term', termLabel) +
+    line('Insured persons', String(q.memberCount)) +
+    line('Total Capital Sum Insured', '&#8377; ' + fmt(q.rows.reduce((t, r) => t + r.csi, 0)));
+
+  let h = '';
+  q.rows.forEach((r, i) => {
+    const rel = PS_RELBY(r.rel);
+    h += line((i + 1) + '. ' + (r.name || rel.n) + ' &middot; age ' + r.age + ' &middot; Risk ' + r.risk, '&#8377; ' + fmt(r.premium), 'head');
+    r.parts.forEach(p => { h += line('&nbsp;&nbsp;' + p.label, '&#8377; ' + fmt(p.amount), 'sub'); });
+    if(r.loadPct > 0) h += line('&nbsp;&nbsp;Loading &middot; ' + (r.riskPct ? 'occupation ' + r.riskPct + '%' : '') + (r.riskPct && r.preExPct ? ' + ' : '') + (r.preExPct ? 'pre-existing condition ' + r.preExPct + '%' : ''), '+ &#8377; ' + fmt(r.load), 'sub');
+  });
+  h += line('Premium for all insured persons', '&#8377; ' + fmt(q.subtotal), 'total');
+  if(q.familyPct) h += line('Family discount &middot; ' + q.familyPct + '%', '', 'sub');
+  if(q.onlinePct) h += line('Direct / portal discount &middot; ' + q.onlinePct + '%', '', 'sub');
+  if(q.staffPct) h += line('Staff discount &middot; ' + q.staffPct + '%', '', 'sub');
+  if(q.ncdPct) h += line('No Claim Discount &middot; ' + q.ncdPct + '%', '', 'sub');
+  if(q.discPct) h += line('Total discount &middot; ' + q.discPct.toFixed(2).replace(/\.00$/, '') + '%', '&minus; &#8377; ' + fmt(q.discAmt));
+  h += line('Net Premium', '&#8377; ' + fmt(q.net), 'total');
+  h += line('GST @ 18%', '&#8377; ' + fmt(q.gst));
+  $('psBreakdown').innerHTML = h;
+  $('psGrandTotal').textContent = fmt(q.grand);
+  $('psResDate').textContent = new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+
+  const now = new Date(), pad = n => String(n).padStart(2, '0');
+  lastQuote = Object.assign({
+    proposer: $('psProposer').value.trim() || 'Valued Customer',
+    quoteRef: 'PAQ-' + now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) + '-' + pad(now.getHours()) + pad(now.getMinutes()),
+    dateStr: now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }),
+    now, inp, warns, termLabel
+  }, q);
+  $('psResultCard').style.display = '';
+  setTimeout(() => $('psResultCard').scrollIntoView({ behavior:'smooth', block:'start' }), 60);
+}
+
+function newQuote(){
+  $('psProposer').value = ''; $('psMonthlyIncome').value = '';
+  $('psTerm').value = '1'; $('psNcd').value = '0';
+  $('psOnline').checked = false; $('psStaff').checked = false;
+  members = []; seq = 0; lastQuote = null;
+  $('psResultCard').style.display = 'none'; $('psFlags').style.display = 'none';
+  addMember();
+}
+
+/* ── PDF ───────────────────────────────────────────────────────────────── */
+function buildPDF(returnBlob){
+  const q = lastQuote;
+  if(!q){ alert('Please calculate the premium first.'); return; }
+  const R = (typeof OICPDF !== 'undefined' && OICPDF.money2) ? OICPDF.money2 : (n => 'Rs. ' + fmt(n));
+  const AG = (typeof AGENT !== 'undefined') ? AGENT : { name:'', phone:'' };
+  const now = q.now || new Date();
+  const dateStr = now.toLocaleDateString('en-IN', { day:'2-digit', month:'2-digit', year:'numeric' }).replace(/\//g, '-');
+  let costCode = '';
+  try{ costCode = (typeof buildCostCode === 'function') ? buildCostCode(q.discPct || 0, 0, q.commAmt || 0) : ''; }catch(e){}
+
+  const left = [{ sub:'Policy Details', rows: [
+    { label:'Proposer', value:q.proposer },
+    { label:'Product', value:'Personal Accident Parivaar Suraksha' },
+    { label:'Plan', value:q.plan === 'E' ? 'Elite Plan' : 'Premium Plan' },
+    { label:'Policy Term', value:q.termLabel },
+    { label:'Insured Persons', value:String(q.memberCount) },
+    { label:'Total Capital Sum Insured', value:R(q.rows.reduce((t, r) => t + r.csi, 0)) }
+  ]}];
+  q.rows.forEach((r, i) => {
+    const rel = PS_RELBY(r.rel);
+    const rows = [
+      { label:'Relationship', value:rel.n },
+      { label:'Age', value:String(r.age) + ' years' },
+      { label:'Occupation Risk', value:'Category ' + r.risk + (r.riskPct ? ' (+' + r.riskPct + '%)' : '') },
+      { label:'Capital Sum Insured', value:R(r.csi) }
+    ];
+    if(r.ptd2) rows.push({ label:'PTD Option II', value: q.plan === 'E' ? '200% of CSI' : '150% of CSI' });
+    PS_OPT.forEach(o => { if(r.cov && r.cov[o.k]){
+      let v = 'Opted';
+      if(o.k === 'ttd') v = 'Sum Insured ' + R(r.ttdSi);
+      if(o.k === 'loan') v = 'Sum Insured ' + R(r.loanSi);
+      if(o.k === 'emi') v = 'Sum Insured ' + R(r.emiSi);
+      rows.push({ label:o.s, value:v });
+    }});
+    if(r.preEx) rows.push({ label:'Pre-existing condition', value:'Loading 30%' });
+    rows.push({ label:'Premium for this person', value:R(r.premium) });
+    left.push({ sub:(i + 1) + '. ' + (r.name || rel.n), rows });
+  });
+
+  const fin = [];
+  q.rows.forEach((r, i) => fin.push({ label:(i + 1) + '. ' + (r.name || PS_RELBY(r.rel).n), value:R(r.premium) }));
+  fin.push({ label:'Premium for all insured persons', value:R(q.subtotal) });
+  if(q.discPct) fin.push({ label:'Less: discount ' + q.discPct.toFixed(2).replace(/\.00$/, '') + '%', value:'- ' + R(q.discAmt) });
+  fin.push({ label:'Net Premium', value:R(q.net) });
+  fin.push({ label:'GST @ 18%', value:R(q.gst) });
+  fin.push({ label:'Total Premium', value:R(q.grand), total:true });
+  const right = [{ sub:'Premium Summary', rows:fin }];
+
+  const notes = [
+    'Capital Sum Insured is fixed separately for each insured person. One plan applies to every insured person on the policy; the plan can be changed only at renewal.',
+    'All in-built benefits of the plan are included in the premium shown. Optional covers are charged only where they are listed against an insured person above.',
+    'Cover is worldwide and applies 24 hours a day. Benefits are payable on death, disablement or injury caused solely and directly by an accident, subject to the policy terms.',
+    'Cheque / DD payable to: The Oriental Insurance Company Limited. This is a system generated quote and does not require signature. Premium and terms may change at the time of issuance of the policy, and acceptance is subject to underwriting.'
+  ];
+  const safe = String(q.proposer || 'Customer').replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_').substring(0, 40);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dStr = String(now.getDate()).padStart(2, '0') + months[now.getMonth()] + now.getFullYear();
+
+  const out = OICPDF.render({
+    subtitle: 'Quotation Worksheet For Personal Accident Insurance – PARIVAAR SURAKSHA (' + (q.plan === 'E' ? 'ELITE' : 'PREMIUM') + ' PLAN)',
+    quoteNumber: String(Math.floor(now.getTime() / 1000)).slice(-5),
+    quoteId: q.quoteRef, dateStr, costCode, agent: AG, left, right, notes,
+    totalLabel: 'Total Premium' + (q.years > 1 ? ' (' + q.years + ' Years)' : ''),
+    totalValue: R(q.grand),
+    filename: 'Oriental_PA_Parivaar_Quote_' + safe + '_' + dStr + '.pdf'
+  });
+  try{ OICI18N.pages(out.doc, function(d){ drawPapsCoverPages(d, q); }); }catch(e){ console.error('PAPS cover pages skipped:', e); }
+  if(returnBlob) return { blob: new Blob([out.doc.output('arraybuffer')], { type:'application/pdf' }), filename: out.filename };
+  out.doc.save(out.filename);
+  if(typeof toast === 'function') toast('PDF downloaded');
+}
+function generatePDF(){ buildPDF(false); }
+function safeName(q){ return String(q.proposer || 'Quote').replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_').substring(0, 40); }
+
+/* ── cover & conditions pages (from the CIS, prospectus and policy wordings) ── */
+const PAPS_COVER_DATA = {
+  intro: 'Personal Accident Parivaar Suraksha covers accidental death, disablement and related expenses of the insured persons named in the schedule, anywhere in the world, 24 hours a day. This summary is taken from the Customer Information Sheet and the policy wordings; the policy wording prevails for any interpretation.',
+  inbuilt: [
+    ['Accidental Death', '100% of the Capital Sum Insured, under both plans.'],
+    ['Permanent Total Disablement', 'Option I pays 100% of CSI under both plans. Option II pays 150% of CSI under the Premium Plan and 200% under the Elite Plan, on payment of additional premium.'],
+    ['Permanent Partial Disablement', 'A percentage of the CSI according to the scale of compensation printed in the policy.'],
+    ['Broken Bones / Fracture', 'Premium Plan 10% of CSI up to Rs. 5 lakh. Elite Plan 25% of CSI up to Rs. 10 lakh.'],
+    ['Burns', 'Premium Plan 10% of CSI up to Rs. 5 lakh. Elite Plan 25% of CSI up to Rs. 10 lakh.'],
+    ['Coma', 'Premium Plan 10% of CSI up to Rs. 5 lakh. Elite Plan 25% of CSI up to Rs. 10 lakh.'],
+    ['Funeral Expenses', '1% of CSI, up to Rs. 10,000 under the Premium Plan and Rs. 25,000 under the Elite Plan.'],
+    ['Transportation of Mortal Remains', 'Actuals up to 2% of CSI, maximum Rs. 20,000 under the Premium Plan and Rs. 40,000 under the Elite Plan.'],
+    ['Emergency Road Ambulance', 'Premium Plan 2% of CSI up to Rs. 5,000. Elite Plan 2% of CSI up to Rs. 20,000 where the CSI is Rs. 30 lakh or less, and up to Rs. 30,000 above that.'],
+    ['Education Fund', 'For up to two dependent children, 10% of CSI per child, maximum Rs. 2 lakh per child under the Premium Plan and Rs. 4 lakh under the Elite Plan, up to age 25.'],
+    ['Family Support (Double Benefit)', 'An additional 100% of CSI, under both plans.'],
+    ['Cost of Prosthetics / Wheelchair', 'Elite Plan only: actuals up to Rs. 30,000 per policy.'],
+    ['Loss of Employment', 'A one-time payment of 2% of CSI or two months gross monthly income, whichever is less, where permanent total disablement causes involuntary loss of employment.'],
+    ['Modification of Residence or Vehicle', 'On permanent total disablement, 25% of CSI up to Rs. 1 lakh under the Premium Plan and Rs. 3 lakh under the Elite Plan.'],
+    ['Emergency Air Ambulance', 'Elite Plan only: actuals up to Rs. 2 lakh within India and Rs. 10 lakh outside India.'],
+    ['Transportation of Imported Medicines or Implants', 'Elite Plan only: up to 5% of CSI, maximum Rs. 25,000.'],
+    ['Health Insurance Premium Indemnity', 'The expiring health insurance premium, up to Rs. 1 lakh, under both plans.']
+  ],
+  optional: {
+    ttd: ['Pays 1% of the Temporary Total Disablement Sum Insured every week while the insured person is totally disabled, for a maximum of 100 weeks.',
+          'The weekly amount is capped at Rs. 20,000 under the Premium Plan and Rs. 50,000 under the Elite Plan for an earning person, and at Rs. 5,000 and Rs. 10,000 respectively for a non-earning spouse, and can never exceed the weekly gainful income.',
+          'The Sum Insured for this section cannot exceed 25% of the Capital Sum Insured.'],
+    med: ['Reimburses hospitalisation expenses following an accident, up to 10% of the Capital Sum Insured.',
+          'Premium Plan pays the least of the Sum Insured, actuals, or 40% of the admissible claim under benefits 1 to 6; the Elite Plan pays up to 100% of that claim.',
+          'The Sum Insured is restored once under the Premium Plan and twice under the Elite Plan, on full utilisation within the policy period.'],
+    ahc:  ['Pays 0.1% of the Capital Sum Insured for each day of hospitalisation after an accident, for a maximum of 30 days in a policy year.',
+           'The daily amount is capped at Rs. 1,000 under the Premium Plan and Rs. 2,500 under the Elite Plan.'],
+    eld:  ['Support for an elderly insured person following an accident: 10% of CSI up to Rs. 5 lakh under the Premium Plan and 25% of CSI up to Rs. 10 lakh under the Elite Plan.'],
+    chf:  ['Reimburses the cost of engaging a driver after an accident, 0.1% of CSI a day, for a maximum of 30 days in a policy year.',
+           'The daily amount is capped at Rs. 1,000 under the Premium Plan and Rs. 2,500 under the Elite Plan.'],
+    loan: ['Elite Plan only. Pays the outstanding principal of one eligible home loan standing in the name of the insured person, up to the Sum Insured opted, which cannot exceed the Accidental Death CSI.',
+           'The loan must be from a bank or a financial institution licensed in India, and the age of the loanee must not exceed 70 years at the commencement of the policy. Only one loan per policy is covered.'],
+    emi:  ['Elite Plan only. Pays up to 12 consecutive EMIs from the date of the accident, or the remaining EMIs if fewer, up to the Sum Insured opted.',
+           'The loan must be for household items such as furniture, appliances and electronics. Loans for vehicles, real estate, education, mobiles, jewellery and works of art are not covered.']
+  },
+  exclusions: [
+    'No compensation is payable under more than one of Accidental Death, Permanent Total Disablement, Permanent Partial Disablement or Temporary Total Disablement for the same period of disablement.',
+    'Where there is more than one claim, the total liability in a policy period cannot exceed the Sum Insured shown in the schedule for that benefit.',
+    'Weekly compensation is payable only after the total amount has been ascertained and agreed.',
+    'Intentional self-injury, suicide or attempted suicide.',
+    'Being under the influence of intoxicating liquor or drugs.',
+    'Hazardous or adventurous sports.',
+    'Aviation or ballooning, or travel in an aircraft other than as a passenger in a licensed standard aircraft.',
+    'Venereal disease or insanity.',
+    'Breach of law with criminal intent.',
+    'War, invasion, act of foreign enemy, hostilities, civil war, rebellion, revolution, insurrection, mutiny, military or usurped power, seizure, capture, arrest, restraint or detainment.',
+    'Ionising radiation, radioactive contamination from nuclear fuel or nuclear waste, or nuclear weapon material.',
+    'Childbirth, pregnancy or their consequences.'
+  ],
+  eligibility: [
+    ['Who can be covered', 'An earning adult proposer, the legally wedded spouse, dependent children between 90 days and 18 years (25 years while a full-time student, unmarried), dependent natural or adoptive parents, and dependent parents-in-law while the marriage subsists.'],
+    ['Age at entry', 'Minimum 18 years for the proposer and maximum 70 years for every insured person.'],
+    ['Number of members', 'A maximum of 10 members including the proposer may be covered under one policy.'],
+    ['Capital Sum Insured', 'Minimum Rs. 5,00,000 and maximum Rs. 5,00,00,000 for each insured person, based on the monthly gainful income of the proposer. A non-earning spouse is limited to 50% of the proposer CSI subject to Rs. 50 lakh; dependent children, parents and parents-in-law to 25% subject to Rs. 25 lakh.'],
+    ['Policy term', 'One, two or three years against a single premium, with the long-term discount of 4% and 7% already built into the two and three year premium charts.']
+  ],
+  conditions: [
+    ['Cumulative Bonus or No Claim Discount', 'At inception the insured chooses either a Cumulative Bonus, which raises the death and disablement compensation by 5% of CSI for every claim-free year up to 50%, or a No Claim Discount of 2% of the renewal premium for every claim-free year up to 20%. Only one of the two applies, the choice can be changed only at renewal, and the benefit becomes nil for an insured person who reports a claim.'],
+    ['Free look', 'Thirty days from receipt of the policy to review it and return it if it is not acceptable, provided no claim has been made. The refund is the premium paid less the proportionate risk premium for the period on cover, medical examination costs and stamp duty.'],
+    ['Cancellation', 'The insured may cancel at any time without giving reasons. For a term of up to one year with no claim, the proportionate premium for the unexpired period is refunded; for longer terms, the premium is refunded for the policy years whose risk has not commenced. The company may cancel only for established fraud, on seven days notice.'],
+    ['Grace period and renewal', 'Thirty days from the due date. A policy renewed within the grace period keeps the Sum Insured and the accrued Cumulative Bonus or No Claim Discount; there is no cover during the grace period until the renewal premium is received. Renewal is not refused because a claim was made.'],
+    ['Adding a member mid-term', 'A newly married spouse within 60 days of marriage, a new-born between 90 and 180 days of age, and an adopted child within 60 days of adoption may be added on pro-rata premium. Optional covers cannot be added mid-term except Loan Secure and EMI Protection.'],
+    ['End of cover for an insured person', 'Cover for an insured person ends as soon as 100% of the Sum Insured is admitted and paid under accidental death, permanent total disablement, permanent partial disablement or temporary total disablement.'],
+    ['Nomination', 'The proposer must nominate at inception. For the other insured persons the proposer is deemed to be the nominee. A nomination may be changed at any time and is recorded by endorsement without any fee.'],
+    ['Disclosure', 'All information in the proposal must be complete and correct, and any change in occupation or business must be notified to the company immediately.']
+  ],
+  claims: [
+    'Give written notice with full particulars to the company immediately upon any event that may give rise to a claim.',
+    'Report to the police and to any other authority where the nature of the accident requires it, and preserve the supporting evidence.',
+    'Furnish satisfactory proof and the documents the company asks for, and permit a medical examination or post-mortem where it is permitted and relevant.',
+    'Claims are payable after verification and admissibility, against a valid discharge by the claimant.',
+    'Claim intimation and assistance: www.orientalinsurance.org.in, toll free 1800 11 8485, csd@orientalinsurance.co.in, or the Customer Service Department, Corporate Office, Block 4, Plate A, NBCC Office Complex, Kidwai Nagar East, New Delhi 110023.',
+    'If a grievance is not resolved, the insured person may approach the Grievance Officer and thereafter the Insurance Ombudsman for the region.'
+  ]
+};
+
+function drawPapsCoverPages(doc, q){
+  if(typeof makeCoverPainter !== 'function') return;
+  const D = PAPS_COVER_DATA;
+  const R = n => 'Rs. ' + Math.round(Number(n) || 0).toLocaleString('en-IN');
+  const planName = q.plan === 'E' ? 'Elite Plan' : 'Premium Plan';
+  const sub = (q.proposer || '') + '   |   ' + planName + '   |   ' + q.memberCount + ' insured person' + (q.memberCount > 1 ? 's' : '') + '   |   ' + q.termLabel;
+  const P = makeCoverPainter(doc, 'PERSONAL ACCIDENT PARIVAAR SURAKSHA - SCOPE OF COVER & CONDITIONS', sub,
+    'The Oriental Insurance Company Limited   ·   Summary from the Customer Information Sheet and policy wordings; the policy wording prevails', 'Cover Schedule');
+  doc.addPage(); P.header();
+  P.note(D.intro); P.gap(8);
+
+  P.section('IN-BUILT BENEFITS INCLUDED IN THIS PLAN');
+  P.table2(['Benefit', 'What the policy pays'], D.inbuilt, 0.36); P.gap(8);
+
+  P.section('OPTIONAL COVERS OPTED IN THIS QUOTATION');
+  const opted = [];
+  PS_OPT.forEach(o => { if((q.rows || []).some(r => r.cov && r.cov[o.k])) opted.push(o); });
+  if(!opted.length) P.block('Optional covers', ['No optional cover has been opted in this quotation. Only the in-built benefits of the plan apply.']);
+  opted.forEach(o => {
+    const who = (q.rows || []).filter(r => r.cov && r.cov[o.k]).map(r => r.name || PS_RELBY(r.rel).n).join(', ');
+    P.block(o.s, (D.optional[o.k] || []).concat(['Opted for: ' + who + '.']));
+  });
+  if((q.rows || []).some(r => r.ptd2)) P.block('Permanent Total Disablement Option II', ['Raises the permanent total disablement benefit to ' + (q.plan === 'E' ? '200%' : '150%') + ' of the Capital Sum Insured for the insured persons shown in the schedule.']);
+  P.gap(8);
+
+  P.section('WHO CAN BE COVERED');
+  D.eligibility.forEach(r => P.block(r[0], [r[1]])); P.gap(8);
+
+  P.section('WHAT IS NOT COVERED');
+  P.block('Excluded', D.exclusions, { numbered:true, tint:'red' }); P.gap(8);
+
+  P.section('IMPORTANT CONDITIONS');
+  D.conditions.forEach(r => P.block(r[0], [r[1]])); P.gap(8);
+
+  P.section('HOW TO MAKE A CLAIM');
+  P.block('The insured person must', D.claims, { numbered:true }); P.gap(8);
+
+  P.note('Insurance is the subject matter of solicitation. This quotation is an estimate of premium only and does not constitute a contract of insurance. Acceptance is subject to underwriting and to receipt of the premium.');
+  P.footer();
+}
+
+/* ── document-verified self-test cases ─────────────────────────────────── */
+const PAPS_VERIFIED = [
+  { label:'PAPS chart: annual Premium Plan base premium at CSI 1 lakh / 10 lakh / 50 lakh / 5 crore is 103 / 1014 / 4982 / 36925', expect:'103/1014/4982/36925',
+    check:()=>[PS_CSI.indexOf(100000), PS_CSI.indexOf(1000000), PS_CSI.indexOf(5000000), PS_CSI.indexOf(50000000)].map(i => PS_RATE.BASE_P[i]).join('/') },
+  { label:'PAPS chart: annual Elite Plan base premium at CSI 1 lakh / 10 lakh / 5 crore is 144 / 1436 / 38634', expect:'144/1436/38634',
+    check:()=>[PS_CSI.indexOf(100000), PS_CSI.indexOf(1000000), PS_CSI.indexOf(50000000)].map(i => PS_RATE.BASE_E[i]).join('/') },
+  { label:'PAPS chart: CSI ladder is 1 to 99 lakh in 1 lakh steps then 1 to 5 crore in 5 lakh steps (180 values); TTD ladder 1 to 55 lakh (55 values)', expect:'180/100000/50000000/55/5500000',
+    check:()=>[PS_CSI.length, PS_CSI[0], PS_CSI[PS_CSI.length-1], PS_TTD_SI.length, PS_TTD_SI[PS_TTD_SI.length-1]].join('/') },
+  { label:'PAPS long term: the 2 and 3 year charts are the annual figure x years x (1 - 4% / 7%) rounded to the rupee (base at CSI 5 crore = 70,896 and 103,021)', expect:'70896/103021',
+    check:()=>{ const i = PS_CSI.indexOf(50000000), a = PS_RATE.BASE_P[i]; return [Math.round(a*2*0.96), Math.round(a*3*0.93)].join('/'); } },
+  { label:'PAPS: occupation and pre-existing loadings are additive, not multiplicative - base 1014 at CSI 10 lakh becomes 1268 with Risk II alone and 1572 with Risk II plus the 30% medical loading (a multiplicative reading would give 1648)', expect:'1268/1572',
+    check:()=>{ const q1 = psCompute({ plan:'P', term:1, members:[{ id:1, rel:'self', age:35, earning:true, risk:'II', csi:1000000, cov:{} }] });
+                const q2 = psCompute({ plan:'P', term:1, members:[{ id:1, rel:'self', age:35, earning:true, risk:'II', csi:1000000, preEx:true, cov:{} }] });
+                return [Math.round(q1.subtotal), Math.round(q2.subtotal)].join('/'); } },
+  { label:'PAPS discounts: family 5% for two members and 10% for three or more, online 10%, staff 33.33% (which bars the family discount and commission), all capped at 40%', expect:'5/10/40/0',
+    check:()=>{ const two = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,cov:{}},{id:2,rel:'spouse',age:32,risk:'I',csi:500000,cov:{}}] });
+                const three = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,cov:{}},{id:2,rel:'spouse',age:32,risk:'I',csi:500000,cov:{}},{id:3,rel:'son',age:10,risk:'I',csi:500000,cov:{}}] });
+                const staff = psCompute({ plan:'P', term:1, staff:true, online:true, ncd:20, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,cov:{}},{id:2,rel:'spouse',age:32,risk:'I',csi:500000,cov:{}}] });
+                return [two.familyPct, three.familyPct, staff.discPct, staff.commAmt].join('/'); } },
+  { label:'PAPS: minimum premium Rs.100 exclusive of tax, and GST at 18% charged as CGST plus SGST', expect:'100/18',
+    check:()=>{ const q = psCompute({ plan:'P', term:1, staff:true, online:true, members:[{id:1,rel:'son',age:10,risk:'I',csi:100000,cov:{}}] }); return [q.net, q.gst].join('/'); } },
+  { label:'PAPS: Loan Secure and EMI Protection are priced only under the Elite Plan', expect:'0/30',
+    check:()=>{ const p = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
+                const e = psCompute({ plan:'E', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
+                const pl = p.rows[0].parts.filter(x => x.k === 'loan').length ? 1 : 0;
+                return [pl, e.rows[0].parts.filter(x => x.k === 'loan')[0].amount].join('/'); } }
+];
+
+/* ── wiring ────────────────────────────────────────────────────────────── */
+document.querySelectorAll('#psPlanTabs .health-plan-tab').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#psPlanTabs .health-plan-tab').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); psPlan = b.dataset.plan;
+  if(psPlan === 'P') members.forEach(m => { if(m.cov){ m.cov.loan = false; m.cov.emi = false; } });
+  $('psPlanHint').textContent = psPlan === 'E'
+    ? 'Elite doubles most benefit caps and adds air ambulance, prosthetics, imported medicines, Loan Secure and EMI Protection.'
+    : 'Premium Plan covers the same benefits at lower caps. Air ambulance, prosthetics, imported medicines, Loan Secure and EMI Protection are not available.';
+  renderMembers();
+}));
+$('psAddMember').addEventListener('click', () => { if(members.length >= PS_MAX_MEMBERS){ alert('A single policy may cover a maximum of ' + PS_MAX_MEMBERS + ' insured persons.'); return; } addMember(); });
+$('psCalcBtn').addEventListener('click', calculate);
+$('psPdfBtn').addEventListener('click', () => { try{ buildPDF(false); }catch(e){ console.error(e); alert('PDF generation failed: ' + (e.message || e)); } });
+$('psWaBtn').addEventListener('click', async () => {
+  try{ const r = buildPDF(true); if(!r) return; const q = lastQuote;
+    const file = new File([r.blob], r.filename, { type:'application/pdf' });
+    if(navigator.canShare && navigator.canShare({ files:[file] })){
+      try{ await navigator.share({ files:[file], title:'Personal Accident Parivaar Suraksha — ' + q.proposer }); return; }catch(e){ if(e.name === 'AbortError') return; }
+    }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(r.blob); a.download = r.filename; a.click();
+  }catch(e){ console.error(e); alert('Share failed: ' + (e.message || e)); }
+});
+$('psImgBtn').addEventListener('click', () => {
+  if(!lastQuote){ alert('Please calculate the premium first.'); return; }
+  const q = lastQuote;
+  OICIMG.shareViaBuilder(function(){ buildPDF(true); }, 'Oriental_PA_Parivaar_' + safeName(q) + '.png',
+    'Personal Accident Parivaar Suraksha — ' + q.proposer,
+    'Oriental Insurance personal accident quote for ' + q.proposer + ' — total premium ₹' + fmt(q.grand) + ' (incl. GST).');
+});
+$('psNewBtn').addEventListener('click', newQuote);
+$('psStaff').addEventListener('change', () => { if($('psStaff').checked) $('psNcd').value = '0'; });
+addMember();
+
+window.PAPS = { compute: psCompute, checks: psChecks, calculate, buildPDF, generatePDF, newQuote, addMember,
+                VERIFIED: PAPS_VERIFIED, COVER: PAPS_COVER_DATA, CSI: PS_CSI, TTD_SI: PS_TTD_SI, OPT: PS_OPT,
+                get members(){ return members; }, get plan(){ return psPlan; }, set plan(v){ psPlan = v; },
+                get lastQuote(){ return lastQuote; } };
+})();
+</script>
+
 <script>
 (function(){
 /* ═══════════════════════════════════════════════════════════════════════
@@ -19601,6 +20257,7 @@ function runSelfTest(){
       (window.WC && Array.isArray(window.WC.VERIFIED)) ? window.WC.VERIFIED : [],
       (window.CAR && Array.isArray(window.CAR.VERIFIED)) ? window.CAR.VERIFIED : [],
       (window.CPM && Array.isArray(window.CPM.VERIFIED)) ? window.CPM.VERIFIED : [],
+    (window.PAPS && Array.isArray(window.PAPS.VERIFIED)) ? window.PAPS.VERIFIED : [],
       Array.isArray(window.FIRE_VERIFIED) ? window.FIRE_VERIFIED : []);
     ALL_VERIFIED.forEach(v=>{
       let got; try{ got=v.check(); }catch(e){ got='ERR '+e.message; }
@@ -24186,6 +24843,8 @@ window.FIRE = {searchLocation: (typeof searchLocation==='function'? searchLocati
 })();
 </script>
 <style id="mobileFixes">
+/* v115: seven product tabs wrap instead of being squeezed into six columns */
+.product-tabs{grid-template-columns:repeat(auto-fit,minmax(76px,1fr))!important}
 /* v109: PDF language dropdown beside Download PDF */
 select.pdf-lang{appearance:auto;-webkit-appearance:menulist;padding:9px 10px;border-radius:10px;border:1.5px solid #d4b45a;background:linear-gradient(90deg,#fff8e1,#fffdf5);color:#0c2a5c;font-weight:700;font-size:12.5px;max-width:100%;cursor:pointer}
 .quote-actions select.pdf-lang{flex:1 1 100%;width:100%;grid-column:1 / -1}
@@ -24481,7 +25140,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v114 · CPM: type the machine as on the invoice (JCB 3DX, Hitachi EX 210, ACE hydra, DG set...) and the tariff category is picked automatically; category dropdown kept as override · 13-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v115 · new product: Oriental Personal Accident Parivaar Suraksha (Premium / Elite, up to 10 insured persons, in-built and optional covers, chart rates with occupation, family, portal, staff and long-term factors) · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
