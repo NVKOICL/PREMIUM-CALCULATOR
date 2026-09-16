@@ -6857,6 +6857,11 @@ function planKey(base, plan){ return base + '_' + (plan === 'E' ? 'E' : 'P'); }
 function floorLakh(v){ return Math.max(0, Math.floor(v / 100000) * 100000); }
 function nearestCsi(v){ let best = PS_CSI[0]; for(const c of PS_CSI){ if(c <= v) best = c; else break; } return best; }
 function nearestTtd(v){ let best = 0; for(const c of PS_TTD_SI){ if(c <= v) best = c; else break; } return best; }
+/* The weekly benefit is 1% of the TTD Sum Insured and the plan caps it, so anything above a
+   hundred times the weekly cap is premium the policy could never pay out. The usable ceiling is
+   therefore the lower of 25% of the Capital Sum Insured and that figure. */
+function psWeeklyCap(earning, plan){ return earning ? (plan === 'E' ? 50000 : 20000) : (plan === 'E' ? 10000 : 5000); }
+function psTtdCap(m, plan){ return nearestTtd(Math.min(floorLakh(m.csi * 0.25), psWeeklyCap(!!m.earning, plan) * 100)); }
 /* A figure that is not on the published ladder must never silently price at zero: fall back to the
    nearest tabulated figure at or below it, and let the caller tell the agent that it did. */
 function ladderIdx(ladder, v){
@@ -6964,11 +6969,8 @@ function psChecks(inp, q){
       if(m.earning && m.ttdSi > 500000) w.push(who + ': income proof is required because the TTD Sum Insured exceeds Rs.5,00,000.');
       /* the weekly benefit of a non-earning person is capped by the plan, so a larger TTD Sum
          Insured is paid for but can never be claimed (guideline 4.2c) */
-      if(!m.earning){
-        const cap = plan === 'E' ? 10000 : 5000;
-        const useful = cap * 100;
-        if(m.ttdSi > useful) w.push(who + ': a non-earning person can be paid only Rs.' + cap.toLocaleString('en-IN') + ' a week under this plan, so a TTD Sum Insured above ' + siLabel(useful) + ' costs premium that can never be claimed.');
-      }
+      const wk = psWeeklyCap(!!m.earning, plan), useful = wk * 100;
+      if(m.ttdSi > useful) w.push(who + ': the weekly benefit is capped at Rs.' + wk.toLocaleString('en-IN') + ' for a' + (m.earning ? 'n earning' : ' non-earning') + ' person under this plan, so a TTD Sum Insured above ' + siLabel(useful) + ' costs premium that can never be claimed.');
     }
     ['loan', 'emi'].forEach(k => {
       if(m.cov && m.cov[k]){
@@ -7012,7 +7014,7 @@ function csiOptions(sel, from, upto){
   return PS_CSI.filter(v => (v >= (from || PS_MIN_CSI) && (!upto || v <= upto)) || v === sel).map(v => '<option value="' + v + '"' + (v === sel ? ' selected' : '') + '>&#8377; ' + siLabel(v) + '</option>').join('');
 }
 function ttdOptions(sel, cap){
-  /* never offer more than 25% of the Capital Sum Insured, nor more than the chart provides */
+  /* never offer more than the usable ceiling, nor more than the chart provides */
   const lim = cap > 0 ? cap : PS_TTD_SI[PS_TTD_SI.length - 1];
   return PS_TTD_SI.filter(v => v <= lim || v === sel).map(v => '<option value="' + v + '"' + (v === sel ? ' selected' : '') + '>&#8377; ' + siLabel(v) + '</option>').join('');
 }
@@ -7048,7 +7050,7 @@ function renderMembers(){
         chips +
         '<button type="button" class="chip ps-flag' + (m.preEx ? ' active' : '') + '" data-id="' + m.id + '" data-flag="preEx">Pre-existing condition +30%</button>' +
       '</div></div>' +
-      (m.cov && m.cov.ttd ? '<div class="field-row"><div class="field"><label class="lbl">TTD Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; up to 25% of CSI</span></label><select class="ps-ttdsi" data-id="' + m.id + '">' + ttdOptions(m.ttdSi, floorLakh(m.csi * 0.25)) + '</select><div class="hint">Weekly benefit &#8377;' + fmt(weekly) + ' for up to 100 weeks</div></div><div class="field"></div></div>' : '') +
+      (m.cov && m.cov.ttd ? '<div class="field-row"><div class="field"><label class="lbl">TTD Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; up to 25% of CSI</span></label><select class="ps-ttdsi" data-id="' + m.id + '">' + ttdOptions(m.ttdSi, psTtdCap(m, psPlan)) + '</select><div class="hint">Weekly benefit &#8377;' + fmt(weekly) + ' for up to 100 weeks</div></div><div class="field"></div></div>' : '') +
       ((psPlan === 'E' && m.cov && m.cov.loan) ? '<div class="field"><label class="lbl">Loan Secure Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; one home loan per policy, not above the CSI</span></label><select class="ps-loansi" data-id="' + m.id + '">' + csiOptions(m.loanSi, 100000, m.csi) + '</select></div>' : '') +
       ((psPlan === 'E' && m.cov && m.cov.emi) ? '<div class="field"><label class="lbl">EMI Protection Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; household goods loan, maximum 12 EMIs</span></label><select class="ps-emisi" data-id="' + m.id + '">' + csiOptions(m.emiSi, 100000, m.csi) + '</select></div>' : '') +
       (i === 0 ? '' : '<button class="member-remove" data-id="' + m.id + '" title="Remove" type="button">&times;</button>') +
@@ -7059,10 +7061,14 @@ function renderMembers(){
   host.querySelectorAll('.ps-name').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).name = el.value; }));
   host.querySelectorAll('.ps-age').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).age = parseInt(el.value, 10) || 0; }));
   host.querySelectorAll('.ps-risk').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).risk = el.value; renderMembers(); }));
-  host.querySelectorAll('.ps-earn').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).earning = el.value === '1'; renderMembers(); }));
+  host.querySelectorAll('.ps-earn').forEach(el => el.addEventListener('change', () => {
+    const m = byId(el.dataset.id); m.earning = el.value === '1';
+    const cap = psTtdCap(m, psPlan); if(cap > 0 && m.ttdSi > cap) m.ttdSi = cap;   /* a non-earning person has a lower usable ceiling */
+    renderMembers();
+  }));
   host.querySelectorAll('.ps-csi').forEach(el => el.addEventListener('change', () => {
     const m = byId(el.dataset.id); m.csi = parseInt(el.value, 10);
-    const cap = nearestTtd(floorLakh(m.csi * 0.25)); if(cap > 0 && m.ttdSi > cap) m.ttdSi = cap;
+    const cap = psTtdCap(m, psPlan); if(cap > 0 && m.ttdSi > cap) m.ttdSi = cap;
     if(m.loanSi > m.csi) m.loanSi = nearestCsi(m.csi); if(m.emiSi > m.csi) m.emiSi = nearestCsi(m.csi);
     renderMembers();
   }));
@@ -7072,7 +7078,7 @@ function renderMembers(){
   host.querySelectorAll('.ps-cov').forEach(b => b.addEventListener('click', () => {
     const m = byId(b.dataset.id); m.cov = m.cov || {}; const k = b.dataset.cov; m.cov[k] = !m.cov[k];
     if(k === 'ttd' && m.cov.ttd){
-      const cap = nearestTtd(floorLakh(m.csi * 0.25));
+      const cap = psTtdCap(m, psPlan);
       /* suggest the maximum only the first time, and never leave a figure above the cap */
       if(!m.ttdSi || m.ttdSi > cap) m.ttdSi = cap > 0 ? cap : PS_TTD_SI[0];
     }
@@ -7392,6 +7398,10 @@ const PAPS_VERIFIED = [
                 const b = mk([{ id:1, rel:'self', age:35, earning:true, risk:'I', csi:1000000, cov:{} }, { id:2, rel:'self', age:40, earning:true, risk:'I', csi:1000000, cov:{} }]).some(x => x.indexOf('marked Self') >= 0);
                 const c = mk([{ id:1, rel:'spouse', age:35, earning:false, risk:'I', csi:1000000, cov:{} }]).some(x => x.indexOf('No insured person is marked as Self') >= 0);
                 return [a, b, c].join('/'); } },
+  { label:'PAPS: the TTD Sum Insured offered is the lower of 25% of the CSI and a hundred times the weekly cap of the plan, so a non-earning person on the Premium Plan stops at Rs.5 lakh while an earning person on the same CSI reaches Rs.20 lakh', expect:'500000/2000000/1000000',
+    check:()=>{ const non = { id:1, rel:'spouse', age:32, earning:false, csi:8000000 };
+                const earn = { id:2, rel:'self', age:35, earning:true, csi:8000000 };
+                return [psTtdCap(non, 'P'), psTtdCap(earn, 'P'), psTtdCap(non, 'E')].join('/'); } },
   { label:'PAPS: Loan Secure and EMI Protection are priced only under the Elite Plan', expect:'0/30',
     check:()=>{ const p = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
                 const e = psCompute({ plan:'E', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
@@ -7405,6 +7415,7 @@ document.querySelectorAll('#psPlanTabs .health-plan-tab').forEach(b => b.addEven
   b.classList.add('active'); psPlan = b.dataset.plan;
   /* Loan Secure and EMI Protection are kept but simply not priced under the Premium Plan, so an
      agent comparing the two plans does not lose the selection on the way back to Elite. */
+  members.forEach(m => { const cap = psTtdCap(m, psPlan); if(cap > 0 && m.ttdSi > cap) m.ttdSi = cap; });
   $('psPlanHint').textContent = psPlan === 'E'
     ? 'Elite doubles most benefit caps and adds air ambulance, prosthetics, imported medicines, Loan Secure and EMI Protection.'
     : 'Premium Plan covers the same benefits at lower caps. Air ambulance, prosthetics, imported medicines, Loan Secure and EMI Protection are not available.';
@@ -25222,7 +25233,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v117 · Parivaar customer schedule: only the benefits of the plan quoted are printed, Family Support and Loss of Employment carry their real conditions, and no discount rate appears on the schedule · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v118 · Parivaar: the TTD Sum Insured offered is capped by the plan's weekly limit as well as by 25% of the CSI, so a non-earning person can no longer be charged for cover the policy could never pay · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
