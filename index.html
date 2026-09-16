@@ -7108,6 +7108,15 @@ function buildPDF(returnBlob){
   let costCode = '';
   try{ costCode = (typeof buildCostCode === 'function') ? buildCostCode(q.discPct || 0, 0, q.commAmt || 0) : ''; }catch(e){}
 
+  /* the customer schedule never itemises rating mechanics, so each person carries their
+     share of the policy premium net of every discount, and the shares add up to the net. */
+  const share = (function(){
+    const out = q.rows.map(r => Math.round(r.premium * (1 - (q.discPct || 0) / 100)));
+    const drift = q.net - out.reduce((t, v) => t + v, 0);
+    if(out.length) out[out.length - 1] += drift;
+    return out;
+  })();
+
   const left = [{ sub:'Policy Details', rows: [
     { label:'Proposer', value:q.proposer },
     { label:'Product', value:'Personal Accident Parivaar Suraksha' },
@@ -7121,7 +7130,7 @@ function buildPDF(returnBlob){
     const rows = [
       { label:'Relationship', value:rel.n },
       { label:'Age', value:String(r.age) + ' years' },
-      { label:'Occupation Risk', value:'Category ' + r.risk + (r.riskPct ? ' (+' + r.riskPct + '%)' : '') },
+      { label:'Occupation Risk', value:'Category ' + r.risk },
       { label:'Capital Sum Insured', value:R(r.csi) }
     ];
     if(r.ptd2) rows.push({ label:'PTD Option II', value: q.plan === 'E' ? '200% of CSI' : '150% of CSI' });
@@ -7132,15 +7141,12 @@ function buildPDF(returnBlob){
       if(o.k === 'emi') v = 'Sum Insured ' + R(r.emiSi);
       rows.push({ label:o.s, value:v });
     }});
-    if(r.preEx) rows.push({ label:'Pre-existing condition', value:'Loading 30%' });
-    rows.push({ label:'Premium for this person', value:R(r.premium) });
+    rows.push({ label:'Premium for this person', value:R(share[i]) });
     left.push({ sub:(i + 1) + '. ' + (r.name || rel.n), rows });
   });
 
   const fin = [];
-  q.rows.forEach((r, i) => fin.push({ label:(i + 1) + '. ' + (r.name || PS_RELBY(r.rel).n), value:R(r.premium) }));
-  fin.push({ label:'Premium for all insured persons', value:R(q.subtotal) });
-  if(q.discPct) fin.push({ label:'Less: discount ' + q.discPct.toFixed(2).replace(/\.00$/, '') + '%', value:'- ' + R(q.discAmt) });
+  q.rows.forEach((r, i) => fin.push({ label:(i + 1) + '. ' + (r.name || PS_RELBY(r.rel).n), value:R(share[i]) }));
   fin.push({ label:'Net Premium', value:R(q.net) });
   fin.push({ label:'GST @ 18%', value:R(q.gst) });
   fin.push({ label:'Total Premium', value:R(q.grand), total:true });
