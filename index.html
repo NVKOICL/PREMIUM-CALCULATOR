@@ -19697,9 +19697,17 @@ function getCommissionRates(q){
     }
     if(slab === 'schoolBus' || slab === 'staffBus'){ // Educational/School/Staff buses (Sr 6.a/b)
       const lbl = slab === 'staffBus' ? 'Staff Bus' : 'Educational Inst. / School Bus';
-      if(pt === 'comprehensive') return R(65, 65, lbl + ' · Package (≤15 yr)', 'Sr 6.a');
-      if(pt === 'thirdParty')    return R(0, 45, lbl + ' · TP Only', 'Sr 6.b');
-      if(pt === 'odOnly')        return R(65, 0, lbl + ' · SAOD (OD rate)', 'Sr 6.a');
+      // Sr 6.a is "Upto 15 years of vehicle age (including brand new)" and applies to a PACKAGE
+      // policy; Sr 6.b is "No age restriction, till the validity of the RC" but only for a
+      // LIABILITY ONLY policy. A package or standalone-OD policy on a bus older than 15 years
+      // therefore earns nothing. Reported from the field 15-09-2026: a 16.3 year staff bus on a
+      // package policy was showing a payout here while INLIAS showed nil.
+      const over15 = ageYears > 15;
+      if(pt === 'comprehensive') return over15 ? R(0, 0, lbl + ' · Package over 15 yr — Nil (Sr 6.a is up to 15 yr)', 'Sr 6.a')
+                                               : R(65, 65, lbl + ' · Package (≤15 yr)', 'Sr 6.a');
+      if(pt === 'thirdParty')    return R(0, 45, lbl + ' · TP Only (no age limit)', 'Sr 6.b');
+      if(pt === 'odOnly')        return over15 ? R(0, 0, lbl + ' · SAOD over 15 yr — Nil (Sr 6.a is up to 15 yr)', 'Sr 6.a')
+                                               : R(65, 0, lbl + ' · SAOD (OD rate)', 'Sr 6.a');
     }
     return null;
   }
@@ -24919,6 +24927,9 @@ window.FIRE_VERIFIED = [
     check:()=>['commercial','privateCar','twoWheeler'].map(v => getPaUnnamedPremium(v, 1, 200000)).join('/') },
   { label:'Anti-theft discount is 2.5% of the own damage premium AFTER the OD discount, capped at Rs.500 (INLIAS sheet R/161998/31/2027/309: Rs.99.25 on a discounted basic OD of Rs.3,970)', expect:'99/500/87',
     check:()=>[antiTheftDiscountFor(17260, 77), antiTheftDiscountFor(100000, 0), antiTheftDiscountFor(3486, 0)].join('/') },
+  { label:'Commission Sr 6.a/6.b: an educational institution, school or staff bus earns 65% on a package policy only up to 15 years of age and nothing beyond that; a liability only policy earns 45% on TP at any age', expect:'65,65/0,0/0,45/0,45',
+    check:()=>{ const mk = (years, pt) => { const r = getCommissionRates({ data:{ vehicleType:'pccv', policyType:pt, slab:'staffBus', odDiscount:0, regNumber:'' }, ageMonths: years*12 }); return r ? r.odPct + ',' + r.tpPct : 'null'; };
+                return [mk(10,'comprehensive'), mk(16,'comprehensive'), mk(10,'thirdParty'), mk(16,'thirdParty')].join('/'); } },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -25256,7 +25267,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v119 · GCCV corrections from the field: the OD discount drops to the 6th-year cap once 5 years are completed, PA for un-named passengers is available at the tariff Rs.60 per lakh, and the anti-theft discount is 2.5% of the own damage premium after the OD discount · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v120 · school, staff and educational institution buses earn the 65% payout only up to 15 years of vehicle age on a package policy, and nothing beyond that; a liability only policy still earns 45% on TP at any age · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
