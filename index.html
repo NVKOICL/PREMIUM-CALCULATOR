@@ -6804,6 +6804,10 @@ const PS_CSI = (function(){ const a = []; for(let i = 1; i <= 99; i++) a.push(i 
 const PS_TTD_SI = (function(){ const a = []; for(let i = 1; i <= 55; i++) a.push(i * 100000); return a; })();
 
 const PS_LT = { 1: 0, 2: 0.04, 3: 0.07 };          /* long term discount, already the basis of the 2Y / 3Y charts */
+/* The published 2Y / 3Y charts were built with the exact factors 0.96 and 0.93. Deriving them as
+   1 - 0.07 gives 0.9299999999999999 in binary floating point, which rounds 38 cells of the 3 year
+   chart a rupee low, so the factors are held exactly. */
+const PS_LT_FACTOR = { 1: 1, 2: 0.96, 3: 0.93 };
 const PS_RISK = { I: 0, II: 25, III: 50 };          /* occupation loading on premium */
 const PS_PREEX_LOAD = 30;                           /* pre-existing physical / medical condition */
 const PS_MIN_CSI = 500000, PS_MAX_CSI = 50000000;   /* underwriting guideline 4.8 */
@@ -6869,7 +6873,8 @@ function psCompute(inp){
   const plan = inp.plan === 'E' ? 'E' : 'P';
   const years = [1, 2, 3].indexOf(Number(inp.term)) >= 0 ? Number(inp.term) : 1;
   const lt = PS_LT[years] || 0;
-  const term = v => years === 1 ? v : Math.round(v * years * (1 - lt));   /* exactly how the 2Y / 3Y charts were built */
+  const factor = PS_LT_FACTOR[years] || 1;
+  const term = v => years === 1 ? v : Math.round(v * years * factor);   /* exactly how the 2Y / 3Y charts were built */
 
   const rows = (inp.members || []).map(m => {
     const csiL = ladderIdx(PS_CSI, m.csi), i = csiL.i;
@@ -7348,8 +7353,12 @@ const PAPS_VERIFIED = [
     check:()=>[PS_CSI.indexOf(100000), PS_CSI.indexOf(1000000), PS_CSI.indexOf(50000000)].map(i => PS_RATE.BASE_E[i]).join('/') },
   { label:'PAPS chart: CSI ladder is 1 to 99 lakh in 1 lakh steps then 1 to 5 crore in 5 lakh steps (180 values); TTD ladder 1 to 55 lakh (55 values)', expect:'180/100000/50000000/55/5500000',
     check:()=>[PS_CSI.length, PS_CSI[0], PS_CSI[PS_CSI.length-1], PS_TTD_SI.length, PS_TTD_SI[PS_TTD_SI.length-1]].join('/') },
-  { label:'PAPS long term: the 2 and 3 year charts are the annual figure x years x (1 - 4% / 7%) rounded to the rupee (base at CSI 5 crore = 70,896 and 103,021)', expect:'70896/103021',
+  { label:'PAPS long term: the 2 and 3 year charts are the annual figure x years x 0.96 / 0.93 rounded to the rupee (base at CSI 5 crore = 70,896 and 103,021)', expect:'70896/103021',
     check:()=>{ const i = PS_CSI.indexOf(50000000), a = PS_RATE.BASE_P[i]; return [Math.round(a*2*0.96), Math.round(a*3*0.93)].join('/'); } },
+  { label:'PAPS long term: the 3 year factor is held as exactly 0.93 - deriving it as 1 minus 0.07 rounds 38 chart cells a rupee low (Premium base at CSI 58 lakh must be 15,485 for 3 years, and Elite TTD at SI 50 lakh must be 7,952)', expect:'15485/7952',
+    check:()=>{ const q = psCompute({ plan:'P', term:3, members:[{ id:1, rel:'self', age:35, earning:true, risk:'I', csi:5800000, cov:{} }] });
+                const t = psCompute({ plan:'E', term:3, members:[{ id:1, rel:'self', age:35, earning:true, risk:'I', csi:50000000, ttdSi:5000000, cov:{ ttd:true } }] });
+                return [q.rows[0].parts[0].amount, t.rows[0].parts.find(p => p.k === 'ttd').amount].join('/'); } },
   { label:'PAPS: occupation and pre-existing loadings are additive, not multiplicative - base 1014 at CSI 10 lakh becomes 1268 with Risk II alone and 1572 with Risk II plus the 30% medical loading (a multiplicative reading would give 1648)', expect:'1268/1572',
     check:()=>{ const q1 = psCompute({ plan:'P', term:1, members:[{ id:1, rel:'self', age:35, earning:true, risk:'II', csi:1000000, cov:{} }] });
                 const q2 = psCompute({ plan:'P', term:1, members:[{ id:1, rel:'self', age:35, earning:true, risk:'II', csi:1000000, preEx:true, cov:{} }] });
