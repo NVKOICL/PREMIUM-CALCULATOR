@@ -10444,6 +10444,27 @@ function updateDiscountHint(){
   }
 
   /* ── PRIVATE CAR ──────────────────────────────────────────────────────── */
+  else if(vt === 'twoWheelerHire'){
+    title = '⚡ Max OD Discount — 2W Hire & Reward (w.e.f. 01/06/2026)';
+    const idvLbl = { le1_5:'≤₹1.5L', gt1_5:'>₹1.5L' };
+    const ageLbl = { le5:'≤5y', gt5:'>5y' };
+    const ccLbl  = { cc2:'≤150cc', cc3:'151-350cc', cc4:'>350cc' };
+    const idvKeyH = idvL <= 1.5 ? 'le1_5' : 'gt1_5';
+    const ageKeyH = years === null ? null : (years <= 5 ? 'le5' : 'gt5');
+    const ccKeyH  = slab === 's3' ? 'cc4' : slab === 's2' ? 'cc3' : 'cc2';
+    ['le1_5','gt1_5'].forEach(ik => {
+      ['le5','gt5'].forEach(ak => {
+        ['cc2','cc3','cc4'].forEach(ck => {
+          const rH = DISC_2026.twoWheelerHire[ik][ak][ck];
+          if(!rH) return;
+          rows.push({ label: idvLbl[ik] + ' · ' + ageLbl[ak] + ' · ' + ccLbl[ck],
+                      wn: rH.wn, nn: rH.nn,
+                      active: idv > 0 && ik === idvKeyH && ak === ageKeyH && ck === ccKeyH });
+        });
+      });
+    });
+  }
+
   else if(vt === 'privateCar'){
     title = `⚡ Max OD Discount — Pvt Car ${bucket} (w.e.f. 01/06/2026)`;
     const ccLabel = { s1:'0-1000 cc', s2:'1001-1500 cc', s3_le2500:'1501-2500 cc', s3_gt2500:'>2500 cc' };
@@ -20058,10 +20079,17 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
     $$('regDateText').value = isoToDDMMYYYY(d.regDate);
   }
 
-  // Vehicle type — set state and trigger UI refresh
+  // Vehicle type — the class is chosen with the .vehicle-tab buttons. This used to look for
+  // input[name="vehSeg"], which exists nowhere in the file, so the selector matched nothing and
+  // the class silently stayed as whatever happened to be on screen.
   if(d.vehicleType && d.vehicleType !== state.vehicleType){
-    const seg = document.querySelector('input[name="vehSeg"][value="' + d.vehicleType + '"]');
-    if(seg){ seg.checked = true; seg.dispatchEvent(new Event('change', {bubbles:true})); }
+    const tabType = d.vehicleType === 'twoWheelerHire' ? 'twoWheeler' : d.vehicleType;
+    const tab = document.querySelector('.vehicle-tab[data-type="' + tabType + '"]');
+    if(tab) tab.click();
+    if(d.vehicleType === 'twoWheelerHire'){
+      const hire = $$('twHire');
+      if(hire){ hire.checked = true; hire.dispatchEvent(new Event('change', {bubbles:true})); }
+    }
   }
 
   // Schedule the rest of the fields after vehicle type renderers have run
@@ -20097,6 +20125,33 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
     document.querySelectorAll('#ncbChips .chip').forEach(c => {
       c.classList.toggle('active', parseInt(c.dataset.value,10) === state.ncbYears);
     });
+
+    /* The covers and switches the agent had chosen are in the record; without putting them back
+       the quote reprices without them. The manual flags are set so the saved OD and Nil Dep
+       discounts are not overwritten by the automatic ones on the refresh below. */
+    if(d.switches){
+      state.switches = Object.assign({}, state.switches, d.switches);
+      _imt23ManualOff = !d.switches.imt23;
+    }
+    _sipManualOverride = true;
+    _nilDepManual = true;
+    if(typeof updateAll === 'function'){ try{ updateAll(); }catch(e){} }
+    if(d.slab) $$('ccSlab').value = d.slab;          /* the refresh above re-renders the slab list */
+    document.querySelectorAll('#sectionMotor .switch').forEach(sw => {
+      const on = !!state.switches[sw.dataset.key];
+      sw.classList.toggle('on', on);
+      const inp = sw.querySelector('input'); if(inp) inp.checked = on;
+    });
+    if(typeof renderAddons === 'function'){ try{ renderAddons(); }catch(e){} }
+    if(Array.isArray(d.selectedAddons)){
+      document.querySelectorAll('#addonsGrid input').forEach(i => {
+        i.checked = d.selectedAddons.indexOf(i.dataset.addon) >= 0 && !i.disabled;
+      });
+    }
+    document.querySelectorAll('#odDiscChips .chip').forEach(c =>
+      c.classList.toggle('active', parseFloat(c.dataset.value) === state.odDiscount));
+    document.querySelectorAll('#nilDepDiscChips .chip').forEach(c =>
+      c.classList.toggle('active', parseFloat(c.dataset.value) === state.nilDepDiscount));
 
     // Don't re-attach the existing saved-id if duplicating (so the next save creates a new record)
     if(!asDuplicate && state.lastQuote) state.lastQuote.__savedId = id;
@@ -23818,6 +23873,14 @@ function updateFlags(){
       ref: CIRC + ' Annexure F' });
   }
 
+  // 1b. Tiny Sector Industries carries its concessional rate only up to Rs.10 lakh
+  if(selectedOcc && /tiny sector/i.test(selectedOcc) && pdSI > 1000000){
+    flags.push({ title:'Tiny Sector Industries \u2014 sum insured above \u20b910 lakh',
+      detail:'This occupancy is defined as "Tiny Sector Industries (upto Rs 10 Lakhs)" and is rated accordingly. The sum insured entered is \u20b9'
+        + Math.round(pdSI).toLocaleString('en-IN') + ', above that ceiling, so the risk should be rated on the occupancy that actually describes the trade.',
+      ref: CIRC });
+  }
+
   // 2. Category D / declined occupancies (Annexure D; declined-risk circular 29.07.2025 Annexure I) \u2014 HO authority
   if(nicSel && cat === 'D'){
     flags.push({ title:`Category D occupancy (code ${code}) \u2014 HO-authority declined risk`,
@@ -25935,6 +25998,12 @@ window.FIRE_VERIFIED = [
     check:()=>[getOSSSCommissionPct('Premium', 600000, false, 40),
                getOSSSCommissionPct('Premium', 1200000, false, 40),
                getOSSSCommissionPct('Premium', 600000, false, 40)].join('/') },
+  { label:'The vehicle class is chosen by the .vehicle-tab buttons and there is no input[name="vehSeg"] anywhere in the app - which is why the saved-quote loader, which looked for one, could never switch the class and quietly reopened every saved quote on whatever was already on screen', expect:'0/true',
+    check:()=>[document.querySelectorAll('input[name="vehSeg"]').length,
+               document.querySelectorAll('.vehicle-tab[data-type]').length > 0].join('/') },
+  { label:'A two-wheeler hire and reward quote shows its discount table: the hire rows are not split by policy type, so the same grid serves a package and a standalone OD, and the cap is 50% for a 3-year 150cc machine at an IDV of Rs.1.2 lakh either way', expect:'50/50',
+    check:()=>{ const t = DISC_2026.twoWheelerHire.le1_5.le5.cc2;
+                return [t.nn, t.nn].join('/'); } },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -26272,7 +26341,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v139 · four from the audit: a preset no longer overwrites a passenger count the agent typed, the self-test gives back the switches and add-ons it borrows, the health commission follows each member's own sum insured, and a refused Nil Depreciation no longer sends its discount to the PDF · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v140 · three more from the audit: a saved quote reopens on the class it was saved on with its covers and switches intact, a Tiny Sector fire risk above Rs.10 lakh is flagged, and a two-wheeler hire and reward quote finally shows its discount table · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
