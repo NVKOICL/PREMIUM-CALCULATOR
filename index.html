@@ -6850,11 +6850,11 @@ const PS_OPT = [
   { k:'eld', n:'Elderly Care', s:'Elderly Care', col:'ELD', plans:'PE',
     d:'Lump sum for this person\'s dependent parents, parents-in-law or grandparents on an admitted accidental death or PTD claim; once a policy year' },
   { k:'chf', n:'Chauffeur Plan', s:'Chauffeur Plan', col:'CHF', plans:'PE',
-    d:'0.1% of CSI a day towards a driver, up to 30 days in a policy year' },
+    d:'0.1% of CSI a day towards a driver for up to 30 days a year, where a permanent total or partial disablement claim is admitted' },
   { k:'loan', n:'Loan Secure (home loan)', s:'Loan Secure', col:'LOAN', plans:'E', ownSI:'loan',
-    d:'Outstanding principal of one eligible home loan on accidental death or PTD' },
+    d:'Outstanding principal of one eligible home loan on an admitted accidental death claim \u2014 one loan per policy' },
   { k:'emi', n:'EMI Protection (household loan)', s:'EMI Protection', col:'EMI', plans:'E', ownSI:'emi',
-    d:'Up to 12 EMIs of an eligible household-goods loan from the date of the accident' }
+    d:'Up to 12 EMIs of an eligible household-goods loan on an admitted accidental death claim' }
 ];
 
 let members = [], seq = 0, psPlan = 'P', lastQuote = null;
@@ -6975,6 +6975,11 @@ function psChecks(inp, q){
     if(m.age > 70) w.push(who + ': entry age ' + m.age + ' exceeds the maximum entry age of 70 years.');
     if(!r.dep && m.age < 18) w.push(who + ': the proposer must be at least 18 years old.');
     if((m.rel === 'son' || m.rel === 'daughter') && m.age > 25) w.push(who + ': a dependent child can be covered only up to 18 years, or 25 years while a full-time student.');
+    /* guideline 2(iv): the 19 to 25 band is conditional, and the tool has no field for either condition */
+    else if((m.rel === 'son' || m.rel === 'daughter') && m.age > 18) w.push(who + ': a child over 18 can be covered only up to 25 while an unmarried full-time student at an accredited institution of higher learning. Confirm both before issuing.');
+    if((m.rel === 'son' || m.rel === 'daughter') && m.age === 0) w.push(who + ': a child must be at least 90 days old at entry. Confirm the date of birth.');
+    /* guideline 3 ii): children, parents and parents-in-law must be financially dependent */
+    if(r.dep && m.rel !== 'spouse' && m.earning) w.push(who + ': a ' + r.n.toLowerCase() + ' must be financially dependent on the proposer, so the non-earning weekly benefit cap of the plan applies.');
     if(r.dep && m.rel !== 'spouse' && csiSelf && m.csi > floorLakh(csiSelf * r.cap)) w.push(who + ': CSI ' + siLabel(m.csi) + ' is above 25% of the proposer CSI (' + siLabel(floorLakh(csiSelf * r.cap)) + ').');
     if(m.rel === 'spouse' && !m.earning && csiSelf && m.csi > floorLakh(csiSelf * 0.5)) w.push(who + ': a non-earning spouse is limited to 50% of the proposer CSI (' + siLabel(floorLakh(csiSelf * 0.5)) + ').');
     /* an independent (earning) spouse is rated on their own declared income, so the dependent
@@ -6991,6 +6996,14 @@ function psChecks(inp, q){
          Insured is paid for but can never be claimed (guideline 4.2c) */
       const wk = psWeeklyCap(!!m.earning, plan), useful = wk * 100;
       if(m.ttdSi > useful) w.push(who + ': the weekly benefit is capped at Rs.' + wk.toLocaleString('en-IN') + ' for a' + (m.earning ? 'n earning' : ' non-earning') + ' person under this plan, so a TTD Sum Insured above ' + siLabel(useful) + ' costs premium that can never be claimed.');
+      /* guideline 4.4: "in no case shall the weekly amount exceed the Insured Person's base weekly
+         Gainful Income". The screen already holds the proposer's monthly income. */
+      const incM = Number(inp.monthlyIncome) || 0;
+      if(m.rel === 'self' && incM > 0){
+        const weeklyIncome = Math.round(incM * 12 / 52);
+        const usefulInc = Math.floor(weeklyIncome * 100 / 100000) * 100000;
+        if(Math.round(m.ttdSi * 0.01) > weeklyIncome) w.push(who + ': 1% of the TTD Sum Insured is Rs.' + Math.round(m.ttdSi * 0.01).toLocaleString('en-IN') + ' a week, but the base weekly gainful income is about Rs.' + weeklyIncome.toLocaleString('en-IN') + ' and the policy can never pay more than that. A TTD Sum Insured above ' + siLabel(usefulInc) + ' is premium that can never be claimed.');
+      }
     }
     ['loan', 'emi'].forEach(k => {
       if(m.cov && m.cov[k]){
@@ -7006,10 +7019,34 @@ function psChecks(inp, q){
   const inc = Number(inp.monthlyIncome) || 0;
   if(inc > 0 && csiSelf){
     const mult = csiSelf / inc;
-    if(mult > 100) w.push('Proposer CSI is ' + mult.toFixed(0) + ' times the monthly income. Above 100 times is outside the guideline.');
+    /* guideline 4.1 allows more than 100 times on a case-to-case basis with Head Office approval, so
+       the agent is told where it goes rather than that the case is dead */
+    if(mult > 100) w.push('Proposer CSI is ' + mult.toFixed(0) + ' times the monthly income. Above 100 times is referred to the Head Office underwriter, and is accepted only case by case on due diligence.');
     else if(mult > 72) w.push('Proposer CSI is ' + mult.toFixed(0) + ' times the monthly income, so the proposal goes to the Regional Office underwriter (up to 72 times needs no escalation).');
+  } else if(csiSelf) {
+    /* the Capital Sum Insured is set from the monthly gainful income (guideline 4.1), and the whole
+       72x / 100x escalation test in section 22 runs off it */
+    w.push('The proposer monthly income has not been entered, so the Capital Sum Insured has not been checked against it. The 72 and 100 times limits that decide whether the proposal is escalated cannot be tested without it.');
   }
   if(plan === 'P' && list.some(m => m.cov && (m.cov.loan || m.cov.emi))) w.push('Loan Secure and EMI Protection are available only under the Elite Plan.');
+
+  /* guideline 20(b), repeated in the wordings and on the section 19 benefit table: "Only one loan
+     per policy shall be covered." The chart prices the cover per insured person, so this is raised
+     rather than blocked - but a second one is premium the policy can never answer. */
+  const loanCount = list.filter(m => m.cov && m.cov.loan).length;
+  if(loanCount > 1) w.push('Loan Secure is opted for ' + loanCount + ' insured persons, but only one loan per policy can be covered. Where more than one eligible loan exists, the highest outstanding principal is the one considered - keep the cover on that person.');
+
+  /* guideline 2 admits one spouse, one set of natural or adoptive parents and one set of in-laws */
+  ['spouse', 'father', 'mother', 'fil', 'mil'].forEach(k => {
+    const n = list.filter(m => m.rel === k).length;
+    if(n > 1) w.push(n + ' insured persons are entered as ' + PS_RELBY(k).n + '. The policy admits one.');
+  });
+
+  /* guideline 9 Sl.2: the portal discount needs no intermediary at ANY stage, not merely now */
+  if(inp.online) w.push('The direct / portal discount requires that no intermediary was involved at any stage - on the first purchase or on any renewal since. It is not available merely because this renewal is being done online.');
+
+  /* guideline 4.10 and 21(c): the ladder is not simply the number of claim-free years */
+  if((Number(inp.ncd) || 0) > 0) w.push('No Claim Discount accrues only under the option already in force. If the insured is switching from Cumulative Bonus at this renewal the ladder starts again at the first slab, and it lapses entirely if the policy is renewed more than 30 days after expiry.');
   if(q.rawDisc > PS_DISC_CAP) w.push('Discounts add up to ' + q.rawDisc.toFixed(2).replace(/\.00$/, '') + '%, so the total has been capped at ' + PS_DISC_CAP + '%.');
   if(inp.staff) w.push('Staff discount is applied, so the family discount, the No Claim Discount and agency commission are not allowed.');
   /* both persons on the INLIAS sheet on file (R/433900/48/2027/1158) are Risk I with no loading, so the
@@ -7046,6 +7083,9 @@ function renderMembers(){
   const host = $('psMembers');
   host.innerHTML = members.map((m, i) => {
     const r = PS_RELBY(m.rel);
+    /* everyone except the proposer and the spouse is a dependent by definition (guideline 3 ii) */
+    const depOnly = r.dep && m.rel !== 'spouse';
+    if(depOnly && m.earning) m.earning = false;
     const weekly = Math.min(Math.round(m.ttdSi * 0.01), m.earning ? (psPlan === 'E' ? 50000 : 20000) : (psPlan === 'E' ? 10000 : 5000));
     /* every optional cover is a tick box, one card each - the same control the Motor add-ons use */
     const tick = (cls, attr, on, name, sub) =>
@@ -7063,13 +7103,19 @@ function renderMembers(){
       '<div class="field-row">' +
         '<div class="field"><label class="lbl">Age</label><input type="number" class="ps-age" data-id="' + m.id + '" value="' + m.age + '" min="0" max="99" inputmode="numeric" /></div>' +
         '<div class="field"><label class="lbl">Occupation risk</label><select class="ps-risk" data-id="' + m.id + '">' +
-          '<option value="I"' + (m.risk === 'I' ? ' selected' : '') + '>Category I &middot; low risk &middot; +0%</option>' +
-          '<option value="II"' + (m.risk === 'II' ? ' selected' : '') + '>Category II &middot; moderate &middot; +25%</option>' +
-          '<option value="III"' + (m.risk === 'III' ? ' selected' : '') + '>Category III &middot; high &middot; +50%</option></select></div>' +
+          /* the indicative occupations of guideline 8(ii). This is the largest rating lever on the
+             product, and it used to be three bare letters with nothing to choose between them. */
+          '<option value="I"' + (m.risk === 'I' ? ' selected' : '') + '>I &middot; +0% &middot; office, administration, accountant, doctor, lawyer, architect, consulting engineer, teacher, banker</option>' +
+          '<option value="II"' + (m.risk === 'II' ? ' selected' : '') + '>II &middot; +25% &middot; manual labour, garage or motor mechanic, machine operator, paid driver, cash carrier, wood-working machinist, builder, superintending engineer, veterinary doctor</option>' +
+          '<option value="III"' + (m.risk === 'III' ? ' selected' : '') + '>III &middot; +50% &middot; underground mines, explosives, high-tension electrical, jockey, circus, racing, big game hunting, mountaineering, winter sports, river rafting, polo</option></select></div>' +
       '</div>' +
       '<div class="field-row">' +
         '<div class="field"><label class="lbl">Capital Sum Insured</label><select class="ps-csi" data-id="' + m.id + '">' + csiOptions(m.csi) + '</select></div>' +
-        '<div class="field"><label class="lbl">Earning member</label><select class="ps-earn" data-id="' + m.id + '"><option value="1"' + (m.earning ? ' selected' : '') + '>Earning</option><option value="0"' + (!m.earning ? ' selected' : '') + '>Not earning</option></select></div>' +
+        /* Guideline 3 requires children, parents and parents-in-law to be financially dependent on the
+           proposer; only the independent spouse of guideline 4.3 may be earning. Marking one of them
+           earning lifted the weekly benefit cap from Rs.5,000 to Rs.20,000 on the Premium Plan and so
+           quadrupled the TTD Sum Insured on offer, and the premium with it. */
+        '<div class="field"><label class="lbl">Earning member</label><select class="ps-earn" data-id="' + m.id + '"' + (depOnly ? ' disabled' : '') + '><option value="1"' + (m.earning ? ' selected' : '') + '>Earning</option><option value="0"' + (!m.earning ? ' selected' : '') + '>Not earning</option></select>' + (depOnly ? '<div class="hint">A ' + r.n.toLowerCase() + ' must be financially dependent on the proposer</div>' : '') + '</div>' +
       '</div>' +
       '<div class="field"><label class="lbl">Optional covers for this person <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; tick to add</span></label><div class="ps-tick-grid">' +
         tick('ps-flag', 'data-flag="ptd2"', m.ptd2, 'PTD Option II', (psPlan === 'E' ? '200%' : '150%') + ' of CSI on permanent total disablement') +
@@ -7287,20 +7333,20 @@ const PAPS_COVER_DATA = {
     ['Accidental Death', '100% of the Capital Sum Insured.', '100% of the Capital Sum Insured.'],
     ['Permanent Total Disablement', 'Option I pays 100% of the Capital Sum Insured. Option II pays 150%, on payment of additional premium.', 'Option I pays 100% of the Capital Sum Insured. Option II pays 200%, on payment of additional premium.'],
     ['Permanent Partial Disablement', 'A percentage of the Capital Sum Insured according to the scale of compensation printed in the policy.', 'A percentage of the Capital Sum Insured according to the scale of compensation printed in the policy.'],
-    ['Broken Bones / Fracture', '10% of the Capital Sum Insured, up to Rs. 5 lakh.', '25% of the Capital Sum Insured, up to Rs. 10 lakh.'],
+    ['Broken Bones / Fracture', 'The Sum Insured for this benefit is 10% of the Capital Sum Insured, up to Rs. 5 lakh. What is paid is a percentage of that sum according to the scale of fractures and dislocations printed in the policy.', 'The Sum Insured for this benefit is 25% of the Capital Sum Insured, up to Rs. 10 lakh. What is paid is a percentage of that sum according to the scale of fractures and dislocations printed in the policy.'],
     ['Burns', '10% of the Capital Sum Insured, up to Rs. 5 lakh.', '25% of the Capital Sum Insured, up to Rs. 10 lakh.'],
     ['Coma', '10% of the Capital Sum Insured, up to Rs. 5 lakh.', '25% of the Capital Sum Insured, up to Rs. 10 lakh.'],
     ['Funeral Expenses', '1% of the Capital Sum Insured, up to Rs. 10,000.', '1% of the Capital Sum Insured, up to Rs. 25,000.'],
     ['Transportation of Mortal Remains', 'Actuals up to 2% of the Capital Sum Insured, maximum Rs. 20,000.', 'Actuals up to 2% of the Capital Sum Insured, maximum Rs. 40,000.'],
     ['Emergency Road Ambulance', '2% of the Capital Sum Insured, up to Rs. 5,000. Payable only where a claim is admissible under benefits 1 to 6.', '2% of the Capital Sum Insured, up to Rs. 20,000 where the Capital Sum Insured is Rs. 30 lakh or less and up to Rs. 30,000 above that. Payable only where a claim is admissible under benefits 1 to 6.'],
     ['Education Fund', 'For up to two dependent children, 10% of the Capital Sum Insured per child, maximum Rs. 2 lakh per child, up to age 25.', 'For up to two dependent children, 10% of the Capital Sum Insured per child, maximum Rs. 4 lakh per child, up to age 25.'],
-    ['Family Support (Double Benefit)', 'Where the insured person and the insured spouse are both injured in the same accident and both die of those injuries within 365 days, 100% of the Capital Sum Insured is paid for each of them. The amount does not change with the number of children.', 'Where the insured person and the insured spouse are both injured in the same accident and both die of those injuries within 365 days, 100% of the Capital Sum Insured is paid for each of them. The amount does not change with the number of children.'],
+    ['Family Support (Double Benefit)', 'Where the insured person and the insured spouse are both injured in the same accident and both die of those injuries within 365 days, an additional 100% of the Capital Sum Insured is paid for each of them, over and above the accidental death benefit. The amount does not change with the number of children.', 'Where the insured person and the insured spouse are both injured in the same accident and both die of those injuries within 365 days, an additional 100% of the Capital Sum Insured is paid for each of them, over and above the accidental death benefit. The amount does not change with the number of children.'],
     ['Cost of Prosthetics / Wheelchair', '', 'Actuals up to Rs. 30,000 per policy, where a permanent total or permanent partial disablement claim has been accepted.'],
-    ['Loss of Employment', 'A one-time payment of 2% of the Capital Sum Insured or two months gross monthly income, whichever is less, where permanent total disablement causes involuntary loss of employment. The insured person must have been in gainful employment with the same employer for at least six months before the accident.', 'A one-time payment of 2% of the Capital Sum Insured or two months gross monthly income, whichever is less, where permanent total disablement causes involuntary loss of employment. The insured person must have been in gainful employment with the same employer for at least six months before the accident.'],
+    ['Loss of Employment', 'A one-time payment of 2% of the Capital Sum Insured or two months gross monthly income, whichever is less, where permanent total disablement causes involuntary loss of employment. Gross monthly income for this benefit excludes bonuses, tips, commissions and other special compensation, unless commission is one component of salary. The insured person must have been in gainful employment with the same employer for at least six months before the accident.', 'A one-time payment of 2% of the Capital Sum Insured or two months gross monthly income, whichever is less, where permanent total disablement causes involuntary loss of employment. Gross monthly income for this benefit excludes bonuses, tips, commissions and other special compensation, unless commission is one component of salary. The insured person must have been in gainful employment with the same employer for at least six months before the accident.'],
     ['Modification of Residence or Vehicle', 'On permanent total disablement, 25% of the Capital Sum Insured, up to Rs. 1 lakh.', 'On permanent total disablement, 25% of the Capital Sum Insured, up to Rs. 3 lakh.'],
     ['Emergency Air Ambulance', '', 'Actuals up to Rs. 2 lakh within India and Rs. 10 lakh outside India. Payable only where a claim is admissible under benefits 1 to 6.'],
     ['Transportation of Imported Medicines or Implants', '', 'Up to 5% of the Capital Sum Insured, maximum Rs. 25,000.'],
-    ['Health Insurance Premium Indemnity', 'The eligible renewal premium of the health insurance policy, up to Rs. 1 lakh.', 'The eligible renewal premium of the health insurance policy, up to Rs. 1 lakh.']
+    ['Health Insurance Premium Indemnity', 'Where a claim for accidental death or permanent total disablement has been admitted, the premium for the next renewal of a health insurance policy that was already in force on the date of the accident, up to Rs. 1 lakh in the policy period. Payable once only for the same insured person, and for one renewal cycle.', 'Where a claim for accidental death or permanent total disablement has been admitted, the premium for the next renewal of a health insurance policy that was already in force on the date of the accident, up to Rs. 1 lakh in the policy period. Payable once only for the same insured person, and for one renewal cycle.']
   ],
   optional: {
     ttd: ['Pays 1% of the Temporary Total Disablement Sum Insured every week while the insured person is totally disabled, for a maximum of 100 weeks.',
@@ -7313,12 +7359,15 @@ const PAPS_COVER_DATA = {
            'The daily amount is capped at Rs. 1,000 under the Premium Plan and Rs. 2,500 under the Elite Plan.'],
     eld:  ['Where a claim for accidental death or permanent total disablement of 100% has been admitted, the Sum Insured for this cover is paid in addition, to support the dependent parents, parents-in-law or grandparents of the insured person.',
            'The Sum Insured is 10% of the Capital Sum Insured up to Rs. 5 lakh under the Premium Plan and 25% up to Rs. 10 lakh under the Elite Plan. The benefit is payable only once per policy year per policy.'],
-    chf:  ['Reimburses the cost of engaging a driver after an accident, 0.1% of CSI a day, for a maximum of 30 days in a policy year.',
+    chf:  ['Where a claim for permanent total or permanent partial disablement has been admitted, this pays towards hiring a taxi or a chauffeur-driven car, or other extra cost necessarily incurred to keep the insured person mobile for day to day work and commitments.',
+           '0.1% of the Capital Sum Insured a day, for a maximum of 30 days in a policy year.',
            'The daily amount is capped at Rs. 1,000 under the Premium Plan and Rs. 2,500 under the Elite Plan.'],
-    loan: ['Elite Plan only. Pays the outstanding principal of one eligible home loan standing in the name of the insured person, up to the Sum Insured opted, which cannot exceed the Accidental Death CSI.',
-           'The loan must be from a bank or a financial institution licensed in India, and the age of the loanee must not exceed 70 years at the commencement of the policy. Only one loan per policy is covered.'],
-    emi:  ['Elite Plan only. Pays up to 12 consecutive EMIs from the date of the accident, or the remaining EMIs if fewer, up to the Sum Insured opted.',
-           'The loan must be for household items such as furniture, appliances and electronics. Loans for vehicles, real estate, education, mobiles, jewellery and works of art are not covered.']
+    loan: ['Elite Plan only. Where a claim for accidental death has been admitted under the policy, this pays in addition the outstanding principal of one eligible home loan standing in the name of the insured person as on the date of the accident, up to the Sum Insured opted, which cannot exceed the Accidental Death Capital Sum Insured.',
+           'The loan must stand in the individual name of the insured person and must have been availed from a bank or a financial institution licensed in India; loans from moneylenders, unregistered credit societies or other unorganised lenders are not eligible. The age of the loanee must not exceed 70 years at the commencement of the policy.',
+           'Only one loan per policy is covered. Where more than one eligible loan exists, the highest outstanding principal is the one considered.'],
+    emi:  ['Elite Plan only. Where a claim for accidental death has been admitted under the policy, this pays in addition the EMIs falling due for up to 12 months from the date of the accident, or the remaining EMIs if fewer, up to the Sum Insured opted.',
+           'The loan must be for household items such as furniture, appliances and electronics. Loans for vehicles, real estate, education, mobiles, jewellery and works of art are not covered.',
+           'The loan must stand in the individual name of the insured person, must be sanctioned by a bank or a financial institution licensed in India, and the age of the loanee must not exceed 70 years at the commencement of the policy. It must have been taken before the policy began, or declared during the policy period and accepted on payment of additional premium.']
   },
   exclusions: [
     'No compensation is payable under more than one of Accidental Death, Permanent Total Disablement, Permanent Partial Disablement or Temporary Total Disablement for the same period of disablement.',
@@ -7343,10 +7392,10 @@ const PAPS_COVER_DATA = {
   ],
   conditions: [
     ['Cumulative Bonus or No Claim Discount', 'At inception the insured chooses either a Cumulative Bonus, which raises the death and disablement compensation by 5% of CSI for every claim-free year up to 50%, or a No Claim Discount of 2% of the renewal premium for every claim-free year up to 20%. Only one of the two applies, the choice can be changed only at renewal, and the benefit becomes nil for an insured person who reports a claim.'],
-    ['Free look', 'Thirty days from receipt of the policy to review it and return it if it is not acceptable, provided no claim has been made. The refund is the premium paid less the proportionate risk premium for the period on cover, medical examination costs and stamp duty.'],
+    ['Free look', 'Thirty days from receipt of the policy to review it and return it if it is not acceptable, provided no claim has been made. The refund is the premium paid less the proportionate risk premium for the period on cover, medical examination costs and stamp duty. The free-look period applies when the policy is first taken; it is not available on a renewal.'],
     ['Cancellation', 'The insured may cancel at any time without giving reasons. For a term of up to one year with no claim, the proportionate premium for the unexpired period is refunded; for longer terms, the premium is refunded for the policy years whose risk has not commenced. The company may cancel only for established fraud, on seven days notice.'],
     ['Grace period and renewal', 'Thirty days from the due date. A policy renewed within the grace period keeps the Sum Insured and the accrued Cumulative Bonus or No Claim Discount; there is no cover during the grace period until the renewal premium is received. Renewal is not refused because a claim was made.'],
-    ['Adding a member mid-term', 'A newly married spouse within 60 days of marriage, a new-born between 90 and 180 days of age, and an adopted child within 60 days of adoption may be added on pro-rata premium. Optional covers cannot be added mid-term except Loan Secure and EMI Protection.'],
+    ['Adding a member mid-term', 'A newly married spouse within 60 days of marriage, a new-born between 90 and 180 days of age whose mother is herself insured under this policy, and an adopted child between 90 days and 18 years within 60 days of adoption may be added on pro-rata premium. A fresh proposal form is required and the addition takes effect only on the endorsement being issued against the additional premium. Optional covers cannot be added mid-term except Loan Secure and EMI Protection.'],
     ['End of cover for an insured person', 'Cover for an insured person ends as soon as 100% of the Sum Insured is admitted and paid under accidental death, permanent total disablement, permanent partial disablement or temporary total disablement.'],
     ['Nomination', 'The proposer must nominate at inception. For the other insured persons the proposer is deemed to be the nominee. A nomination may be changed at any time and is recorded by endorsement without any fee.'],
     ['Disclosure', 'All information in the proposal must be complete and correct, and any change in occupation or business must be notified to the company immediately.']
@@ -7451,6 +7500,27 @@ const PAPS_VERIFIED = [
     check:()=>{ const sm = document.querySelector('#psStaff') && document.querySelector('#psStaff').closest('label').querySelector('small');
                 const d = (PS_OPT.find(o => o.k === 'eld') || {}).d || '';
                 return [PS_STAFF_PCT, !!(sm && sm.textContent.indexOf(PS_STAFF_PCT + '%') === 0), /dependent parents/.test(d) && /dependent parents/.test((PAPS_COVER_DATA.optional.eld || []).join(' '))].join('/'); } },
+  { label:'PAPS cover descriptions follow the policy wordings: Loan Secure and EMI Protection are triggered by an admitted accidental death claim and not by disablement, the Chauffeur Plan needs an admitted PTD or PPD claim, and only one loan per policy is covered', expect:'true/true/true/true',
+    check:()=>{ const O = k => (PS_OPT.find(o => o.k === k) || {}).d || '';
+                const C = k => (PAPS_COVER_DATA.optional[k] || []).join(' ');
+                return [/accidental death/i.test(O('loan')) && !/PTD/.test(O('loan')),
+                        /accidental death/i.test(C('emi')),
+                        /permanent total or permanent partial/i.test(C('chf')),
+                        /only one loan per policy/i.test(C('loan'))].map(String).join('/'); } },
+  { label:'PAPS: Loan Secure opted for more than one insured person is flagged - the policy answers one loan however many members tick it', expect:'true/false',
+    check:()=>{ const mk = n => { const ms = []; for(let i = 1; i <= n; i++) ms.push({ id:i, rel:i === 1 ? 'self' : 'spouse', age:40, earning:true, risk:'I', csi:5000000, loanSi:1000000, cov:{ loan:true } });
+                                  return psChecks({ plan:'E', term:1, members:ms }, psCompute({ plan:'E', term:1, members:ms })).some(x => /only one loan per policy/i.test(x)); };
+                return [mk(2), mk(1)].join('/'); } },
+  { label:'PAPS: a dependent father marked as earning is flagged - the non-earning weekly cap applies to him, and treating him as earning quadruples the TTD Sum Insured on offer (Rs.1,140 of premium where Rs.285 is the most the policy can pay)', expect:'true/285/1140',
+    check:()=>{ const mk = e => [{ id:1, rel:'father', age:65, earning:e, risk:'I', csi:10000000, ttdSi:e ? 2000000 : 500000, cov:{ ttd:true } }];
+                const warned = psChecks({ plan:'P', term:1, members:mk(true) }, psCompute({ plan:'P', term:1, members:mk(true) })).some(x => /financially dependent/i.test(x));
+                const p = m => psCompute({ plan:'P', term:1, members:m }).rows[0].parts.find(x => x.k === 'ttd').amount;
+                return [warned, p(mk(false)), p(mk(true))].join('/'); } },
+  { label:'PAPS: with no proposer income entered the quote says the 72 and 100 times escalation test could not be run, and above 100 times it names the Head Office rather than calling the case dead', expect:'true/true',
+    check:()=>{ const ms = [{ id:1, rel:'self', age:40, earning:true, risk:'I', csi:5000000, cov:{} }];
+                const blank = psChecks({ plan:'P', term:1, members:ms }, psCompute({ plan:'P', term:1, members:ms })).some(x => /has not been entered/i.test(x));
+                const over  = psChecks({ plan:'P', term:1, monthlyIncome:20000, members:ms }, psCompute({ plan:'P', term:1, members:ms })).some(x => /Head Office/i.test(x));
+                return [blank, over].join('/'); } },
   { label:'PAPS: Loan Secure and EMI Protection are priced only under the Elite Plan', expect:'0/30',
     check:()=>{ const p = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
                 const e = psCompute({ plan:'E', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
@@ -25688,7 +25758,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v131 · IMT-23 is charged only on a vehicle that can take it: a four wheeler taxi of six seats or fewer has none, the same rule the Nil Depreciation and No Claim Bonus bases already followed · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v132 · PA Parivaar read back against the underwriting guidelines: Loan Secure and EMI Protection pay on accidental death and not on disablement, the Chauffeur Plan needs an admitted disablement claim, a dependent can no longer be marked earning and charged four times the weekly benefit he can claim, and the occupation classes now name their occupations · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
