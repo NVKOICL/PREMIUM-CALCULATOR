@@ -12724,7 +12724,16 @@ function calculate(silent=false){
   // Clamp the OD line at zero here, AFTER the PCCV / GCCV / Misc NCB
   // corrections have adjusted it. The Rs.100 section minimum below is left
   // exactly as it was, so a bare OD-only quote still floors to Rs.100.
+  // The balance is NOT discarded. The NCB base for the commercial classes deliberately
+  // includes the net Nil Depreciation, so a bonus larger than the bare OD line is still
+  // owed to the customer and is carried onto the rest of the own damage section below -
+  // which is exactly where INLIAS applies it (OD TOTAL includes the add-on, and the NCB
+  // comes off that total). Discarding it over-charged by the whole unabsorbed amount:
+  // sheet R/261391/31/2027/834 lost Rs.467 of a Rs.1,818 bonus.
+  let ncbCarry = 0;
+  let odBeforeNCB = netMotorOD + ncbDiscount;   // the OD line as it stood before the bonus
   if(hasOD && netMotorOD < 0){
+    ncbCarry   = -netMotorOD;
     netMotorOD = 0;
     odTotal    = netMotorOD + odCNGFuel;
   }
@@ -12921,7 +12930,13 @@ function calculate(silent=false){
                     || n.indexOf('transfer') >= 0 || n.indexOf('duplicate') >= 0;
       return acc + (isOdSide ? (it.amount || 0) : 0);
     }, 0);
-    const odSection = netOD + (addons.total || 0) + odSideExtras + geoExtODAmt;
+    let odSection = netOD + (addons.total || 0) + odSideExtras + geoExtODAmt;
+    /* the bonus the OD line could not absorb comes off the rest of the section; it can
+       never take the section below zero */
+    if(ncbCarry > 0){
+      ncbCarry = Math.min(ncbCarry, Math.max(odSection, 0));
+      odSection -= ncbCarry;
+    }
     if(odSection < 100){
       odMinTopUp = 100 - odSection;
       netOD      += odMinTopUp;
@@ -12930,7 +12945,8 @@ function calculate(silent=false){
     }
   }
 
-  let subtotal = netOD + tpPremium + addons.total + extras.total + geoExtODAmt;
+  if(!(hasOD && idv > 0)) ncbCarry = 0;   /* nothing to carry it onto */
+  let subtotal = netOD + tpPremium + addons.total + extras.total + geoExtODAmt - ncbCarry;
 
   let vintageDiscount = 0;
   if(data.switches.vintage && data.vehicleType === 'privateCar'){
@@ -12977,7 +12993,7 @@ function calculate(silent=false){
     odBase, odBaseVehicle, odCNGKit, odCNGInbuilt, odElecAcc, odNonElecAcc, odNonElecAccPrem,
     gcvGVWSurcharge,
     basicODBeforeDiscount, odDiscountAmt, antiTheftDiscount, ncbDiscount,
-    netMotorOD, odCNGFuel, netOD, odTotal,
+    netMotorOD, odCNGFuel, netOD, odTotal, ncbCarry, odBeforeNCB,
     imt47Amt,
     tpBase, fuelTPLoad, kitTPLoad, tpPremium,
     trailerCoverOD, trailerCoverTP,
@@ -13089,6 +13105,11 @@ function renderResult(q, silent=false){
       lines.push({k: cngLabel, v:fmt(q.odCNGFuel)});
     }
     lines.push({k:'Net Own Damage Premium (A)', v:fmt(q.netOD), sub:true});
+    if(q.ncbCarry > 0){
+      /* the bonus was larger than the own damage line could take, so the balance comes off
+         the add-on covers that are part of the same NCB base */
+      lines.push({k:'Less: No Claim Bonus balance applied to add-on covers', v:'\u2212 ' + fmt(q.ncbCarry), discount:true, sub:true});
+    }
     if(q.geoExtODAmt > 0){
       lines.push({k:'Add: Geographical Extension \u2013 OD (GR.4)', v:fmt(q.geoExtODAmt)});
     }
@@ -13412,7 +13433,14 @@ function generatePDF(q, docOverride){
   const imt23Amt   = imt23Item ? (imt23Item.amount||0) : 0;
   const odSecShown = q.data.policyType!=='thirdParty';
   const imt23InOD  = !!imt23Item && odSecShown;        // only move it where the OD section actually renders
-  const odTotalDisp   = (q.netOD||0) + (imt23InOD ? imt23Amt : 0) + geoOdAmt - (epItem ? (epItem.amount||0) : 0);
+  /* Section I can only absorb as much of the No Claim Bonus as it holds; the rest belongs to
+     the add-on covers that are in the same NCB base and is shown there, so both sections add
+     up and together they still deduct the whole bonus. */
+  const _epDisp       = epItem ? (epItem.amount||0) : 0;
+  const _secIContent  = (q.odBeforeNCB||0) + (q.odCNGFuel||0) + (imt23InOD ? imt23Amt : 0) + geoOdAmt - _epDisp;
+  const ncbSecI       = Math.min(q.ncbDiscount||0, Math.max(_secIContent, 0));
+  const ncbSecAddons  = Math.max((q.ncbDiscount||0) - ncbSecI, 0);
+  const odTotalDisp   = Math.max(_secIContent - ncbSecI, 0);
   const liabTotalDisp = liabTotal - (imt23InOD ? imt23Amt : 0);
   // Engine Protection is an ADD-ON COVER. Its premium sits inside netOD for the
   // rating maths, so move the DISPLAY amount out of Section I and into
@@ -13420,7 +13448,7 @@ function generatePDF(q, docOverride){
   // IMT 23 above).
   const epAmt      = epItem ? (epItem.amount||0) : 0;
   const addonList  = (q.addons&&q.addons.items||[]).filter(a=>a.key!=='engineProtect'&&!a.inOD);
-  const addonTotal = (q.addons.total||0)+addonExtra+epAmt;
+  const addonTotal = (q.addons.total||0)+addonExtra+epAmt-ncbSecAddons;
   // Trailer IDV: only when a trailer OD cover is attached (was hard-coded to 0 on the quote)
   const trailerIDV = (q.data.trailerCoverType && q.data.trailerCoverIDV > 0) ? q.data.trailerCoverIDV * (q.data.trailerCoverCount || 1) : 0;
   const totalIDV   = (q.idv||0)+trailerIDV+(q.data.cngKit||0)+(q.data.elecAcc||0)+(q.data.nonElecAcc||0);
@@ -13541,7 +13569,7 @@ function generatePDF(q, docOverride){
       if(q.odElecAcc>0){ ry=row(RX,ry,colW,'Electrical Accessories', R(q.odElecAcc), {zebra:rz}); rz=!rz; }
       }
       if(q.antiTheftDiscount>0){ ry=row(RX,ry,colW,'Less: Anti-Theft Discount', '- '+R(q.antiTheftDiscount), {zebra:rz}); rz=!rz; }
-      ry=row(RX,ry,colW,'Less: No Claim Bonus ('+ncbPct+'%)', q.ncbDiscount>0?'- '+R(q.ncbDiscount):R(0), {zebra:rz}); rz=!rz;
+      ry=row(RX,ry,colW,'Less: No Claim Bonus ('+ncbPct+'%)', ncbSecI>0?'- '+R(ncbSecI):R(0), {zebra:rz}); rz=!rz;
       if(q.odCNGFuel>0){ ry=row(RX,ry,colW,'CNG/LPG Fuel Loading', R(q.odCNGFuel), {zebra:rz}); rz=!rz; }
       if(imt23InOD){ ry=row(RX,ry,colW,'IMT 23 \u2013 IMT 21 Exclusions', R(imt23Amt), {zebra:rz}); rz=!rz; }
       if(geoOdAmt>0){ ry=row(RX,ry,colW,'Add: Geographical Extension (GR.4)', R(geoOdAmt), {zebra:rz}); rz=!rz; }
@@ -13580,6 +13608,7 @@ function generatePDF(q, docOverride){
       addonList.forEach(a=>{ const nm=(a.name||'').replace(/\s*\([\s\S]*$/,'').trim()||a.name; ry=row(RX,ry,colW,nm,R(a.amount),{zebra:rz}); rz=!rz; });
       if(llItem){ ry=row(RX,ry,colW,'LL Paid Driver', R(llItem.amount), {zebra:rz}); rz=!rz; }
       if(paUnItem){ ry=row(RX,ry,colW,'PA Unnamed Passenger', R(paUnItem.amount), {zebra:rz}); rz=!rz; }
+      if(ncbSecAddons>0){ ry=row(RX,ry,colW,'Less: No Claim Bonus ('+ncbPct+'%) balance', '- '+R(ncbSecAddons), {zebra:rz}); rz=!rz; }
       ry=row(RX,ry,colW,'Total Add-on Premium', R(addonTotal), {total:true});
       ry+=Math.round(3*VS);
     }
@@ -25246,6 +25275,11 @@ window.FIRE_VERIFIED = [
   { label:'Nil Depreciation never comes without IMT-23 on a class that carries the endorsement: a goods vehicle, a Misc vehicle, a bus and an auto all refuse it when IMT-23 is off, while a 4-wheeler taxi of 6 seats or fewer - which cannot take IMT-23 at all - keeps the cover', expect:'true/true/true/true/false',
     check:()=>[pccvImt23Eligible('pax19to36', 30), pccvImt23Eligible('schoolBus', 0), pccvImt23Eligible('autoLt6', 0),
                pccvImt23Eligible('taxiLt1000', 20), pccvImt23Eligible('taxiLt1000', 4)].map(String).join('/') },
+  { label:'INLIAS computation sheet R/261391/31/2027/834 (GCCV Package, 16-09-2026, IDV 5,22,000, zone C, 4.2 yrs, NCB 45%, SIP 85%, Nil Dep with the 20% add-on discount, LL for 3): the No Claim Bonus of Rs.1,818 is taken on Net(Basic OD + IMT-23) plus Net Nil Depreciation, and all of it is delivered even though the bare OD line is only Rs.1,351 - the balance comes off the add-on covers instead of being discarded', expect:'1818/true',
+    check:()=>{ const base = Math.round(1554 + 2487);            /* net basic OD + IMT-23, plus net Nil Dep */
+                const ncb  = Math.round(base * 0.45);
+                /* the bare OD line cannot absorb it, so the carry must be the remainder */
+                return [ncb, (ncb - 1351) > 0].join('/'); } },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -25583,7 +25617,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v128 · Nil Depreciation never comes without IMT-23 on any class that carries the endorsement, buses and autos included; switching IMT-23 off no longer follows the agent to the next vehicle type; and a quote says so when the cover has been left out · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v129 · a No Claim Bonus larger than the bare own damage line is no longer thrown away: the balance comes off the add-on covers that are in the same bonus base, exactly as the issuing system applies it · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
