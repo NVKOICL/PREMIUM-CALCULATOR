@@ -6951,7 +6951,16 @@ function psChecks(inp, q){
       if(m.ttdSi > floorLakh(m.csi * 0.25)) w.push(who + ': TTD Sum Insured ' + siLabel(m.ttdSi) + ' is above 25% of the CSI (' + siLabel(floorLakh(m.csi * 0.25)) + ').');
       if(m.ttdSi > 2500000) w.push(who + ': TTD Sum Insured above Rs.25 lakh is referred to the Head Office underwriter.');
       else if(m.ttdSi > 1000000) w.push(who + ': TTD Sum Insured above Rs.10 lakh is referred to the Regional Office underwriter.');
-      if(m.ttdSi > 500000) w.push(who + ': income proof is required because the TTD Sum Insured exceeds Rs.5,00,000.');
+      /* income proof for the TTD Sum Insured is called for on earning members only; a dependent
+         insured within the plan-wise weekly limit needs none (guideline 4.6) */
+      if(m.earning && m.ttdSi > 500000) w.push(who + ': income proof is required because the TTD Sum Insured exceeds Rs.5,00,000.');
+      /* the weekly benefit of a non-earning person is capped by the plan, so a larger TTD Sum
+         Insured is paid for but can never be claimed (guideline 4.2c) */
+      if(!m.earning){
+        const cap = plan === 'E' ? 10000 : 5000;
+        const useful = cap * 100;
+        if(m.ttdSi > useful) w.push(who + ': a non-earning person can be paid only Rs.' + cap.toLocaleString('en-IN') + ' a week under this plan, so a TTD Sum Insured above ' + siLabel(useful) + ' costs premium that can never be claimed.');
+      }
     }
     ['loan', 'emi'].forEach(k => {
       if(m.cov && m.cov[k]){
@@ -6959,7 +6968,9 @@ function psChecks(inp, q){
         if(si > m.csi) w.push(who + ': the ' + (k === 'loan' ? 'Loan Secure' : 'EMI Protection') + ' Sum Insured cannot exceed the Accidental Death CSI.');
       }
     });
-    if(m.csi > 2000000) w.push(who + ': income proof is required because the Accidental Death CSI exceeds Rs.20,00,000.');
+    /* income proof is called for on the proposer, and on an independent spouse rated on their own
+       income; dependents covered off the proposer CSI need none (guideline 4.5) */
+    if(m.csi > 2000000 && (!r.dep || (m.rel === 'spouse' && m.earning))) w.push(who + ': income proof is required because the Accidental Death CSI exceeds Rs.20,00,000.');
     if(m.csi > 5000000) w.push(who + ': Accidental Death CSI above Rs.50 lakh is referred to the Regional Office underwriter.');
   });
   const inc = Number(inp.monthlyIncome) || 0;
