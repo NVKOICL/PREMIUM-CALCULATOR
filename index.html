@@ -6775,8 +6775,10 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
 
     <div class="card">
       <div class="section-label">Discounts</div>
+      <!-- The direct / portal discount of guideline 9 Sl.2 is not offered here. It needs no
+           intermediary at any stage, and every quote raised on this calculator has an employee
+           or an agent behind it, so it could only produce a policy the office would not issue. -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">
-        <label class="addon" for="psOnline"><input type="checkbox" id="psOnline" /><span class="addon-name">Direct / portal business</span><small>10% where the policy is bought online with no intermediary</small></label>
         <label class="addon" for="psStaff"><input type="checkbox" id="psStaff" /><span class="addon-name">Staff of Oriental Insurance</span><small>33% &middot; family discount, No Claim Discount and commission are not allowed with it</small></label>
       </div>
       <div class="field" style="margin-top:12px">
@@ -6795,7 +6797,7 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
           <option value="20">20% &middot; 10 claim-free years (maximum)</option>
         </select>
         <div class="ps-auto-disc" id="psFamilyRow"></div>
-        <div class="hint">Guideline 9: family 5% for two insured persons and 10% for three or more, applied automatically. Every discount together is capped at 40%.</div>
+        <div class="hint">Guideline 9: family 5% for two insured persons and 10% for three or more, applied automatically. Every discount together is capped at 40%. The direct / portal discount is not available on a quote raised by an employee or an agent, so it is not offered here.</div>
       </div>
     </div>
 
@@ -7214,6 +7216,8 @@ function psCompute(inp){
   const n = rows.length;
   const staff = !!inp.staff;
   const familyPct = staff ? 0 : (n >= 3 ? 10 : (n === 2 ? 5 : 0));
+  /* Guideline 9 Sl.2. Retained so a genuine direct channel would still rate correctly, but the
+     Parivaar screen never sets it: an employee or agent is an intermediary. */
   const onlinePct = inp.online ? 10 : 0;
   const staffPct = staff ? PS_STAFF_PCT : 0;
   const ncdPct = staff ? 0 : Math.min(20, Math.max(0, Number(inp.ncd) || 0));
@@ -7333,9 +7337,6 @@ function psChecks(inp, q){
     const n = list.filter(m => m.rel === k).length;
     if(n > 1) w.push(n + ' insured persons are entered as ' + PS_RELBY(k).n + '. The policy admits one.');
   });
-
-  /* guideline 9 Sl.2: the portal discount needs no intermediary at ANY stage, not merely now */
-  if(inp.online) w.push('The direct / portal discount requires that no intermediary was involved at any stage - on the first purchase or on any renewal since. It is not available merely because this renewal is being done online.');
 
   /* guideline 4.10 and 21(c): the ladder is not simply the number of claim-free years */
   if((Number(inp.ncd) || 0) > 0) w.push('No Claim Discount accrues only under the option already in force. If the insured is switching from Cumulative Bonus at this renewal the ladder starts again at the first slab, and it lapses entirely if the policy is renewed more than 30 days after expiry.');
@@ -7517,7 +7518,8 @@ function scheduleAutoCalcPaps(){
 }
 
 function readInputs(){
-  return { plan: psPlan, term: $('psTerm').value, online: $('psOnline').checked, staff: $('psStaff').checked,
+  /* the direct / portal discount is not offered on this screen - see the Discounts card */
+  return { plan: psPlan, term: $('psTerm').value, online: false, staff: $('psStaff').checked,
            ncd: parseFloat($('psNcd').value) || 0, monthlyIncome: parseFloat($('psMonthlyIncome').value) || 0,
            members: members.map(m => Object.assign({}, m, { cov: Object.assign({}, m.cov) })) };
 }
@@ -7594,7 +7596,7 @@ function calculate(){
 function newQuote(){
   $('psProposer').value = ''; $('psMonthlyIncome').value = '';
   $('psTerm').value = '1'; $('psNcd').value = '0';
-  $('psOnline').checked = false; $('psStaff').checked = false;
+  $('psStaff').checked = false;
   psPlan = 'P';
   document.querySelectorAll('#psPlanTabs .health-plan-tab').forEach(b => b.classList.toggle('active', b.dataset.plan === 'P'));
   $('psPlanHint').textContent = 'Premium Plan covers the same benefits at lower caps. Air ambulance, prosthetics, imported medicines, Loan Secure and EMI Protection are not available.';
@@ -7921,6 +7923,11 @@ const PAPS_VERIFIED = [
                 const staffBars = psCompute({ plan:'P', term:1, staff:true, members:mk(3) }).familyPct;
                 const capped = psCompute({ plan:'P', term:1, online:true, ncd:20, members:mk(3) }).discPct;
                 return [fam(1), fam(2), fam(3), fam(4), staffBars, capped].join('/'); } },
+  { label:'PAPS: the direct / portal discount is not offered on this screen - guideline 9 Sl.2 allows it only where no intermediary was involved at any stage, and every quote raised here has an employee or an agent behind it. The rate survives in the engine for a genuine direct channel, but nothing on the screen can ask for it', expect:'true/0/10',
+    check:()=>{ const gone = !document.getElementById('psOnline');
+                const fromScreen = psCompute(Object.assign(readInputs(), { members:[{ id:1, rel:'self', age:40, earning:true, risk:'I', csi:2000000, cov:{} }] })).onlinePct;
+                const engineStill = psCompute({ plan:'P', term:1, online:true, members:[{ id:1, rel:'self', age:40, earning:true, risk:'I', csi:2000000, cov:{} }] }).onlinePct;
+                return [gone, fromScreen, engineStill].join('/'); } },
   { label:'PAPS: Loan Secure and EMI Protection are priced only under the Elite Plan', expect:'0/30',
     check:()=>{ const p = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
                 const e = psCompute({ plan:'E', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
@@ -26197,7 +26204,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v137 · PA Parivaar: the family discount is shown as well as applied - the Discounts card states the rate the policy qualifies for as members are added, and every discount in the breakdown carries its own rupee amount · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v138 · PA Parivaar: the direct / portal discount is no longer offered - it needs no intermediary at any stage, and every quote raised on this calculator has an employee or an agent behind it · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
