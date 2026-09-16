@@ -1219,6 +1219,11 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 .addon-icon{position:absolute;right:12px;top:13px;width:20px;height:20px;color:var(--border-strong);transition:color .2s ease;flex-shrink:0}
 .addon-icon svg{width:100%;height:100%}
 .addon:has(input:checked) .addon-icon{color:var(--accent)}
+/* PA Parivaar: optional covers per insured person, ticked one card each */
+.ps-tick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.addon.ps-tick{min-height:56px;padding:10px 14px 10px 44px;border-radius:12px}
+.addon.ps-tick::before{left:13px;width:18px;height:18px}
+.addon.ps-tick:has(input:checked)::after{left:17px}
 
 .comp-only{display:none}
 .comp-only.visible{display:block}
@@ -6776,7 +6781,7 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
       <div class="section-label">Premium <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)" id="psResDate"></span></div>
       <div id="psQuoteDetails"></div>
       <div id="psBreakdown" style="margin-top:10px"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:2px solid var(--border-strong)"><strong>Total Premium (incl. GST 18%)</strong><strong style="font-size:20px;color:var(--accent)">&#8377;<span id="psGrandTotal">0</span></strong></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:2px solid var(--border-strong)"><strong>Total Premium <span style="font-weight:500;color:var(--mute);font-size:12px">&middot; no GST</span></strong><strong style="font-size:20px;color:var(--accent)">&#8377;<span id="psGrandTotal">0</span></strong></div>
       <div class="quote-actions">
         <button type="button" class="btn btn-pdf" id="psPdfBtn">Download PDF</button>
         <button type="button" class="btn btn-whatsapp" id="psWaBtn">Share PDF</button>
@@ -6814,6 +6819,10 @@ const PS_MIN_CSI = 500000, PS_MAX_CSI = 50000000;   /* underwriting guideline 4.
 const PS_MIN_PREMIUM = 100;                         /* guideline 8, exclusive of tax */
 const PS_MAX_MEMBERS = 10;
 const PS_DISC_CAP = 40;
+/* The guideline text reads 33.33%, but INLIAS applies 33%: computation sheet R/433900/48/2027/1158
+   (16-09-2026) deducts Rs.6,187 on a premium of Rs.18,749, which is exactly 33% (33.33% would have
+   been 6,249). The issuing system's figure is the one the customer pays. */
+const PS_STAFF_PCT = 33;
 const PS_COMM_PCT = 21.5;                           /* CR-8811 table 3.2 sr 14 Individual Personal Accident Policy */
 
 const PS_REL = [
@@ -6907,7 +6916,8 @@ function psCompute(inp){
     const load = gross * loadPct / 100;
     return { id:m.id, rel:m.rel, name:m.name, age:m.age, earning:!!m.earning, risk:m.risk, csi:m.csi,
              ttdSi:m.ttdSi, loanSi:m.loanSi, emiSi:m.emiSi, cov:cov, ptd2:!!m.ptd2, preEx:!!m.preEx,
-             parts, gross, riskPct, preExPct, loadPct, load, premium: gross + load, snaps };
+             /* INLIAS prints each person's premium in whole rupees and adds those */
+             parts, gross, riskPct, preExPct, loadPct, load, premium: Math.round(gross + load), snaps };
   });
 
   const subtotal = rows.reduce((t, r) => t + r.premium, 0);
@@ -6915,16 +6925,22 @@ function psCompute(inp){
   const staff = !!inp.staff;
   const familyPct = staff ? 0 : (n >= 3 ? 10 : (n === 2 ? 5 : 0));
   const onlinePct = inp.online ? 10 : 0;
-  const staffPct = staff ? 33.33 : 0;
+  const staffPct = staff ? PS_STAFF_PCT : 0;
   const ncdPct = staff ? 0 : Math.min(20, Math.max(0, Number(inp.ncd) || 0));
   const rawDisc = familyPct + onlinePct + staffPct + ncdPct;
   const discPct = Math.min(PS_DISC_CAP, rawDisc);      /* every discount together is capped at 40% */
-  const discAmt = subtotal * discPct / 100;
-  let net = Math.round(subtotal - discAmt);
+  /* the sheet rounds the discount to the rupee and deducts it ("LESS: Staff Discount 6,187.00") */
+  const discAmt = Math.round(subtotal * discPct / 100);
+  let net = subtotal - discAmt;
   const minApplied = net < PS_MIN_PREMIUM;
   if(minApplied) net = PS_MIN_PREMIUM;
-  const gst = 2 * Math.round(net * 0.09);
-  const grand = net + gst;
+  /* No GST on this product. The INLIAS computation sheet (R/433900/48/2027/1158, 16-09-2026) carries no
+     tax line at all: TOTAL PREMIUM 12,562 and TOTAL AMOUNT 12,562. The 18% charged here until v125 came
+     from treating personal accident as a general-insurance product; the office issues it tax-free, as
+     it does individual health cover. The sheet also prints a stamp duty line that it does NOT add to
+     the total amount, so none is added here either. */
+  const gst = 0;
+  const grand = net;
   /* the staff discount expressly bars commission, and the direct / portal discount is given
      because no intermediary is involved, so there is no one to pay in either case */
   const noComm = staff || !!inp.online;
@@ -7024,8 +7040,11 @@ function renderMembers(){
   host.innerHTML = members.map((m, i) => {
     const r = PS_RELBY(m.rel);
     const weekly = Math.min(Math.round(m.ttdSi * 0.01), m.earning ? (psPlan === 'E' ? 50000 : 20000) : (psPlan === 'E' ? 10000 : 5000));
-    const chips = PS_OPT.filter(o => o.plans.indexOf(psPlan) >= 0).map(o =>
-      '<button type="button" class="chip ps-cov' + (m.cov && m.cov[o.k] ? ' active' : '') + '" data-id="' + m.id + '" data-cov="' + o.k + '" title="' + o.d + '">' + o.s + '</button>').join('');
+    /* every optional cover is a tick box, one card each - the same control the Motor add-ons use */
+    const tick = (cls, attr, on, name, sub) =>
+      '<label class="addon ps-tick"><input type="checkbox" class="' + cls + '" data-id="' + m.id + '" ' + attr + (on ? ' checked' : '') + ' />' +
+      '<span class="addon-name">' + name + '</span>' + (sub ? '<small>' + sub + '</small>' : '') + '</label>';
+    const chips = PS_OPT.filter(o => o.plans.indexOf(psPlan) >= 0).map(o => tick('ps-cov', 'data-cov="' + o.k + '"', m.cov && m.cov[o.k], o.s, o.d)).join('');
     return '<div class="member-item" data-id="' + m.id + '" style="display:block;padding:12px">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span class="member-badge">' + (i === 0 ? 'Proposer' : 'Member ' + (i + 1)) + '</span>' +
         '<span style="font-size:11px;color:var(--mute)">Risk Category ' + m.risk + ' &middot; loading ' + (PS_RISK[m.risk] || 0) + '%</span></div>' +
@@ -7045,10 +7064,12 @@ function renderMembers(){
         '<div class="field"><label class="lbl">Capital Sum Insured</label><select class="ps-csi" data-id="' + m.id + '">' + csiOptions(m.csi) + '</select></div>' +
         '<div class="field"><label class="lbl">Earning member</label><select class="ps-earn" data-id="' + m.id + '"><option value="1"' + (m.earning ? ' selected' : '') + '>Earning</option><option value="0"' + (!m.earning ? ' selected' : '') + '>Not earning</option></select></div>' +
       '</div>' +
-      '<div class="field"><label class="lbl">Covers for this person</label><div class="chip-row">' +
-        '<button type="button" class="chip ps-flag' + (m.ptd2 ? ' active' : '') + '" data-id="' + m.id + '" data-flag="ptd2">PTD Option II &middot; ' + (psPlan === 'E' ? '200%' : '150%') + ' of CSI</button>' +
+      '<div class="field"><label class="lbl">Optional covers for this person <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; tick to add</span></label><div class="ps-tick-grid">' +
+        tick('ps-flag', 'data-flag="ptd2"', m.ptd2, 'PTD Option II', (psPlan === 'E' ? '200%' : '150%') + ' of CSI on permanent total disablement') +
         chips +
-        '<button type="button" class="chip ps-flag' + (m.preEx ? ' active' : '') + '" data-id="' + m.id + '" data-flag="preEx">Pre-existing condition +30%</button>' +
+      '</div></div>' +
+      '<div class="field"><label class="lbl">Loading</label><div class="ps-tick-grid">' +
+        tick('ps-flag', 'data-flag="preEx"', m.preEx, 'Pre-existing condition', '+30% on this person\'s premium (guideline 10)') +
       '</div></div>' +
       (m.cov && m.cov.ttd ? '<div class="field-row"><div class="field"><label class="lbl">TTD Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; up to 25% of CSI</span></label><select class="ps-ttdsi" data-id="' + m.id + '">' + ttdOptions(m.ttdSi, psTtdCap(m, psPlan)) + '</select><div class="hint">Weekly benefit &#8377;' + fmt(weekly) + ' for up to 100 weeks</div></div><div class="field"></div></div>' : '') +
       ((psPlan === 'E' && m.cov && m.cov.loan) ? '<div class="field"><label class="lbl">Loan Secure Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; one home loan per policy, not above the CSI</span></label><select class="ps-loansi" data-id="' + m.id + '">' + csiOptions(m.loanSi, 100000, m.csi) + '</select></div>' : '') +
@@ -7075,8 +7096,8 @@ function renderMembers(){
   host.querySelectorAll('.ps-ttdsi').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).ttdSi = parseInt(el.value, 10); renderMembers(); }));
   host.querySelectorAll('.ps-loansi').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).loanSi = parseInt(el.value, 10); }));
   host.querySelectorAll('.ps-emisi').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).emiSi = parseInt(el.value, 10); }));
-  host.querySelectorAll('.ps-cov').forEach(b => b.addEventListener('click', () => {
-    const m = byId(b.dataset.id); m.cov = m.cov || {}; const k = b.dataset.cov; m.cov[k] = !m.cov[k];
+  host.querySelectorAll('.ps-cov').forEach(b => b.addEventListener('change', () => {
+    const m = byId(b.dataset.id); m.cov = m.cov || {}; const k = b.dataset.cov; m.cov[k] = !!b.checked;
     if(k === 'ttd' && m.cov.ttd){
       const cap = psTtdCap(m, psPlan);
       /* suggest the maximum only the first time, and never leave a figure above the cap */
@@ -7084,7 +7105,7 @@ function renderMembers(){
     }
     renderMembers();
   }));
-  host.querySelectorAll('.ps-flag').forEach(b => b.addEventListener('click', () => { const m = byId(b.dataset.id); m[b.dataset.flag] = !m[b.dataset.flag]; renderMembers(); }));
+  host.querySelectorAll('.ps-flag').forEach(b => b.addEventListener('change', () => { const m = byId(b.dataset.id); m[b.dataset.flag] = !!b.checked; renderMembers(); }));
   host.querySelectorAll('.member-remove').forEach(b => b.addEventListener('click', () => { const i = members.findIndex(m => m.id === parseInt(b.dataset.id, 10)); if(i > 0){ members.splice(i, 1); renderMembers(); } }));
 }
 
@@ -7130,7 +7151,7 @@ function calculate(){
   if(q.ncdPct) h += line('No Claim Discount &middot; ' + q.ncdPct + '%', '', 'sub');
   if(q.discPct) h += line('Total discount &middot; ' + q.discPct.toFixed(2).replace(/\.00$/, '') + '%', '&minus; &#8377; ' + fmt(q.discAmt));
   h += line('Net Premium', '&#8377; ' + fmt(q.net), 'total');
-  h += line('GST @ 18%', '&#8377; ' + fmt(q.gst));
+  h += line('GST', 'Nil &middot; not charged on this policy', 'sub');
   $('psBreakdown').innerHTML = h;
   $('psGrandTotal').textContent = fmt(q.grand);
   $('psResDate').textContent = new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
@@ -7209,7 +7230,7 @@ function buildPDF(returnBlob){
   const fin = [];
   q.rows.forEach((r, i) => fin.push({ label:(i + 1) + '. ' + (r.name || PS_RELBY(r.rel).n), value:R(share[i]) }));
   fin.push({ label:'Net Premium', value:R(q.net) });
-  fin.push({ label:'GST @ 18%', value:R(q.gst) });
+  fin.push({ label:'GST', value:'Nil' });
   fin.push({ label:'Total Premium', value:R(q.grand), total:true });
   const right = [{ sub:'Premium Summary', rows:fin }];
 
@@ -7381,13 +7402,18 @@ const PAPS_VERIFIED = [
     check:()=>{ const q1 = psCompute({ plan:'P', term:1, members:[{ id:1, rel:'self', age:35, earning:true, risk:'II', csi:1000000, cov:{} }] });
                 const q2 = psCompute({ plan:'P', term:1, members:[{ id:1, rel:'self', age:35, earning:true, risk:'II', csi:1000000, preEx:true, cov:{} }] });
                 return [Math.round(q1.subtotal), Math.round(q2.subtotal)].join('/'); } },
-  { label:'PAPS discounts: family 5% for two members and 10% for three or more, online 10%, staff 33.33% (which bars the family discount and commission), all capped at 40%', expect:'5/10/40/0',
+  { label:'PAPS discounts: family 5% for two members and 10% for three or more, online 10%, staff 33% (which bars the family discount and commission), all capped at 40%', expect:'5/10/40/0',
     check:()=>{ const two = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,cov:{}},{id:2,rel:'spouse',age:32,risk:'I',csi:500000,cov:{}}] });
                 const three = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,cov:{}},{id:2,rel:'spouse',age:32,risk:'I',csi:500000,cov:{}},{id:3,rel:'son',age:10,risk:'I',csi:500000,cov:{}}] });
                 const staff = psCompute({ plan:'P', term:1, staff:true, online:true, ncd:20, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,cov:{}},{id:2,rel:'spouse',age:32,risk:'I',csi:500000,cov:{}}] });
                 return [two.familyPct, three.familyPct, staff.discPct, staff.commAmt].join('/'); } },
-  { label:'PAPS: minimum premium Rs.100 exclusive of tax, and GST at 18% charged as CGST plus SGST', expect:'100/18',
-    check:()=>{ const q = psCompute({ plan:'P', term:1, staff:true, online:true, members:[{id:1,rel:'son',age:10,risk:'I',csi:100000,cov:{}}] }); return [q.net, q.gst].join('/'); } },
+  { label:'PAPS: minimum premium Rs.100, and no GST is charged on this product (the INLIAS computation sheet carries no tax line)', expect:'100/0/100',
+    check:()=>{ const q = psCompute({ plan:'P', term:1, staff:true, online:true, members:[{id:1,rel:'son',age:10,risk:'I',csi:100000,cov:{}}] }); return [q.net, q.gst, q.grand].join('/'); } },
+  { label:'PAPS INLIAS computation sheet R/433900/48/2027/1158 (16-09-2026), Elite Plan, staff: Self CSI 1 crore with TTD 10 lakh, Elderly Care, Chauffeur Plan and Accident Hospital Cash = 11,203; non-earning spouse CSI 50 lakh with the same covers = 7,546; premium 18,749 less staff discount 6,187 (33%, not 33.33%) = 12,562, no GST, total amount 12,562', expect:'11203/7546/18749/6187/12562/0/12562',
+    check:()=>{ const q = psCompute({ plan:'E', term:1, staff:true, members:[
+                  { id:1, rel:'self',   age:40, earning:true,  risk:'I', csi:10000000, ttdSi:1000000, cov:{ ttd:true, eld:true, chf:true, ahc:true } },
+                  { id:2, rel:'spouse', age:38, earning:false, risk:'I', csi:5000000,  ttdSi:1000000, cov:{ ttd:true, eld:true, chf:true, ahc:true } } ] });
+                return [q.rows[0].premium, q.rows[1].premium, q.subtotal, q.discAmt, q.net, q.gst, q.grand].join('/'); } },
   { label:'PAPS: a Sum Insured that is not on the published ladder falls back to the next lower tabulated figure instead of pricing at zero (CSI 10,50,000 prices as 10,00,000 = 1014) and the quote says so', expect:'1014/1/true',
     check:()=>{ const q = psCompute({ plan:'P', term:1, members:[{ id:1, rel:'self', age:35, earning:true, risk:'I', csi:1050000, cov:{} }] });
                 const w = psChecks({ plan:'P', term:1, members:[{ id:1, rel:'self', age:35, earning:true, risk:'I', csi:1050000, cov:{} }] }, q);
@@ -7438,7 +7464,7 @@ $('psImgBtn').addEventListener('click', () => {
   const q = lastQuote;
   OICIMG.shareViaBuilder(function(){ buildPDF(true); }, 'Oriental_PA_Parivaar_' + safeName(q) + '.png',
     'Personal Accident Parivaar Suraksha — ' + q.proposer,
-    'Oriental Insurance personal accident quote for ' + q.proposer + ' — total premium ₹' + fmt(q.grand) + ' (incl. GST).');
+    'Oriental Insurance personal accident quote for ' + q.proposer + ' — total premium ₹' + fmt(q.grand) + '.');
 });
 $('psNewBtn').addEventListener('click', newQuote);
 /* the staff discount bars the No Claim Discount, so grey it out rather than wiping the agent's
@@ -25502,7 +25528,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v125 · the 5% engineering uplift is for airport buildings and no longer paid on runways, the terrorism premium earns the pool commission of 5% instead of the occupancy rate, and a child's personal accident cover is rated at its Rs.4 lakh maximum · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v126 · PA Parivaar reconciled to INLIAS: no GST on the policy, staff discount 33% as the issuing system applies it, premiums rounded the way the computation sheet prints them, and every optional cover is a tick box · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
