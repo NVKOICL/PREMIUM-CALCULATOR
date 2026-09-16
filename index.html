@@ -19526,6 +19526,12 @@ function getCommissionRates(q){
   const d = q.data;
   const ageMonths = q.ageMonths || 0;
   const ageYears  = ageMonths / 12;
+  /* Most CR-8811 package and standalone-OD rows are written "Upto 15 years of vehicle age",
+     "From 1 year - Upto 15 years" or "Beyond 10 years ... upto 15 years". Where the circular has
+     no row for the class beyond that age, the payout is nil. Only the liability-only rows say
+     "No age restriction - till the validity of the RC". Stating the limit in a label is not the
+     same as enforcing it: see the school / staff bus row corrected in v120. */
+  const overAge = n => ageYears > n;
   const vt   = d.vehicleType;
   const pt   = d.policyType;        // 'comprehensive' | 'thirdParty' | 'odOnly'
   const term = d.policyTerm;        // '1yr' | '3yr' | '5yr'
@@ -19596,7 +19602,9 @@ function getCommissionRates(q){
       else                return R(20, 50, 'New Pvt Car · Bundled · disc >70%',   'Sr 2.a');
     }
     if(pt === 'comprehensive') return R(20, 20, 'Pvt Car · Package (20% net)', 'Sr 2.b');
-    if(pt === 'odOnly')        return R(20, 0,  'Pvt Car · SAOD (20% OD)',     'Sr 2.c');
+    if(pt === 'odOnly')        return overAge(10)
+      ? R(0, 0, 'Pvt Car · SAOD over 10 yr — Nil (Sr 2.c is up to 10 yr)', 'Sr 2.c')
+      : R(20, 0, 'Pvt Car · SAOD (20% OD, ≤10 yr)', 'Sr 2.c');
     if(pt === 'thirdParty')    return R(0, 20,  'Pvt Car · TP Only (20% TP)',  'Sr 2.d');
   }
 
@@ -19609,9 +19617,13 @@ function getCommissionRates(q){
     const isTractor   = d.slab === 'agriTractorGt6HP'
                      || (d.slab === 'agriTractorHearses' && (d.hearseCount || 0) === 0);
     if(isAmbulance){
-      if(pt === 'comprehensive') return R(20, 20, 'Ambulance · Package (20% net)', 'Sr 4.a');
+      if(pt === 'comprehensive') return overAge(15)
+        ? R(0, 0, 'Ambulance · Package over 15 yr — Nil (Sr 4.a is up to 15 yr)', 'Sr 4.a')
+        : R(20, 20, 'Ambulance · Package (20% net, ≤15 yr)', 'Sr 4.a');
       if(pt === 'thirdParty')    return R(0, 20,  'Ambulance · TP Only (20% TP)',  'Sr 4.b');
-      if(pt === 'odOnly')        return R(20, 0,  'Ambulance · SAOD (OD rate)',    'Sr 4.a');
+      if(pt === 'odOnly')        return overAge(15)
+        ? R(0, 0, 'Ambulance · SAOD over 15 yr — Nil (Sr 4.a is up to 15 yr)', 'Sr 4.a')
+        : R(20, 0, 'Ambulance · SAOD (OD rate, ≤15 yr)', 'Sr 4.a');
     }
     if(isTractor){
       const tr = disc > 80 ? 45 : 55;   // Sr 4.c: disc ≤80% → 55%, >80% → 45%
@@ -19621,10 +19633,15 @@ function getCommissionRates(q){
     }
     if(pt === 'comprehensive'){
       if(ageYears <= 10) return R(12.5, 8, 'Misc-D · Package (≤10 yr)',  'Sr 4.e');
-      return R(10, 8, 'Misc-D · Package (10–15 yr)',                      'Sr 4.f');
+      if(ageYears <= 15) return R(10, 8, 'Misc-D · Package (10–15 yr)',  'Sr 4.f');
+      return R(0, 0, 'Misc-D · Package over 15 yr — Nil (Sr 4.f ends at 15 yr)', 'Sr 4.f');
     }
     if(pt === 'thirdParty')  return R(0, 8, 'Misc-D · TP Only (8% TP)',   'Sr 4.g');
-    if(pt === 'odOnly')      return R(12.5, 0, 'Misc-D · SAOD (OD rate)', 'Sr 4.e');
+    if(pt === 'odOnly'){
+      if(ageYears <= 10) return R(12.5, 0, 'Misc-D · SAOD (OD rate, ≤10 yr)', 'Sr 4.e');
+      if(ageYears <= 15) return R(10, 0, 'Misc-D · SAOD (OD rate, 10–15 yr)', 'Sr 4.f');
+      return R(0, 0, 'Misc-D · SAOD over 15 yr — Nil (Sr 4.f ends at 15 yr)', 'Sr 4.f');
+    }
   }
 
   // ── GCCV — CR-8811 Sr 3.a – 3.k — by actual GVW + OD discount ────
@@ -19655,9 +19672,13 @@ function getCommissionRates(q){
 
   // ── Two-Wheeler Hire/Reward (2W PCCV) — CR-8811 Sr 5.r / 5.s ─────
   if(vt === 'twoWheelerHire'){
-    if(pt === 'comprehensive') return R(10, 10, '2W PCCV (Hire) · Package (≤15 yr)', 'Sr 5.r');
+    if(pt === 'comprehensive') return overAge(15)
+      ? R(0, 0, '2W PCCV (Hire) · Package over 15 yr — Nil (Sr 5.r is up to 15 yr)', 'Sr 5.r')
+      : R(10, 10, '2W PCCV (Hire) · Package (≤15 yr)', 'Sr 5.r');
     if(pt === 'thirdParty')    return R(0, 0,   '2W PCCV (Hire) · TP Only — Nil',    'Sr 5.s');
-    if(pt === 'odOnly')        return R(10, 0,  '2W PCCV (Hire) · SAOD (OD rate)',   'Sr 5.r');
+    if(pt === 'odOnly')        return overAge(15)
+      ? R(0, 0, '2W PCCV (Hire) · SAOD over 15 yr — Nil (Sr 5.r is up to 15 yr)', 'Sr 5.r')
+      : R(10, 0, '2W PCCV (Hire) · SAOD (OD rate, ≤15 yr)', 'Sr 5.r');
   }
 
   // ── PCCV — CR-8811 Sr 5.a – 5.q, 6.a / 6.b ───────────────────────
@@ -19666,34 +19687,58 @@ function getCommissionRates(q){
     const isBrandNew = ageYears <= 1;
 
     if(slab === 'autoLt6'){   // 3W ≤6 pax (Sr 5.a/b/c)
-      if(pt === 'comprehensive') return isBrandNew ? R(45,45,'3W PCCV ≤6 pax · Brand New','Sr 5.a') : R(35,35,'3W PCCV ≤6 pax · Package (1–15 yr)','Sr 5.b');
+      if(pt === 'comprehensive') return isBrandNew ? R(45,45,'3W PCCV ≤6 pax · Brand New','Sr 5.a')
+        : (overAge(15) ? R(0,0,'3W PCCV ≤6 pax · Package over 15 yr — Nil (Sr 5.b ends at 15 yr)','Sr 5.b')
+                       : R(35,35,'3W PCCV ≤6 pax · Package (1–15 yr)','Sr 5.b'));
       if(pt === 'thirdParty')    return R(0, 5, '3W PCCV ≤6 pax · TP Only', 'Sr 5.c');
-      if(pt === 'odOnly')        return R(isBrandNew?45:35, 0, '3W PCCV ≤6 pax · SAOD (OD rate)', isBrandNew?'Sr 5.a':'Sr 5.b');
+      if(pt === 'odOnly')        return isBrandNew ? R(45, 0, '3W PCCV ≤6 pax · SAOD (OD rate)', 'Sr 5.a')
+        : (overAge(15) ? R(0,0,'3W PCCV ≤6 pax · SAOD over 15 yr — Nil (Sr 5.b ends at 15 yr)','Sr 5.b')
+                       : R(35, 0, '3W PCCV ≤6 pax · SAOD (OD rate)', 'Sr 5.b'));
     }
     if(slab === 'auto7to17'){ // 3W >6 pax (Sr 5.d/e/f)
-      if(pt === 'comprehensive') return isBrandNew ? R(25,25,'3W PCCV >6 pax · Brand New','Sr 5.d') : R(15,15,'3W PCCV >6 pax · Package (1–15 yr)','Sr 5.e');
+      if(pt === 'comprehensive') return isBrandNew ? R(25,25,'3W PCCV >6 pax · Brand New','Sr 5.d')
+        : (overAge(15) ? R(0,0,'3W PCCV >6 pax · Package over 15 yr — Nil (Sr 5.e ends at 15 yr)','Sr 5.e')
+                       : R(15,15,'3W PCCV >6 pax · Package (1–15 yr)','Sr 5.e'));
       if(pt === 'thirdParty')    return R(0, 5, '3W PCCV >6 pax · TP Only', 'Sr 5.f');
-      if(pt === 'odOnly')        return R(isBrandNew?25:15, 0, '3W PCCV >6 pax · SAOD (OD rate)', isBrandNew?'Sr 5.d':'Sr 5.e');
+      if(pt === 'odOnly')        return isBrandNew ? R(25, 0, '3W PCCV >6 pax · SAOD (OD rate)', 'Sr 5.d')
+        : (overAge(15) ? R(0,0,'3W PCCV >6 pax · SAOD over 15 yr — Nil (Sr 5.e ends at 15 yr)','Sr 5.e')
+                       : R(15, 0, '3W PCCV >6 pax · SAOD (OD rate)', 'Sr 5.e'));
     }
     if(slab === 'taxiLt1000' || slab === 'taxi1000to1500' || slab === 'taxiOver1500'){ // 4W taxi ≤6 (Sr 5.g/h/i)
-      if(pt === 'comprehensive') return isBrandNew ? R(20,20,'4W Taxi ≤6 pax · Brand New','Sr 5.g') : R(15,15,'4W Taxi ≤6 pax · Package (1–15 yr)','Sr 5.h');
+      if(pt === 'comprehensive') return isBrandNew ? R(20,20,'4W Taxi ≤6 pax · Brand New','Sr 5.g')
+        : (overAge(15) ? R(0,0,'4W Taxi ≤6 pax · Package over 15 yr — Nil (Sr 5.h ends at 15 yr)','Sr 5.h')
+                       : R(15,15,'4W Taxi ≤6 pax · Package (1–15 yr)','Sr 5.h'));
       if(pt === 'thirdParty')    return R(0, 5, '4W Taxi ≤6 pax · TP Only', 'Sr 5.i');
-      if(pt === 'odOnly')        return R(isBrandNew?20:15, 0, '4W Taxi · SAOD (OD rate)', isBrandNew?'Sr 5.g':'Sr 5.h');
+      if(pt === 'odOnly')        return isBrandNew ? R(20, 0, '4W Taxi · SAOD (OD rate)', 'Sr 5.g')
+        : (overAge(15) ? R(0,0,'4W Taxi ≤6 pax · SAOD over 15 yr — Nil (Sr 5.h ends at 15 yr)','Sr 5.h')
+                       : R(15, 0, '4W Taxi · SAOD (OD rate)', 'Sr 5.h'));
     }
     if(slab === 'paxUpto18'){ // 4W >6 & ≤17 pax (Sr 5.j/k/l)
-      if(pt === 'comprehensive') return R(15, 15, '4W PCCV (>6 & ≤17 pax) · Package', isBrandNew?'Sr 5.j':'Sr 5.k');
+      if(pt === 'comprehensive') return (!isBrandNew && overAge(15))
+        ? R(0, 0, '4W PCCV (>6 & ≤17 pax) · Package over 15 yr — Nil (Sr 5.k ends at 15 yr)', 'Sr 5.k')
+        : R(15, 15, '4W PCCV (>6 & ≤17 pax) · Package', isBrandNew?'Sr 5.j':'Sr 5.k');
       if(pt === 'thirdParty')    return R(0, 5, '4W PCCV (>6 & ≤17 pax) · TP Only', 'Sr 5.l');
-      if(pt === 'odOnly')        return R(15, 0, '4W PCCV (>6 & ≤17 pax) · SAOD (OD rate)', 'Sr 5.j');
+      if(pt === 'odOnly')        return (!isBrandNew && overAge(15))
+        ? R(0, 0, '4W PCCV (>6 & ≤17 pax) · SAOD over 15 yr — Nil (Sr 5.k ends at 15 yr)', 'Sr 5.k')
+        : R(15, 0, '4W PCCV (>6 & ≤17 pax) · SAOD (OD rate)', isBrandNew?'Sr 5.j':'Sr 5.k');
     }
     if(slab === 'pax19to36' || slab === 'threeWheelOver17'){ // >17 & ≤36 seat (Sr 5.m/n/o)
-      if(pt === 'comprehensive') return ageYears <= 10 ? R(7.5,2.5,'PCCV (>17 & ≤36 pax) · Package (≤10 yr)','Sr 5.m') : R(5,2.5,'PCCV (>17 & ≤36 pax) · Package (10–15 yr)','Sr 5.n');
+      if(pt === 'comprehensive') return ageYears <= 10 ? R(7.5,2.5,'PCCV (>17 & ≤36 pax) · Package (≤10 yr)','Sr 5.m')
+        : (overAge(15) ? R(0,0,'PCCV (>17 & ≤36 pax) · Package over 15 yr — Nil (Sr 5.n ends at 15 yr)','Sr 5.n')
+                       : R(5,2.5,'PCCV (>17 & ≤36 pax) · Package (10–15 yr)','Sr 5.n'));
       if(pt === 'thirdParty')    return R(0, 0, 'PCCV (>17 & ≤36 pax) · TP Only — Nil', 'Sr 5.o');
-      if(pt === 'odOnly')        return R(ageYears<=10?7.5:5, 0, 'PCCV (>17 & ≤36 pax) · SAOD (OD rate)', ageYears<=10?'Sr 5.m':'Sr 5.n');
+      if(pt === 'odOnly')        return ageYears <= 10 ? R(7.5, 0, 'PCCV (>17 & ≤36 pax) · SAOD (OD rate)', 'Sr 5.m')
+        : (overAge(15) ? R(0,0,'PCCV (>17 & ≤36 pax) · SAOD over 15 yr — Nil (Sr 5.n ends at 15 yr)','Sr 5.n')
+                       : R(5, 0, 'PCCV (>17 & ≤36 pax) · SAOD (OD rate)', 'Sr 5.n'));
     }
     if(slab === 'pax37to60' || slab === 'paxOver60'){ // >36 pax (Sr 5.p/q)
-      if(pt === 'comprehensive') return R(5, 5, 'PCCV (>36 pax) · Package (≤15 yr)', 'Sr 5.p');
+      if(pt === 'comprehensive') return overAge(15)
+        ? R(0, 0, 'PCCV (>36 pax) · Package over 15 yr — Nil (Sr 5.p is up to 15 yr)', 'Sr 5.p')
+        : R(5, 5, 'PCCV (>36 pax) · Package (≤15 yr)', 'Sr 5.p');
       if(pt === 'thirdParty')    return R(0, 0, 'PCCV (>36 pax) · TP Only — Nil', 'Sr 5.q');
-      if(pt === 'odOnly')        return R(5, 0, 'PCCV (>36 pax) · SAOD (OD rate)', 'Sr 5.p');
+      if(pt === 'odOnly')        return overAge(15)
+        ? R(0, 0, 'PCCV (>36 pax) · SAOD over 15 yr — Nil (Sr 5.p is up to 15 yr)', 'Sr 5.p')
+        : R(5, 0, 'PCCV (>36 pax) · SAOD (OD rate)', 'Sr 5.p');
     }
     if(slab === 'schoolBus' || slab === 'staffBus'){ // Educational/School/Staff buses (Sr 6.a/b)
       const lbl = slab === 'staffBus' ? 'Staff Bus' : 'Educational Inst. / School Bus';
@@ -24930,6 +24975,14 @@ window.FIRE_VERIFIED = [
   { label:'Commission Sr 6.a/6.b: an educational institution, school or staff bus earns 65% on a package policy only up to 15 years of age and nothing beyond that; a liability only policy earns 45% on TP at any age', expect:'65,65/0,0/0,45/0,45',
     check:()=>{ const mk = (years, pt) => { const r = getCommissionRates({ data:{ vehicleType:'pccv', policyType:pt, slab:'staffBus', odDiscount:0, regNumber:'' }, ageMonths: years*12 }); return r ? r.odPct + ',' + r.tpPct : 'null'; };
                 return [mk(10,'comprehensive'), mk(16,'comprehensive'), mk(10,'thirdParty'), mk(16,'thirdParty')].join('/'); } },
+  { label:'Commission age limits: every CR-8811 package and standalone-OD row that the circular writes as "upto 15 years" (or 10 for private car SAOD and Misc D) pays nil beyond that age, while the liability only rows, which say "no age restriction", keep paying', expect:'0,0/20,0/0,0/20,20/0,0/0,8/0,0/0,5/0,0/0,0/0,0/45,45',
+    check:()=>{ const g = (vt, slab, pt, years, extra) => { const r = getCommissionRates({ data:Object.assign({ vehicleType:vt, slab:slab, policyType:pt, odDiscount:0, regNumber:'' }, extra||{}), ageMonths: years*12 }); return r ? r.odPct + ',' + r.tpPct : 'null'; };
+      return [ g('privateCar','s1','odOnly',12), g('privateCar','s1','odOnly',8),
+               g('misc','miscSpecial','comprehensive',16), g('misc','miscSpecial','comprehensive',12),
+               g('misc','miscClassD','comprehensive',16), g('misc','miscClassD','thirdParty',16),
+               g('pccv','taxiLt1000','comprehensive',16), g('pccv','taxiLt1000','thirdParty',16),
+               g('pccv','pax37to60','comprehensive',16), g('pccv','pax19to36','comprehensive',16),
+               g('twoWheelerHire','s1','comprehensive',16), g('pccv','autoLt6','comprehensive',0.5) ].join('/'); } },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -25267,7 +25320,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v120 · school, staff and educational institution buses earn the 65% payout only up to 15 years of vehicle age on a package policy, and nothing beyond that; a liability only policy still earns 45% on TP at any age · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v121 · every motor payout row that the circular limits by vehicle age now enforces it: private car standalone OD beyond 10 years, ambulance, Misc D, taxi, three-wheeler, bus and two-wheeler PCCV package rows beyond 15 years all pay nil, as the circular has no row for them · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
