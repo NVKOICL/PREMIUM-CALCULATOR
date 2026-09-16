@@ -12839,7 +12839,15 @@ function calculate(silent=false){
     });
     extras.total += llNFPPAmt;
   }
-  if(data.switches.imt23 && hasOD){
+  /* IMT-23 is an endorsement of the commercial classes, and within passenger carrying
+     vehicles it does not exist for a four wheeler taxi of six seats or fewer (office,
+     16-09-2026). The Nil Depreciation base and the PCCV No Claim Bonus base have always
+     asked pccvImt23Eligible() before counting it; the charge did not ask at all, so a
+     quote could carry the premium while both of those bases refused to recognise it. */
+  const imt23Allowed = data.vehicleType === 'commercial'
+                    || data.vehicleType === 'misc'
+                    || (data.vehicleType === 'pccv' && pccvImt23Eligible(data.slab, data.paxCount));
+  if(data.switches.imt23 && hasOD && imt23Allowed){
     // OD discount applies on IMT23 for ALL vehicle types — same % as Basic OD discount
     const isGCCV = data.vehicleType === 'commercial';
     // ODS AZ80 / AZ90 / AZ93 — 15% on Basic OD + Electrical + CNG + Towing
@@ -25339,6 +25347,10 @@ window.FIRE_VERIFIED = [
                 /* leave the grid as it was found */
                 document.getElementById('addonsGrid').querySelectorAll('input').forEach(i => { i.checked = before.indexOf(i.dataset.addon) >= 0; });
                 return kept ? 'kept' : 'LOST'; } },
+  { label:'IMT-23 exists only where the class can take it: goods carrying and Misc always, a passenger vehicle only when it is an auto, a three-wheeler, a bus or carries more than 6 passengers - a 4-wheeler taxi of 6 seats or fewer has none, so the premium can never be charged on one', expect:'false/false/true/true/true',
+    check:()=>[pccvImt23Eligible('taxiLt1000', 4), pccvImt23Eligible('taxiOver1500', 6),
+               pccvImt23Eligible('taxiLt1000', 20), pccvImt23Eligible('autoLt6', 0),
+               pccvImt23Eligible('schoolBus', 0)].map(String).join('/') },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -25676,7 +25688,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v130 · a cover the agent ticks stays ticked: redrawing the add-on grid no longer deletes the selection, a cover that becomes ineligible is named on the quote and comes back when it is available again, and New Quote resets every switch so the automatic IMT-23 returns · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v131 · IMT-23 is charged only on a vehicle that can take it: a four wheeler taxi of six seats or fewer has none, the same rule the Nil Depreciation and No Claim Bonus bases already followed · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
