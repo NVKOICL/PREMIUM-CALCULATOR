@@ -9140,6 +9140,10 @@ function autoFormatDateText(input){
 // Only auto-applies for Pvt Car & Two-Wheeler. User can still override.
 let _sipManualOverride = false;
 let _imt23ManualOff = false;   /* user switched IMT 23 off on an auto-applying class (GCCV / PCCV > 6 / Misc) */
+/* covers the agent had ticked that the last redraw could not keep, because they are still
+   offered for the class but are no longer eligible (age, IMT-23 switched off, policy type).
+   Surfaced by motorQuoteChecks so the cover never just disappears from the quote. */
+let _addonsDropped = [];
 /* autoApplySipDiscount: defined below alongside lookupMaxDiscount2026.
    This forward-declaration ensures earlier callers don't crash; the real
    implementation is hoisted via function-declaration semantics. */
@@ -10316,6 +10320,11 @@ const ADDON_ICONS = {
 
 function renderAddons(){
   const grid = $('addonsGrid');
+  /* The grid is rebuilt from innerHTML below and the generated checkbox has no `checked`
+     attribute, so without this the redraw wiped the agent's selection - and calculate()
+     reads the ticks straight out of the DOM, so the cover stopped being charged with
+     nothing on screen to say so. Remember the selection and put it back afterwards. */
+  const _wasTicked = Array.from(grid.querySelectorAll('input:checked')).map(i => i.dataset.addon);
   const ageMonths = getAgeMonths();
   const isPrivateCar = state.vehicleType === 'privateCar';
   const ccSlab = $('ccSlab').value;
@@ -10610,6 +10619,25 @@ function renderAddons(){
     if(i.dataset.addon === 'nilDep' && i.checked) applyAutoNilDepDisc();
     syncEpCcWrap(); scheduleAutoCalc();
   }));
+
+  /* Put the agent's selection back, now that the listeners are attached so the dependent
+     input panels (EMI, alternative car, personal effects, tyre invoice) and the automatic
+     Nil Dep discount re-sync exactly as they would on a real click. A cover that the class
+     no longer offers at all simply goes - that is expected when the class changes. One that
+     is still on the card but disabled has become ineligible: it is dropped and recorded, so
+     the quote can say which cover went and the agent is not left to spot it. */
+  /* What to put back: everything ticked when the redraw started, plus anything the PREVIOUS
+     redraw had to drop only because it was offered but not yet eligible - so switching IMT-23
+     back on restores the Nil Depreciation it took away. An enabled card the agent has left
+     unticked is in neither list, so a deliberate untick is never overridden. */
+  const _carry = _addonsDropped.slice();
+  _addonsDropped = [];
+  new Set(_wasTicked.concat(_carry)).forEach(k => {
+    const el = grid.querySelector('input[data-addon="' + k + '"]');
+    if(!el) return;                                     /* the class does not offer it at all */
+    if(el.disabled){ _addonsDropped.push(k); return; }   /* offered but not eligible - keep it pending */
+    if(!el.checked){ el.checked = true; el.dispatchEvent(new Event('change', { bubbles:true })); }
+  });
 }
 
 /* ─── Engine Protection CC Loading / Discount ─────────────── */
@@ -10804,6 +10832,7 @@ document.querySelectorAll('.vehicle-tab').forEach(btn=>{
        set meant an agent who returned to this class later got a quote with IMT-23 silently off
        and Nil Depreciation refused, with nothing on screen to say why. */
     _imt23ManualOff = false;
+    _addonsDropped = [];     /* a different class is a different set of covers */
     updatePassengerField();
     updateAll();
     autoBundleForNewVehicle();
@@ -14396,6 +14425,13 @@ function motorQuoteChecks(){
     }
   }
 
+  /* A cover the agent had ticked that is no longer eligible must never just vanish. */
+  if(_addonsDropped.length){
+    const nm = k => ((RATES.addons[k] || {}).name) || k;
+    warns.push({ f:'addonsGrid', t:'Removed from this quote because it is no longer available for the vehicle as entered: '
+      + _addonsDropped.map(nm).join(', ') + '. Check the card for the reason.' });
+  }
+
   /* Misc: IMT-47 is the overturning cover for a vehicle used as a TOOL OF TRADE
      (crane, excavator, dumper). An ambulance or a hearse is Misc Class D but is not a
      tool of trade, so the endorsement does not belong on it. */
@@ -14588,6 +14624,7 @@ $('resetBtn').addEventListener('click', ()=>{
     if(chips[0]) chips[0].classList.add('active');
   });
   state.ncbYears = 0; state.odDiscount = 0; _sipManualOverride = false; state.nilDepDiscount = 0; _nilDepManual = false; _imt23ManualOff = false;
+  _addonsDropped = [];
   state.loadingPct = 0;
   if($('loadingCustom')) $('loadingCustom').value = '';
   if($('targetPremiumInput')) $('targetPremiumInput').value = '';
@@ -14608,12 +14645,20 @@ $('resetBtn').addEventListener('click', ()=>{
   autoApplySipDiscount();
   clearErrors();
 
-  state.switches = { cpa:true, atd:false, paUn:false, llDrv:false, llNFPP:false, vintage:false, transfer:false, nilDepGccvRenewal:false, geoExt:false };
+  /* Every switch key must be present. imt23 and tppd were missing, so both read undefined
+     after a New Quote - falsy, but not false, and the automatic IMT-23 the commercial classes
+     rely on had nothing to turn back on. A fresh goods vehicle quote then started with the
+     endorsement off and, since v128, Nil Depreciation refused. */
+  state.switches = { cpa:true, atd:false, paUn:false, llDrv:false, llNFPP:false, imt23:false,
+                     vintage:false, transfer:false, nilDepGccvRenewal:false, geoExt:false, tppd:false };
   state.cpaTerm = '1yr'; state.paUnTerm = '1yr'; state.llTerm = '1yr';
   document.querySelectorAll('#sectionMotor .switch').forEach(s=>{
     s.classList.toggle('on', state.switches[s.dataset.key]);
     (s.querySelector('input')||{}).checked = state.switches[s.dataset.key];
   });
+  /* this reset runs after the policy-type change that would have applied them, so run the
+     automatic switches again - IMT-23 on the commercial classes */
+  updateAll();
 
   state.hasCalcedOnce = false;
   $('calcBtn').classList.remove('live');
@@ -25280,6 +25325,20 @@ window.FIRE_VERIFIED = [
                 const ncb  = Math.round(base * 0.45);
                 /* the bare OD line cannot absorb it, so the carry must be the remainder */
                 return [ncb, (ncb - 1351) > 0].join('/'); } },
+  { label:'Redrawing the add-on grid keeps the covers the agent ticked - the grid is rebuilt on the registration date, passenger count, slab, NCB chip, fuel chip, policy type and the IMT-23 switch, and calculate() reads the ticks out of the DOM, so losing them silently dropped a cover from the premium', expect:'kept',
+    check:()=>{ const g = document.getElementById('addonsGrid');
+                if(!g) return 'kept';
+                const before = Array.from(g.querySelectorAll('input:checked')).map(i => i.dataset.addon);
+                const el = g.querySelector('input[data-addon]:not([disabled])');
+                if(!el) return 'kept';
+                const key = el.dataset.addon;
+                el.checked = true;
+                renderAddons();
+                const after = document.getElementById('addonsGrid').querySelector('input[data-addon="' + key + '"]');
+                const kept = !!(after && after.checked);
+                /* leave the grid as it was found */
+                document.getElementById('addonsGrid').querySelectorAll('input').forEach(i => { i.checked = before.indexOf(i.dataset.addon) >= 0; });
+                return kept ? 'kept' : 'LOST'; } },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -25617,7 +25676,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v129 · a No Claim Bonus larger than the bare own damage line is no longer thrown away: the balance comes off the add-on covers that are in the same bonus base, exactly as the issuing system applies it · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v130 · a cover the agent ticks stays ticked: redrawing the add-on grid no longer deletes the selection, a cover that becomes ineligible is named on the quote and comes back when it is available again, and New Quote resets every switch so the automatic IMT-23 returns · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
