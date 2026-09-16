@@ -6944,7 +6944,9 @@ function psChecks(inp, q){
     if((m.rel === 'son' || m.rel === 'daughter') && m.age > 25) w.push(who + ': a dependent child can be covered only up to 18 years, or 25 years while a full-time student.');
     if(r.dep && m.rel !== 'spouse' && csiSelf && m.csi > floorLakh(csiSelf * r.cap)) w.push(who + ': CSI ' + siLabel(m.csi) + ' is above 25% of the proposer CSI (' + siLabel(floorLakh(csiSelf * r.cap)) + ').');
     if(m.rel === 'spouse' && !m.earning && csiSelf && m.csi > floorLakh(csiSelf * 0.5)) w.push(who + ': a non-earning spouse is limited to 50% of the proposer CSI (' + siLabel(floorLakh(csiSelf * 0.5)) + ').');
-    if(r.dep && m.csi > r.capAbs) w.push(who + ': CSI ' + siLabel(m.csi) + ' is above the dependent ceiling of ' + siLabel(r.capAbs) + '.');
+    /* an independent (earning) spouse is rated on their own declared income, so the dependent
+       ceiling does not apply to them (underwriting guideline 4.3) */
+    if(r.dep && !(m.rel === 'spouse' && m.earning) && m.csi > r.capAbs) w.push(who + ': CSI ' + siLabel(m.csi) + ' is above the dependent ceiling of ' + siLabel(r.capAbs) + '.');
     if(m.cov && m.cov.ttd){
       if(m.ttdSi > floorLakh(m.csi * 0.25)) w.push(who + ': TTD Sum Insured ' + siLabel(m.ttdSi) + ' is above 25% of the CSI (' + siLabel(floorLakh(m.csi * 0.25)) + ').');
       if(m.ttdSi > 2500000) w.push(who + ': TTD Sum Insured above Rs.25 lakh is referred to the Head Office underwriter.');
