@@ -6920,9 +6920,12 @@ function psCompute(inp){
   if(minApplied) net = PS_MIN_PREMIUM;
   const gst = 2 * Math.round(net * 0.09);
   const grand = net + gst;
-  const commAmt = staff ? 0 : Math.round(net * PS_COMM_PCT / 100);
+  /* the staff discount expressly bars commission, and the direct / portal discount is given
+     because no intermediary is involved, so there is no one to pay in either case */
+  const noComm = staff || !!inp.online;
+  const commAmt = noComm ? 0 : Math.round(net * PS_COMM_PCT / 100);
   return { plan, years, lt, rows, subtotal, familyPct, onlinePct, staffPct, ncdPct, rawDisc, discPct, discAmt,
-           net, minApplied, gst, grand, commAmt, commPct: staff ? 0 : PS_COMM_PCT, memberCount: n };
+           net, minApplied, gst, grand, commAmt, commPct: noComm ? 0 : PS_COMM_PCT, memberCount: n };
 }
 
 /* ── underwriting checks shown with the quote ──────────────────────────── */
@@ -7004,12 +7007,14 @@ function addMember(pre){
 }
 function byId(id){ return members.find(m => m.id === parseInt(id, 10)); }
 
-function csiOptions(sel, from){
+function csiOptions(sel, from, upto){
   /* always keep the stored figure in the list, otherwise the select would show one amount while the quote used another */
-  return PS_CSI.filter(v => v >= (from || PS_MIN_CSI) || v === sel).map(v => '<option value="' + v + '"' + (v === sel ? ' selected' : '') + '>&#8377; ' + siLabel(v) + '</option>').join('');
+  return PS_CSI.filter(v => (v >= (from || PS_MIN_CSI) && (!upto || v <= upto)) || v === sel).map(v => '<option value="' + v + '"' + (v === sel ? ' selected' : '') + '>&#8377; ' + siLabel(v) + '</option>').join('');
 }
-function ttdOptions(sel){
-  return PS_TTD_SI.map(v => '<option value="' + v + '"' + (v === sel ? ' selected' : '') + '>&#8377; ' + siLabel(v) + '</option>').join('');
+function ttdOptions(sel, cap){
+  /* never offer more than 25% of the Capital Sum Insured, nor more than the chart provides */
+  const lim = cap > 0 ? cap : PS_TTD_SI[PS_TTD_SI.length - 1];
+  return PS_TTD_SI.filter(v => v <= lim || v === sel).map(v => '<option value="' + v + '"' + (v === sel ? ' selected' : '') + '>&#8377; ' + siLabel(v) + '</option>').join('');
 }
 
 function renderMembers(){
@@ -7043,9 +7048,9 @@ function renderMembers(){
         chips +
         '<button type="button" class="chip ps-flag' + (m.preEx ? ' active' : '') + '" data-id="' + m.id + '" data-flag="preEx">Pre-existing condition +30%</button>' +
       '</div></div>' +
-      (m.cov && m.cov.ttd ? '<div class="field-row"><div class="field"><label class="lbl">TTD Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; up to 25% of CSI</span></label><select class="ps-ttdsi" data-id="' + m.id + '">' + ttdOptions(m.ttdSi) + '</select><div class="hint">Weekly benefit &#8377;' + fmt(weekly) + ' for up to 100 weeks</div></div><div class="field"></div></div>' : '') +
-      ((psPlan === 'E' && m.cov && m.cov.loan) ? '<div class="field"><label class="lbl">Loan Secure Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; one home loan per policy, not above the CSI</span></label><select class="ps-loansi" data-id="' + m.id + '">' + csiOptions(m.loanSi, 100000) + '</select></div>' : '') +
-      ((psPlan === 'E' && m.cov && m.cov.emi) ? '<div class="field"><label class="lbl">EMI Protection Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; household goods loan, maximum 12 EMIs</span></label><select class="ps-emisi" data-id="' + m.id + '">' + csiOptions(m.emiSi, 100000) + '</select></div>' : '') +
+      (m.cov && m.cov.ttd ? '<div class="field-row"><div class="field"><label class="lbl">TTD Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; up to 25% of CSI</span></label><select class="ps-ttdsi" data-id="' + m.id + '">' + ttdOptions(m.ttdSi, floorLakh(m.csi * 0.25)) + '</select><div class="hint">Weekly benefit &#8377;' + fmt(weekly) + ' for up to 100 weeks</div></div><div class="field"></div></div>' : '') +
+      ((psPlan === 'E' && m.cov && m.cov.loan) ? '<div class="field"><label class="lbl">Loan Secure Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; one home loan per policy, not above the CSI</span></label><select class="ps-loansi" data-id="' + m.id + '">' + csiOptions(m.loanSi, 100000, m.csi) + '</select></div>' : '') +
+      ((psPlan === 'E' && m.cov && m.cov.emi) ? '<div class="field"><label class="lbl">EMI Protection Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; household goods loan, maximum 12 EMIs</span></label><select class="ps-emisi" data-id="' + m.id + '">' + csiOptions(m.emiSi, 100000, m.csi) + '</select></div>' : '') +
       (i === 0 ? '' : '<button class="member-remove" data-id="' + m.id + '" title="Remove" type="button">&times;</button>') +
     '</div>';
   }).join('');
