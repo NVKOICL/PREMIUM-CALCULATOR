@@ -1224,6 +1224,8 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 .addon.ps-tick{min-height:56px;padding:10px 14px 10px 44px;border-radius:12px}
 .addon.ps-tick::before{left:13px;width:18px;height:18px}
 .addon.ps-tick:has(input:checked)::after{left:17px}
+/* the add-on card hides its checkbox, so draw the focus ring on the card for keyboard users */
+.addon:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
 
 .comp-only{display:none}
 .comp-only.visible{display:block}
@@ -6754,7 +6756,7 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
       <div class="section-label">Discounts</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">
         <label class="addon" for="psOnline"><input type="checkbox" id="psOnline" /><span class="addon-name">Direct / portal business</span><small>10% where the policy is bought online with no intermediary</small></label>
-        <label class="addon" for="psStaff"><input type="checkbox" id="psStaff" /><span class="addon-name">Staff of Oriental Insurance</span><small>33.33% &middot; family discount and commission are not allowed with it</small></label>
+        <label class="addon" for="psStaff"><input type="checkbox" id="psStaff" /><span class="addon-name">Staff of Oriental Insurance</span><small>33% &middot; family discount, No Claim Discount and commission are not allowed with it</small></label>
       </div>
       <div class="field" style="margin-top:12px">
         <label class="lbl" for="psNcd">No Claim Discount <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; renewal only, 2% per claim-free year, chosen instead of Cumulative Bonus</span></label>
@@ -6816,7 +6818,7 @@ const PS_LT_FACTOR = { 1: 1, 2: 0.96, 3: 0.93 };
 const PS_RISK = { I: 0, II: 25, III: 50 };          /* occupation loading on premium */
 const PS_PREEX_LOAD = 30;                           /* pre-existing physical / medical condition */
 const PS_MIN_CSI = 500000, PS_MAX_CSI = 50000000;   /* underwriting guideline 4.8 */
-const PS_MIN_PREMIUM = 100;                         /* guideline 8, exclusive of tax */
+const PS_MIN_PREMIUM = 100;                         /* guideline 8; the product carries no GST, see gst in psCompute */
 const PS_MAX_MEMBERS = 10;
 const PS_DISC_CAP = 40;
 /* The guideline text reads 33.33%, but INLIAS applies 33%: computation sheet R/433900/48/2027/1158
@@ -6846,7 +6848,7 @@ const PS_OPT = [
   { k:'ahc', n:'Accident Hospital Cash', s:'Accident Hospital Cash', col:'AHC', plans:'PE',
     d:'0.1% of CSI a day for up to 30 days in a policy year' },
   { k:'eld', n:'Elderly Care', s:'Elderly Care', col:'ELD', plans:'PE',
-    d:'Support for an elderly insured person after an accident' },
+    d:'Lump sum for this person\'s dependent parents, parents-in-law or grandparents on an admitted accidental death or PTD claim; once a policy year' },
   { k:'chf', n:'Chauffeur Plan', s:'Chauffeur Plan', col:'CHF', plans:'PE',
     d:'0.1% of CSI a day towards a driver, up to 30 days in a policy year' },
   { k:'loan', n:'Loan Secure (home loan)', s:'Loan Secure', col:'LOAN', plans:'E', ownSI:'loan',
@@ -6916,7 +6918,8 @@ function psCompute(inp){
     const load = gross * loadPct / 100;
     return { id:m.id, rel:m.rel, name:m.name, age:m.age, earning:!!m.earning, risk:m.risk, csi:m.csi,
              ttdSi:m.ttdSi, loanSi:m.loanSi, emiSi:m.emiSi, cov:cov, ptd2:!!m.ptd2, preEx:!!m.preEx,
-             /* INLIAS prints each person's premium in whole rupees and adds those */
+             /* whole rupees per person, as the sheet prints and adds them; the sheet on file has no
+                fractional cover premium, so where exactly INLIAS rounds a loaded premium is not yet proven */
              parts, gross, riskPct, preExPct, loadPct, load, premium: Math.round(gross + load), snaps };
   });
 
@@ -6929,16 +6932,17 @@ function psCompute(inp){
   const ncdPct = staff ? 0 : Math.min(20, Math.max(0, Number(inp.ncd) || 0));
   const rawDisc = familyPct + onlinePct + staffPct + ncdPct;
   const discPct = Math.min(PS_DISC_CAP, rawDisc);      /* every discount together is capped at 40% */
-  /* the sheet rounds the discount to the rupee and deducts it ("LESS: Staff Discount 6,187.00") */
+  /* the discount is rounded to the rupee and deducted, as the sheet prints it ("LESS :Staff Discount 6,187.00") */
   const discAmt = Math.round(subtotal * discPct / 100);
   let net = subtotal - discAmt;
   const minApplied = net < PS_MIN_PREMIUM;
   if(minApplied) net = PS_MIN_PREMIUM;
   /* No GST on this product. The INLIAS computation sheet (R/433900/48/2027/1158, 16-09-2026) carries no
-     tax line at all: TOTAL PREMIUM 12,562 and TOTAL AMOUNT 12,562. The 18% charged here until v125 came
-     from treating personal accident as a general-insurance product; the office issues it tax-free, as
-     it does individual health cover. The sheet also prints a stamp duty line that it does NOT add to
-     the total amount, so none is added here either. */
+     tax line: TOTAL PREMIUM 12,562 and TOTAL AMOUNT 12,562. That is positive evidence, not silence -
+     the same form prints "ADD :SGST / ADD :CGST" and adds them to TOTAL AMOUNT on the Employer's
+     Compensation sheets this app is verified against (R/432702/48/2026/257 and others). The 18% charged
+     here until v125 came from treating personal accident as a general-insurance product. The sheet also
+     prints a stamp duty line that it does NOT add to the total amount, so none is added here either. */
   const gst = 0;
   const grand = net;
   /* the staff discount expressly bars commission, and the direct / portal discount is given
@@ -7006,8 +7010,11 @@ function psChecks(inp, q){
     else if(mult > 72) w.push('Proposer CSI is ' + mult.toFixed(0) + ' times the monthly income, so the proposal goes to the Regional Office underwriter (up to 72 times needs no escalation).');
   }
   if(plan === 'P' && list.some(m => m.cov && (m.cov.loan || m.cov.emi))) w.push('Loan Secure and EMI Protection are available only under the Elite Plan.');
-  if(q.rawDisc > PS_DISC_CAP) w.push('Discounts add up to ' + q.rawDisc.toFixed(2) + '%, so the total has been capped at ' + PS_DISC_CAP + '%.');
+  if(q.rawDisc > PS_DISC_CAP) w.push('Discounts add up to ' + q.rawDisc.toFixed(2).replace(/\.00$/, '') + '%, so the total has been capped at ' + PS_DISC_CAP + '%.');
   if(inp.staff) w.push('Staff discount is applied, so the family discount, the No Claim Discount and agency commission are not allowed.');
+  /* both persons on the INLIAS sheet on file (R/433900/48/2027/1158) are Risk I with no loading, so the
+     scope of a loading (every cover line, as applied here) and its rounding are not yet reconciled */
+  if((inp.members || []).some(m => (m.risk && m.risk !== 'I') || m.preEx)) w.push('An occupation or pre-existing loading is applied to every cover of that person. This has not yet been checked against an INLIAS computation sheet - confirm the loaded premium before issuing.');
   if(q.minApplied) w.push('The calculated premium is below the minimum of Rs.' + PS_MIN_PREMIUM + ', so the minimum premium has been charged.');
   return w;
 }
@@ -7190,13 +7197,19 @@ function buildPDF(returnBlob){
   let costCode = '';
   try{ costCode = (typeof buildCostCode === 'function') ? buildCostCode(q.discPct || 0, 0, q.commAmt || 0) : ''; }catch(e){}
 
-  /* the customer schedule never itemises rating mechanics, so each person carries their
-     share of the policy premium net of every discount, and the shares add up to the net. */
-  const share = (function(){
-    const out = q.rows.map(r => Math.round(r.premium * (1 - (q.discPct || 0) / 100)));
-    const drift = q.net - out.reduce((t, v) => t + v, 0);
-    if(out.length) out[out.length - 1] += drift;
-    return out;
+  /* Printed the way the INLIAS schedule prints it: each person's premium before discount, one
+     discount line, then the net - so the quotation can be compared with the computation sheet
+     line for line. (v115 to v126 allocated the net across the persons instead, and every
+     per-person figure then differed from the sheet even though the total agreed.) */
+  const share = q.rows.map(r => r.premium);
+  const discLabel = (function(){
+    const parts = [];
+    if(q.staffPct)  parts.push('Staff ' + q.staffPct + '%');
+    if(q.familyPct) parts.push('Family ' + q.familyPct + '%');
+    if(q.onlinePct) parts.push('Direct / portal ' + q.onlinePct + '%');
+    if(q.ncdPct)    parts.push('No Claim ' + q.ncdPct + '%');
+    const capped = q.rawDisc > q.discPct ? ' (capped at ' + q.discPct + '%)' : '';
+    return 'Less: Discount \u2013 ' + parts.join(' + ') + capped;
   })();
 
   const left = [{ sub:'Policy Details', rows: [
@@ -7223,12 +7236,17 @@ function buildPDF(returnBlob){
       if(o.k === 'emi') v = R(r.emiSi);
       rows.push({ label:o.s, value:v });
     }});
-    rows.push({ label:'Premium for this person', value:R(share[i]) });
+    rows.push({ label:'Premium for this person' + (q.discAmt > 0 ? ' (before discount)' : ''), value:R(share[i]) });
     left.push({ sub:(i + 1) + '. ' + (r.name || rel.n), rows });
   });
 
   const fin = [];
   q.rows.forEach((r, i) => fin.push({ label:(i + 1) + '. ' + (r.name || PS_RELBY(r.rel).n), value:R(share[i]) }));
+  if(q.discAmt > 0){
+    fin.push({ label:'Premium for all insured persons', value:R(q.subtotal) });
+    fin.push({ label:discLabel, value:R(q.discAmt) });
+  }
+  if(q.minApplied) fin.push({ label:'Minimum premium applied', value:R(PS_MIN_PREMIUM) });
   fin.push({ label:'Net Premium', value:R(q.net) });
   fin.push({ label:'GST', value:'Nil' });
   fin.push({ label:'Total Premium', value:R(q.grand), total:true });
@@ -7293,7 +7311,8 @@ const PAPS_COVER_DATA = {
           'The Sum Insured is restored once under the Premium Plan and twice under the Elite Plan, on full utilisation within the policy period.'],
     ahc:  ['Pays 0.1% of the Capital Sum Insured for each day of hospitalisation after an accident, for a maximum of 30 days in a policy year.',
            'The daily amount is capped at Rs. 1,000 under the Premium Plan and Rs. 2,500 under the Elite Plan.'],
-    eld:  ['Support for an elderly insured person following an accident: 10% of CSI up to Rs. 5 lakh under the Premium Plan and 25% of CSI up to Rs. 10 lakh under the Elite Plan.'],
+    eld:  ['Where a claim for accidental death or permanent total disablement of 100% has been admitted, the Sum Insured for this cover is paid in addition, to support the dependent parents, parents-in-law or grandparents of the insured person.',
+           'The Sum Insured is 10% of the Capital Sum Insured up to Rs. 5 lakh under the Premium Plan and 25% up to Rs. 10 lakh under the Elite Plan. The benefit is payable only once per policy year per policy.'],
     chf:  ['Reimburses the cost of engaging a driver after an accident, 0.1% of CSI a day, for a maximum of 30 days in a policy year.',
            'The daily amount is capped at Rs. 1,000 under the Premium Plan and Rs. 2,500 under the Elite Plan.'],
     loan: ['Elite Plan only. Pays the outstanding principal of one eligible home loan standing in the name of the insured person, up to the Sum Insured opted, which cannot exceed the Accidental Death CSI.',
@@ -7428,6 +7447,10 @@ const PAPS_VERIFIED = [
     check:()=>{ const non = { id:1, rel:'spouse', age:32, earning:false, csi:8000000 };
                 const earn = { id:2, rel:'self', age:35, earning:true, csi:8000000 };
                 return [psTtdCap(non, 'P'), psTtdCap(earn, 'P'), psTtdCap(non, 'E')].join('/'); } },
+  { label:'PAPS: the staff discount tick and the engine state the same rate (33%), and Elderly Care is described as a benefit for the insured person\'s dependants, not for an elderly insured', expect:'33/true/true',
+    check:()=>{ const sm = document.querySelector('#psStaff') && document.querySelector('#psStaff').closest('label').querySelector('small');
+                const d = (PS_OPT.find(o => o.k === 'eld') || {}).d || '';
+                return [PS_STAFF_PCT, !!(sm && sm.textContent.indexOf(PS_STAFF_PCT + '%') === 0), /dependent parents/.test(d) && /dependent parents/.test((PAPS_COVER_DATA.optional.eld || []).join(' '))].join('/'); } },
   { label:'PAPS: Loan Secure and EMI Protection are priced only under the Elite Plan', expect:'0/30',
     check:()=>{ const p = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
                 const e = psCompute({ plan:'E', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
@@ -7471,6 +7494,8 @@ $('psNewBtn').addEventListener('click', newQuote);
    entry, and psCompute ignores it while staff is ticked either way */
 function psSyncNcd(){ const off = $('psStaff').checked; $('psNcd').disabled = off; $('psNcd').style.opacity = off ? '.5' : ''; }
 $('psStaff').addEventListener('change', psSyncNcd); psSyncNcd();
+/* the rate on the tick is written from the constant so it cannot drift from the engine again */
+(function(){ const sm = $('psStaff').closest('label').querySelector('small'); if(sm) sm.textContent = PS_STAFF_PCT + '% \u00b7 family discount, No Claim Discount and commission are not allowed with it'; })();
 addMember();
 
 window.PAPS = { compute: psCompute, checks: psChecks, calculate, buildPDF, generatePDF, newQuote, addMember,
@@ -25528,7 +25553,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v126 · PA Parivaar reconciled to INLIAS: no GST on the policy, staff discount 33% as the issuing system applies it, premiums rounded the way the computation sheet prints them, and every optional cover is a tick box · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v127 · PA Parivaar: the staff tick and the engine both say 33%, Elderly Care is described correctly as a benefit for the insured person's dependants, and the PDF prints each person's premium, the discount line and the net in the shape of the INLIAS schedule · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
