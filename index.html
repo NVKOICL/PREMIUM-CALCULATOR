@@ -6872,6 +6872,18 @@ function nearestTtd(v){ let best = 0; for(const c of PS_TTD_SI){ if(c <= v) best
    hundred times the weekly cap is premium the policy could never pay out. The usable ceiling is
    therefore the lower of 25% of the Capital Sum Insured and that figure. */
 function psWeeklyCap(earning, plan){ return earning ? (plan === 'E' ? 50000 : 20000) : (plan === 'E' ? 10000 : 5000); }
+/* Guideline 4.2: a non-earning spouse is limited to 50% of the proposer's Accidental Death CSI
+   subject to Rs.50 lakh, and dependent children, parents and parents-in-law to 25% subject to
+   Rs.25 lakh, the percentage rounded down to the nearest lakh. Guideline 4.3 takes an earning
+   (independent) spouse out of the percentage rule - that spouse is rated on their own declared
+   income - leaving only the product maximum. */
+function psDepCsiCap(m, proposerCsi){
+  const r = PS_RELBY(m.rel);
+  if(!r.dep) return PS_MAX_CSI;                                  /* the proposer */
+  if(m.rel === 'spouse' && m.earning) return PS_MAX_CSI;         /* independent spouse, own income */
+  if(!proposerCsi) return r.capAbs;                              /* no proposer figure yet */
+  return Math.min(floorLakh(proposerCsi * r.cap), r.capAbs);
+}
 function psTtdCap(m, plan){ return nearestTtd(Math.min(floorLakh(m.csi * 0.25), psWeeklyCap(!!m.earning, plan) * 100)); }
 /* A figure that is not on the published ladder must never silently price at zero: fall back to the
    nearest tabulated figure at or below it, and let the caller tell the agent that it did. */
@@ -6972,6 +6984,11 @@ function psChecks(inp, q){
     ((q.rows && q.rows[i] && q.rows[i].snaps) || []).forEach(sn => w.push(who + ': ' + sn.what + ' ' + siLabel(sn.asked) + ' is not a figure in the premium chart, so the quote uses the next lower tabulated figure, ' + siLabel(sn.used) + '.'));
     if(m.cov && m.cov.ttd && floorLakh(m.csi * 0.25) > PS_TTD_SI[PS_TTD_SI.length - 1]) w.push(who + ': 25% of the CSI is ' + siLabel(floorLakh(m.csi * 0.25)) + ', but the premium chart stops at a TTD Sum Insured of ' + siLabel(PS_TTD_SI[PS_TTD_SI.length - 1]) + ', which is the most that can be quoted.');
     if(m.csi < PS_MIN_CSI) w.push(who + ': Capital Sum Insured ' + siLabel(m.csi) + ' is below the minimum of Rs.5,00,000.');
+    /* 25% of a small proposer figure can fall under the per-person minimum; both rules cannot hold */
+    if(i > 0 && csiSelf){
+      const depCap = psDepCsiCap(m, csiSelf);
+      if(depCap < PS_MIN_CSI) w.push(who + ': ' + Math.round(r.cap * 100) + '% of the proposer Capital Sum Insured is only ' + siLabel(depCap) + ', which is below the minimum of Rs.5,00,000 for any insured person. Raise the proposer figure or leave this person off the policy.');
+    }
     if(m.age > 70) w.push(who + ': entry age ' + m.age + ' exceeds the maximum entry age of 70 years.');
     if(!r.dep && m.age < 18) w.push(who + ': the proposer must be at least 18 years old.');
     if((m.rel === 'son' || m.rel === 'daughter') && m.age > 25) w.push(who + ': a dependent child can be covered only up to 18 years, or 25 years while a full-time student.');
@@ -7065,9 +7082,26 @@ function addMember(pre){
     earning: isFirst, risk: 'I', csi: isFirst ? 2000000 : 1000000,
     cov: {}, ttdSi: 500000, loanSi: 1000000, emiSi: 500000, ptd2: false, preEx: false
   }, pre || {}));
+  psClampDependents();   /* open a new dependent inside the ceiling, not above it */
   renderMembers();
 }
 function byId(id){ return members.find(m => m.id === parseInt(id, 10)); }
+/* Never leave a dependent above the ceiling the proposer's figure allows. The Rs.5 lakh minimum
+   still applies to every insured person, so where 25% of a small proposer figure falls below it
+   the minimum is kept and psChecks reports that the two rules cannot both be met. */
+function psClampDependents(){
+  const proposerCsi = (members[0] && members[0].csi) || 0;
+  members.forEach((m, i) => {
+    if(i === 0) return;
+    const cap = Math.max(psDepCsiCap(m, proposerCsi), PS_MIN_CSI);
+    if(m.csi > cap){
+      m.csi = nearestCsi(cap);
+      const t = psTtdCap(m, psPlan); if(t > 0 && m.ttdSi > t) m.ttdSi = t;
+      if(m.loanSi > m.csi) m.loanSi = nearestCsi(m.csi);
+      if(m.emiSi > m.csi) m.emiSi = nearestCsi(m.csi);
+    }
+  });
+}
 
 function csiOptions(sel, from, upto){
   /* always keep the stored figure in the list, otherwise the select would show one amount while the quote used another */
@@ -7081,8 +7115,10 @@ function ttdOptions(sel, cap){
 
 function renderMembers(){
   const host = $('psMembers');
+  const proposerCsi = (members[0] && members[0].csi) || 0;
   host.innerHTML = members.map((m, i) => {
     const r = PS_RELBY(m.rel);
+    const csiCap = psDepCsiCap(m, proposerCsi);
     /* everyone except the proposer and the spouse is a dependent by definition (guideline 3 ii) */
     const depOnly = r.dep && m.rel !== 'spouse';
     if(depOnly && m.earning) m.earning = false;
@@ -7110,7 +7146,7 @@ function renderMembers(){
           '<option value="III"' + (m.risk === 'III' ? ' selected' : '') + '>III &middot; +50% &middot; underground mines, explosives, high-tension electrical, jockey, circus, racing, big game hunting, mountaineering, winter sports, river rafting, polo</option></select></div>' +
       '</div>' +
       '<div class="field-row">' +
-        '<div class="field"><label class="lbl">Capital Sum Insured</label><select class="ps-csi" data-id="' + m.id + '">' + csiOptions(m.csi) + '</select></div>' +
+        '<div class="field"><label class="lbl">Capital Sum Insured' + (csiCap < PS_MAX_CSI ? ' <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; up to ' + siLabel(csiCap) + ' for a ' + r.n.toLowerCase() + '</span>' : '') + '</label><select class="ps-csi" data-id="' + m.id + '">' + csiOptions(m.csi, PS_MIN_CSI, Math.max(csiCap, PS_MIN_CSI)) + '</select></div>' +
         /* Guideline 3 requires children, parents and parents-in-law to be financially dependent on the
            proposer; only the independent spouse of guideline 4.3 may be earning. Marking one of them
            earning lifted the weekly benefit cap from Rs.5,000 to Rs.20,000 on the Premium Plan and so
@@ -7131,19 +7167,22 @@ function renderMembers(){
     '</div>';
   }).join('');
 
-  host.querySelectorAll('.ps-rel').forEach(el => el.addEventListener('change', () => { const m = byId(el.dataset.id); m.rel = el.value; const r = PS_RELBY(m.rel); if(r.dep && m.rel !== 'spouse') m.earning = false; renderMembers(); }));
+  host.querySelectorAll('.ps-rel').forEach(el => el.addEventListener('change', () => { const m = byId(el.dataset.id); m.rel = el.value; const r = PS_RELBY(m.rel); if(r.dep && m.rel !== 'spouse') m.earning = false; psClampDependents(); renderMembers(); }));
   host.querySelectorAll('.ps-name').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).name = el.value; }));
   host.querySelectorAll('.ps-age').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).age = parseInt(el.value, 10) || 0; }));
   host.querySelectorAll('.ps-risk').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).risk = el.value; renderMembers(); }));
   host.querySelectorAll('.ps-earn').forEach(el => el.addEventListener('change', () => {
     const m = byId(el.dataset.id); m.earning = el.value === '1';
     const cap = psTtdCap(m, psPlan); if(cap > 0 && m.ttdSi > cap) m.ttdSi = cap;   /* a non-earning person has a lower usable ceiling */
+    psClampDependents();   /* a spouse who stops being independent falls back under the 50% rule */
     renderMembers();
   }));
   host.querySelectorAll('.ps-csi').forEach(el => el.addEventListener('change', () => {
     const m = byId(el.dataset.id); m.csi = parseInt(el.value, 10);
     const cap = psTtdCap(m, psPlan); if(cap > 0 && m.ttdSi > cap) m.ttdSi = cap;
     if(m.loanSi > m.csi) m.loanSi = nearestCsi(m.csi); if(m.emiSi > m.csi) m.emiSi = nearestCsi(m.csi);
+    /* every dependent is pegged to the proposer's figure, so lowering it lowers them too */
+    if(members[0] && m.id === members[0].id) psClampDependents();
     renderMembers();
   }));
   host.querySelectorAll('.ps-ttdsi').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).ttdSi = parseInt(el.value, 10); renderMembers(); }));
@@ -7521,6 +7560,17 @@ const PAPS_VERIFIED = [
                 const blank = psChecks({ plan:'P', term:1, members:ms }, psCompute({ plan:'P', term:1, members:ms })).some(x => /has not been entered/i.test(x));
                 const over  = psChecks({ plan:'P', term:1, monthlyIncome:20000, members:ms }, psCompute({ plan:'P', term:1, members:ms })).some(x => /Head Office/i.test(x));
                 return [blank, over].join('/'); } },
+  { label:'PAPS dependent Sum Insured ceiling (guideline 4.2) is applied, not just warned about: on a proposer of Rs.20 lakh a non-earning spouse tops out at Rs.10 lakh and a child at Rs.5 lakh; the absolute ceilings of Rs.50 lakh and Rs.25 lakh bind on a large proposer figure; and an earning independent spouse is rated on their own income so the percentage does not apply', expect:'1000000/500000/5000000/2500000/50000000',
+    check:()=>{ const cap = (rel, earning, pCsi) => psDepCsiCap({ rel:rel, earning:earning }, pCsi);
+                return [cap('spouse', false, 2000000), cap('son', false, 2000000),
+                        cap('spouse', false, 50000000), cap('father', false, 50000000),
+                        cap('spouse', true, 2000000)].join('/'); } },
+  { label:'PAPS: where 25% or 50% of a small proposer Sum Insured falls below the Rs.5 lakh per-person minimum the quote says the two rules cannot both be met (proposer Rs.8 lakh, so a non-earning spouse computes to Rs.4 lakh)', expect:'400000/true',
+    check:()=>{ const ms = [{ id:1, rel:'self', age:40, earning:true, risk:'I', csi:800000, cov:{} },
+                            { id:2, rel:'spouse', age:38, earning:false, risk:'I', csi:500000, cov:{} }];
+                const warned = psChecks({ plan:'P', term:1, monthlyIncome:50000, members:ms }, psCompute({ plan:'P', term:1, members:ms }))
+                                 .some(x => /below the minimum of Rs.5,00,000 for any insured person/.test(x));
+                return [psDepCsiCap({ rel:'spouse', earning:false }, 800000), warned].join('/'); } },
   { label:'PAPS: Loan Secure and EMI Protection are priced only under the Elite Plan', expect:'0/30',
     check:()=>{ const p = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
                 const e = psCompute({ plan:'E', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
@@ -25758,7 +25808,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v132 · PA Parivaar read back against the underwriting guidelines: Loan Secure and EMI Protection pay on accidental death and not on disablement, the Chauffeur Plan needs an admitted disablement claim, a dependent can no longer be marked earning and charged four times the weekly benefit he can claim, and the occupation classes now name their occupations · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v133 · PA Parivaar: the dependent Sum Insured ceiling is applied where the figure is chosen - 50% of the proposer for a non-earning spouse, 25% for children, parents and parents-in-law - instead of being mentioned after the premium was worked out · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
