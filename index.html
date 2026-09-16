@@ -11539,6 +11539,23 @@ function updateNilDepGccvRenewalRow(){
   }
   // Nil Dep discount cap by segment (GCCV/2W-Hire 20%, PCCV 25%, rest 40%):
   // hide any chip above the cap, and clamp state & the custom input to it.
+  /* If the cover itself is not available - age, or IMT-23 switched off - its discount has
+     nothing to apply to. Leaving the block live sent the refused discount onto the customer's
+     quote inside the cost code, describing a cover that was never charged. */
+  const ndInput = document.querySelector('#addonsGrid input[data-addon="nilDep"]');
+  const ndOffered = !!ndInput && !ndInput.disabled;
+  const ndBlock = $('nilDepDiscountBlock');
+  if(ndBlock) ndBlock.style.display = ndOffered ? '' : 'none';
+  if(!ndOffered){
+    state.nilDepDiscount = 0; _nilDepManual = false;
+    const ci0 = $('nilDepDiscCustom'); if(ci0) ci0.value = '';
+    document.querySelectorAll('#nilDepDiscChips .chip').forEach(c=>c.classList.toggle('active', parseFloat(c.dataset.value) === 0));
+    state.switches.nilDepGccvRenewal = false;
+    const rsw = row.querySelector('.switch');
+    if(rsw){ rsw.classList.remove('on'); (rsw.querySelector('input')||{}).checked = false; }
+    row.style.display = 'none';
+    return;
+  }
   const cap = nilDepDiscCapFor(state.vehicleType);
   document.querySelectorAll('#nilDepDiscChips .chip').forEach(c=>{
     c.style.display = (parseFloat(c.dataset.value) > cap) ? 'none' : '';
@@ -11810,9 +11827,20 @@ function applyMotorPreset(key){
     const sw = document.querySelector('#sectionMotor .switch[data-key="'+k+'"]'); if(!sw) return;
     if(!!state.switches[k] !== p.sw[k]) sw.click();
   });
-  /* seats: unnamed PA on every seat other than the driver; passenger count for passenger carriers */
+  /* seats: unnamed PA on every seat other than the driver; passenger count for passenger carriers.
+     The passenger count decides IMT-23 eligibility and, through it, Nil Depreciation, so a figure
+     the agent has already entered is never overwritten - the preset only fills a box still sitting
+     at its default of 1 or left empty. */
   const seats = seatCapacity(), others = Math.max(1, seats - 1);
-  if(state.vehicleType === 'pccv' || state.vehicleType === 'twoWheelerHire'){ const pc = $('paxCount'); if(pc && parseInt(pc.value,10) !== others){ pc.value = String(others); pc.dispatchEvent(new Event('input', { bubbles:true })); pc.dispatchEvent(new Event('change', { bubbles:true })); } }
+  if(state.vehicleType === 'pccv' || state.vehicleType === 'twoWheelerHire'){
+    const pc = $('paxCount');
+    const typed = pc ? (parseInt(pc.value, 10) || 0) : 0;
+    if(pc && typed <= 1 && typed !== others){
+      pc.value = String(others);
+      pc.dispatchEvent(new Event('input', { bubbles:true }));
+      pc.dispatchEvent(new Event('change', { bubbles:true }));
+    }
+  }
   if(state.switches.paUn){ const px = $('paUnPax'); if(px && parseInt(px.value,10) !== others){ px.value = String(others); px.dispatchEvent(new Event('input', { bubbles:true })); } }
   if(typeof renderAddons === 'function') renderAddons();
   const isVisible = i => i.offsetParent !== null || (i.closest('label') && i.closest('label').offsetParent !== null);
@@ -16736,7 +16764,10 @@ function computeOSSSCommission(r, plan, si, isMigration){
   let total = 0;
   (r.memberResults || []).forEach(m => {
     const share = Math.round((m.totalMember / totBase) * base);
-    total += Math.round(share * getOSSSCommissionPct(plan, si, isMigration, m.age) / 100);
+    /* CR-8811 Table A/B sets the rate per insured member, and the 'up to 45' band splits again
+       at a sum insured of Rs.10 lakh. On the individual basis each member carries their own
+       figure, so the member's sum insured decides it - not the policy headline. */
+    total += Math.round(share * getOSSSCommissionPct(plan, (m.si || si), isMigration, m.age) / 100);
   });
   return total;
 }
@@ -16772,11 +16803,13 @@ function renderOSSSCommission(r, plan, si, isMigration){
   let rowsHTML = '', totalComm = 0;
   (r.memberResults || []).forEach((m, i) => {
     const share = Math.round((m.totalMember / totBase) * base);  // member's net premium share
-    const pct   = getOSSSCommissionPct(plan, si, isMigration, m.age);
+    /* the member's own sum insured decides the band, not the policy headline - see computeOSSSCommission */
+    const mSi   = m.si || si;
+    const pct   = getOSSSCommissionPct(plan, mSi, isMigration, m.age);
     const comm  = Math.round(share * pct / 100);
     totalComm  += comm;
     rowsHTML += '<div class="agent-comm-row"><span class="k">Member ' + (i+1) +
-      ' <em>age ' + m.age + ' · ' + pct + '% × ₹' + inr(share) + '</em></span>' +
+      ' <em>age ' + m.age + ' · SI ₹' + inr(mSi) + ' · ' + pct + '% × ₹' + inr(share) + '</em></span>' +
       '<span class="v">₹' + inr(comm) + '</span></div>';
   });
   const effRate = base > 0 ? (totalComm / base * 100) : 0;
@@ -21154,7 +21187,14 @@ function runSelfTest(){
       vt:state.vehicleType, zone:state.zone, fuel:state.fuel, ncb:state.ncbYears,
       disc:state.odDiscount, pax:$('paxCount')?$('paxCount').value:'',
       seatCap:$('seatCap')?$('seatCap').value:'',
-      elec:$('elecAcc')?$('elecAcc').value:'', cng:$('cngKit')?$('cngKit').value:'' };
+      elec:$('elecAcc')?$('elecAcc').value:'', cng:$('cngKit')?$('cngKit').value:'',
+      /* _stBaseline clears all of this for the test run; without it in the snapshot an agent
+         who pressed Verify mid-quote silently lost the covers and discounts they had set. */
+      switches: Object.assign({}, state.switches),
+      addons: Array.from(document.querySelectorAll('#addonsGrid input:checked')).map(i => i.dataset.addon),
+      nilDepDiscount: state.nilDepDiscount, nilDepManual: _nilDepManual,
+      imt23ManualOff: _imt23ManualOff, sipManual: _sipManualOverride,
+      term: state.policyTerm, loadingPct: state.loadingPct };
     const FIELDS=['odBase','odDisc','ncb','netOD','tp','nilDep','subtotal','gst','total'];
     let pass=0; const fails=[];
     GOLDEN_CASES.forEach((c,idx)=>{
@@ -21195,6 +21235,27 @@ function runSelfTest(){
     if($('seatCap')) $('seatCap').value=snapshot.seatCap;
     if($('elecAcc')) $('elecAcc').value=snapshot.elec;
     if($('cngKit')) $('cngKit').value=snapshot.cng;
+    /* give the agent back everything _stBaseline cleared for the run */
+    try{
+      state.switches = Object.assign({}, snapshot.switches);
+      state.nilDepDiscount = snapshot.nilDepDiscount;
+      _nilDepManual = snapshot.nilDepManual;
+      _imt23ManualOff = snapshot.imt23ManualOff;
+      _sipManualOverride = snapshot.sipManual;
+      state.policyTerm = snapshot.term;
+      state.loadingPct = snapshot.loadingPct;
+      document.querySelectorAll('#sectionMotor .switch').forEach(sw=>{
+        const on = !!state.switches[sw.dataset.key];
+        sw.classList.toggle('on', on);
+        const inp = sw.querySelector('input'); if(inp) inp.checked = on;
+      });
+      if(typeof renderAddons === 'function') renderAddons();
+      document.querySelectorAll('#addonsGrid input').forEach(i => {
+        i.checked = snapshot.addons.indexOf(i.dataset.addon) >= 0 && !i.disabled;
+      });
+      document.querySelectorAll('#nilDepDiscChips .chip').forEach(c =>
+        c.classList.toggle('active', parseFloat(c.dataset.value) === snapshot.nilDepDiscount));
+    }catch(e){}
     try{ calculate(true); }catch(e){}
     const total=GOLDEN_CASES.length, ok=fails.length===0 && vFail.length===0;
     let h='<div style="padding:12px 14px;border-radius:10px;background:'+(ok?'#ecfdf5':'#fef2f2')
@@ -25867,6 +25928,13 @@ window.FIRE_VERIFIED = [
                 sc.value = keep.seat; pc.value = keep.pax; cs.innerHTML = keep.html; cs.value = keep.slab;
                 state.vehicleType = keep.vt; state.ncbYears = keep.ncb; rd.value = keepDate;
                 return out.join('/'); } },
+  { label:'A quick-quote preset fills the passenger count only when it is still at its default: a figure the agent has entered is left alone, because the passenger count decides IMT-23 eligibility and through it Nil Depreciation', expect:'true/true',
+    check:()=>{ const src = String(applyMotorPreset);
+                return [/typed <= 1/.test(src), /paxCount/.test(src)].join('/'); } },
+  { label:'The health commission rate is set by each member\'s own sum insured, not the policy headline (CR-8811 Table A/B: the up-to-45 band splits at Rs.10 lakh) - a 40 year old on Rs.6 lakh inside a Rs.12 lakh policy earns the low-band rate', expect:'30/35/30',
+    check:()=>[getOSSSCommissionPct('Premium', 600000, false, 40),
+               getOSSSCommissionPct('Premium', 1200000, false, 40),
+               getOSSSCommissionPct('Premium', 600000, false, 40)].join('/') },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -26204,7 +26272,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v138 · PA Parivaar: the direct / portal discount is no longer offered - it needs no intermediary at any stage, and every quote raised on this calculator has an employee or an agent behind it · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v139 · four from the audit: a preset no longer overwrites a passenger count the agent typed, the self-test gives back the switches and add-ons it borrows, the health commission follows each member's own sum insured, and a refused Nil Depreciation no longer sends its discount to the PDF · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
