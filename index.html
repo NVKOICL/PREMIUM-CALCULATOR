@@ -20648,6 +20648,19 @@ function grpBandIdx(a){ return a<=20?0:a<=35?1:a<=45?2:a<=55?3:a<=60?4:a<=70?5:6
 function hffBandIdx(a){ return a<=20?0:a<=35?1:a<=45?2:a<=50?3:a<=55?4:a<=60?5:a<=65?6:a<=70?7:a<=75?8:a<=80?9:10; }
 function ohFmt(n){ return Math.round(n).toLocaleString('en-IN'); }
 
+/* Eligibility limits quoted from the 2024 prospectus charts carried in HEALTH_COVER_DATA.
+   Kept together so the figure and the rule that produced it stay in one place. */
+const OH_LIMITS = {
+  ompCoPayMinSI:      200000,   // "earns a matching discount (sum insured Rs. 2 lakh and above)"
+  ompLateJoinerMaxSI: 500000,   // "A person joining after age 65 can take a maximum of Rs. 5 lakh."
+  hffSeniorEntryFrom: 66,       // "Ages 66 to 70 can join Silver or Gold only"
+  hffSeniorEntryTo:   70,
+  hffSeniorPlans:     ['Silver', 'Gold'],
+  hffMinMembers:      2,        // "at least two family members must be covered"
+  omiMaxTravellers:   7         // "Individual or family plan for up to 7 persons"
+};
+window.OH_LIMITS = OH_LIMITS;
+
 function ohCalc(){
   const prod=$('ohProduct').value;
   const ages=($('ohAges').value||'').split(',').map(x=>parseInt(x.trim(),10)).filter(x=>!isNaN(x)&&x>=0);
@@ -20669,6 +20682,11 @@ function ohCalc(){
       rows.push({label:'Member '+(i+1)+' (age '+a+', band '+OMP_BANDS[ompBandIdx(a)]+')',amt:pr+ld});
       base+=pr+ld;
     });
+    if(si > OH_LIMITS.ompLateJoinerMaxSI && ages.some(a=>a>65)){
+      /* Entry rule, so it binds only on a new entrant; the chart cannot tell one from a member
+         who joined at 60 and is simply older now, hence a warning rather than a refusal. */
+      notes.push('⚠ A person joining after age 65 can take at most ₹5 lakh. This quote is for ₹'+ohFmt(si)+' and includes a member over 65 - confirm they are a continuing member, not a new entrant.');
+    }
     if(ages.length>1){ const d=Math.round(base*0.10); rows.push({label:'Less: Family discount 10%',amt:-d}); base-=d; }
     // Personal Accident is a flat add-on benefit and must NOT be eroded by the
     // co-pay / TPA / online percentage discounts, which apply to the health
@@ -20683,7 +20701,13 @@ function ohCalc(){
         ompPARow={label:'Add: Personal Accident (SI \u20b9'+ohFmt(psi)+' \u00d7 '+ages.length+')',amt:ompPA}; }
     }
     const cop=parseInt($('ohCoPay').value,10)||0;
-    if(cop){ const d=Math.round(base*cop/100); rows.push({label:'Less: Voluntary co-pay discount '+cop+'%',amt:-d}); base-=d; }
+    if(cop && si < OH_LIMITS.ompCoPayMinSI){
+      /* The chart offers the matching discount only from Rs.2 lakh, and the claims section
+         applies the co-payment itself only "for all members with sum insured Rs. 2 lakh and
+         above". Below that the discount was still being taken, so a Rs.1 lakh cover came out
+         10% or 20% under the chart. */
+      notes.push('⚠ A voluntary co-payment of '+cop+'% was selected, but the matching discount is only offered from a sum insured of ₹2 lakh. It has NOT been applied to this ₹'+ohFmt(si)+' cover.');
+    } else if(cop){ const d=Math.round(base*cop/100); rows.push({label:'Less: Voluntary co-pay discount '+cop+'%',amt:-d}); base-=d; }
     if($('ohTPA').checked){ const d=Math.round(base*0.055); rows.push({label:'Less: TPA not opted 5.5%',amt:-d}); base-=d; }
     if($('ohOnline').checked){ const d=Math.min(Math.round(base*0.10),2000); rows.push({label:'Less: Online discount 10% (max \u20b92,000)',amt:-d}); base-=d; }
     if(ompPARow){ rows.push(ompPARow); base+=ompPA; }
@@ -20731,6 +20755,9 @@ function ohCalc(){
       rows.push({label:'Traveller '+(i+1)+' (age '+a+', band '+OMI_BANDS[bi]+')', amt:prem});
       base += prem;
     });
+    if(ages.length > OH_LIMITS.omiMaxTravellers){
+      notes.push('⚠ This policy covers up to '+OH_LIMITS.omiMaxTravellers+' persons and '+ages.length+' have been entered. The extra traveller(s) need a separate policy - the figure below is priced for all '+ages.length+'.');
+    }
     notes.push(pt+' Plan \u00b7 '+tier+' \u00b7 '+(trip==='single' ? days+' day trip' : 'Multi-trip '+trip+' days')
       +' \u00b7 SI $'+si.toLocaleString('en-US')+(steps? ' (base $'+cfg.baseSI.toLocaleString('en-US')+' + '+steps+' step'+(steps>1?'s':'')+')':''));
     if(trip==='single' && days>3) notes.push('First 3 days at the flat rate; '+(days-3)+' further day(s) at the per-day rate.');
@@ -20750,6 +20777,15 @@ function ohCalc(){
     const zk=(plan==='Silver')?zone:'ALL';
     const T=(HFF[plan]||{})[zk];
     if(!T||!T[si]){ out.innerHTML='<div class="hint">That plan / sum insured combination is not in the chart.</div>'; return; }
+    if(ages.length < OH_LIMITS.hffMinMembers){
+      /* The Student policy already refuses a single-life floater; this one did not. */
+      notes.push('⚠ A Happy Family Floater covers at least '+OH_LIMITS.hffMinMembers+' family members. Only one age has been entered - a single life takes an individual policy.');
+    }
+    const seniorEntrants = ages.filter(a=>a>=OH_LIMITS.hffSeniorEntryFrom && a<=OH_LIMITS.hffSeniorEntryTo);
+    if(seniorEntrants.length && OH_LIMITS.hffSeniorPlans.indexOf(plan) < 0){
+      /* Entry rule again - a member who joined at 60 may stay on Diamond at 68. */
+      notes.push('⚠ Ages '+OH_LIMITS.hffSeniorEntryFrom+' to '+OH_LIMITS.hffSeniorEntryTo+' can join '+OH_LIMITS.hffSeniorPlans.join(' or ')+' only, with a 20% co-payment on every claim at all renewals. This quote is on '+plan+' and includes age(s) '+seniorEntrants.join(', ')+' - confirm they are continuing members, not new entrants.');
+    }
     const sorted=ages.slice().sort((a,b)=>b-a);
     sorted.forEach((a,i)=>{
       const full=T[si][hffBandIdx(a)];
@@ -25084,6 +25120,9 @@ window.FIRE_VERIFIED = [
   { label:'GCCV Nil Depreciation ladder (ODS BO81): 10% up to 6 months, 20% to 2 years, 30% to 4.5 years, nil beyond - and the whole cover is gated on IMT-23 being taken, the same IF(AZ=0,0,...) guard the Misc rows carry', expect:'0.1/0.2/0.3/0.3/null',
     check:()=>{ const g = window.motorRatesProbe.gccvNilDepRate;
                 return [g(6), g(24), g(48), g(54), g(60)].map(r => r === null ? 'null' : String(r)).join('/'); } },
+  { label:'Health eligibility limits match the prospectus: the OMP voluntary co-pay discount starts at a sum insured of Rs.2 lakh, a person joining after 65 is capped at Rs.5 lakh, a Happy Family Floater needs at least 2 members, ages 66-70 may join Silver or Gold only, and the Overseas policy covers at most 7 persons', expect:'200000/500000/2/Silver,Gold/7',
+    check:()=>{ const L = window.OH_LIMITS;
+                return [L.ompCoPayMinSI, L.ompLateJoinerMaxSI, L.hffMinMembers, L.hffSeniorPlans.join(','), L.omiMaxTravellers].join('/'); } },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -25421,7 +25460,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v123 · add-ons kept inside the limits the app already records: GCCV Nil Dep needs IMT-23, a bundled long term and its new-car add-on rates end with the first year, EMI Protection stops where it is rated, and a hire-and-reward two-wheeler gets the two-wheeler Engine Protect table · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v124 · health eligibility limits the prospectus states and the chart ignored: the voluntary co-pay discount starts at Rs.2 lakh, a late joiner is capped at Rs.5 lakh, a family floater needs two members, ages 66-70 join Silver or Gold only, and the overseas policy covers seven · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
