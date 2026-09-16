@@ -7167,7 +7167,7 @@ function buildPDF(returnBlob){
     { label:'Proposer', value:q.proposer },
     { label:'Product', value:'Personal Accident Parivaar Suraksha' },
     { label:'Plan', value:q.plan === 'E' ? 'Elite Plan' : 'Premium Plan' },
-    { label:'Policy Term', value:q.termLabel },
+    { label:'Policy Term', value:(q.years === 1 ? '1 Year' : q.years + ' Years') },
     { label:'Insured Persons', value:String(q.memberCount) },
     { label:'Total Capital Sum Insured', value:R(q.rows.reduce((t, r) => t + r.csi, 0)) }
   ]}];
@@ -7227,24 +7227,26 @@ function safeName(q){ return String(q.proposer || 'Quote').replace(/[^a-zA-Z0-9\
 /* ── cover & conditions pages (from the CIS, prospectus and policy wordings) ── */
 const PAPS_COVER_DATA = {
   intro: 'Personal Accident Parivaar Suraksha covers accidental death, disablement and related expenses of the insured persons named in the schedule, anywhere in the world, 24 hours a day. This summary is taken from the Customer Information Sheet and the policy wordings; the policy wording prevails for any interpretation.',
+  /* [benefit, what the Premium Plan pays, what the Elite Plan pays]; an empty string means the
+     benefit is not available under that plan and the row is left off that plan's schedule */
   inbuilt: [
-    ['Accidental Death', '100% of the Capital Sum Insured, under both plans.'],
-    ['Permanent Total Disablement', 'Option I pays 100% of CSI under both plans. Option II pays 150% of CSI under the Premium Plan and 200% under the Elite Plan, on payment of additional premium.'],
-    ['Permanent Partial Disablement', 'A percentage of the CSI according to the scale of compensation printed in the policy.'],
-    ['Broken Bones / Fracture', 'Premium Plan 10% of CSI up to Rs. 5 lakh. Elite Plan 25% of CSI up to Rs. 10 lakh.'],
-    ['Burns', 'Premium Plan 10% of CSI up to Rs. 5 lakh. Elite Plan 25% of CSI up to Rs. 10 lakh.'],
-    ['Coma', 'Premium Plan 10% of CSI up to Rs. 5 lakh. Elite Plan 25% of CSI up to Rs. 10 lakh.'],
-    ['Funeral Expenses', '1% of CSI, up to Rs. 10,000 under the Premium Plan and Rs. 25,000 under the Elite Plan.'],
-    ['Transportation of Mortal Remains', 'Actuals up to 2% of CSI, maximum Rs. 20,000 under the Premium Plan and Rs. 40,000 under the Elite Plan.'],
-    ['Emergency Road Ambulance', 'Premium Plan 2% of CSI up to Rs. 5,000. Elite Plan 2% of CSI up to Rs. 20,000 where the CSI is Rs. 30 lakh or less, and up to Rs. 30,000 above that.'],
-    ['Education Fund', 'For up to two dependent children, 10% of CSI per child, maximum Rs. 2 lakh per child under the Premium Plan and Rs. 4 lakh under the Elite Plan, up to age 25.'],
-    ['Family Support (Double Benefit)', 'An additional 100% of CSI, under both plans.'],
-    ['Cost of Prosthetics / Wheelchair', 'Elite Plan only: actuals up to Rs. 30,000 per policy.'],
-    ['Loss of Employment', 'A one-time payment of 2% of CSI or two months gross monthly income, whichever is less, where permanent total disablement causes involuntary loss of employment.'],
-    ['Modification of Residence or Vehicle', 'On permanent total disablement, 25% of CSI up to Rs. 1 lakh under the Premium Plan and Rs. 3 lakh under the Elite Plan.'],
-    ['Emergency Air Ambulance', 'Elite Plan only: actuals up to Rs. 2 lakh within India and Rs. 10 lakh outside India.'],
-    ['Transportation of Imported Medicines or Implants', 'Elite Plan only: up to 5% of CSI, maximum Rs. 25,000.'],
-    ['Health Insurance Premium Indemnity', 'The expiring health insurance premium, up to Rs. 1 lakh, under both plans.']
+    ['Accidental Death', '100% of the Capital Sum Insured.', '100% of the Capital Sum Insured.'],
+    ['Permanent Total Disablement', 'Option I pays 100% of the Capital Sum Insured. Option II pays 150%, on payment of additional premium.', 'Option I pays 100% of the Capital Sum Insured. Option II pays 200%, on payment of additional premium.'],
+    ['Permanent Partial Disablement', 'A percentage of the Capital Sum Insured according to the scale of compensation printed in the policy.', 'A percentage of the Capital Sum Insured according to the scale of compensation printed in the policy.'],
+    ['Broken Bones / Fracture', '10% of the Capital Sum Insured, up to Rs. 5 lakh.', '25% of the Capital Sum Insured, up to Rs. 10 lakh.'],
+    ['Burns', '10% of the Capital Sum Insured, up to Rs. 5 lakh.', '25% of the Capital Sum Insured, up to Rs. 10 lakh.'],
+    ['Coma', '10% of the Capital Sum Insured, up to Rs. 5 lakh.', '25% of the Capital Sum Insured, up to Rs. 10 lakh.'],
+    ['Funeral Expenses', '1% of the Capital Sum Insured, up to Rs. 10,000.', '1% of the Capital Sum Insured, up to Rs. 25,000.'],
+    ['Transportation of Mortal Remains', 'Actuals up to 2% of the Capital Sum Insured, maximum Rs. 20,000.', 'Actuals up to 2% of the Capital Sum Insured, maximum Rs. 40,000.'],
+    ['Emergency Road Ambulance', '2% of the Capital Sum Insured, up to Rs. 5,000. Payable only where a claim is admissible under benefits 1 to 6.', '2% of the Capital Sum Insured, up to Rs. 20,000 where the Capital Sum Insured is Rs. 30 lakh or less and up to Rs. 30,000 above that. Payable only where a claim is admissible under benefits 1 to 6.'],
+    ['Education Fund', 'For up to two dependent children, 10% of the Capital Sum Insured per child, maximum Rs. 2 lakh per child, up to age 25.', 'For up to two dependent children, 10% of the Capital Sum Insured per child, maximum Rs. 4 lakh per child, up to age 25.'],
+    ['Family Support (Double Benefit)', 'Where the insured person and the insured spouse are both injured in the same accident and both die of those injuries within 365 days, 100% of the Capital Sum Insured is paid for each of them. The amount does not change with the number of children.', 'Where the insured person and the insured spouse are both injured in the same accident and both die of those injuries within 365 days, 100% of the Capital Sum Insured is paid for each of them. The amount does not change with the number of children.'],
+    ['Cost of Prosthetics / Wheelchair', '', 'Actuals up to Rs. 30,000 per policy, where a permanent total or permanent partial disablement claim has been accepted.'],
+    ['Loss of Employment', 'A one-time payment of 2% of the Capital Sum Insured or two months gross monthly income, whichever is less, where permanent total disablement causes involuntary loss of employment. The insured person must have been in gainful employment with the same employer for at least six months before the accident.', 'A one-time payment of 2% of the Capital Sum Insured or two months gross monthly income, whichever is less, where permanent total disablement causes involuntary loss of employment. The insured person must have been in gainful employment with the same employer for at least six months before the accident.'],
+    ['Modification of Residence or Vehicle', 'On permanent total disablement, 25% of the Capital Sum Insured, up to Rs. 1 lakh.', 'On permanent total disablement, 25% of the Capital Sum Insured, up to Rs. 3 lakh.'],
+    ['Emergency Air Ambulance', '', 'Actuals up to Rs. 2 lakh within India and Rs. 10 lakh outside India. Payable only where a claim is admissible under benefits 1 to 6.'],
+    ['Transportation of Imported Medicines or Implants', '', 'Up to 5% of the Capital Sum Insured, maximum Rs. 25,000.'],
+    ['Health Insurance Premium Indemnity', 'The eligible renewal premium of the health insurance policy, up to Rs. 1 lakh.', 'The eligible renewal premium of the health insurance policy, up to Rs. 1 lakh.']
   ],
   optional: {
     ttd: ['Pays 1% of the Temporary Total Disablement Sum Insured every week while the insured person is totally disabled, for a maximum of 100 weeks.',
@@ -7282,7 +7284,7 @@ const PAPS_COVER_DATA = {
     ['Age at entry', 'Minimum 18 years for the proposer and maximum 70 years for every insured person.'],
     ['Number of members', 'A maximum of 10 members including the proposer may be covered under one policy.'],
     ['Capital Sum Insured', 'Minimum Rs. 5,00,000 and maximum Rs. 5,00,00,000 for each insured person, based on the monthly gainful income of the proposer. A non-earning spouse is limited to 50% of the proposer CSI subject to Rs. 50 lakh; dependent children, parents and parents-in-law to 25% subject to Rs. 25 lakh.'],
-    ['Policy term', 'One, two or three years against a single premium, with the long-term discount of 4% and 7% already built into the two and three year premium charts.']
+    ['Policy term', 'One, two or three years, against a single premium paid at inception.']
   ],
   conditions: [
     ['Cumulative Bonus or No Claim Discount', 'At inception the insured chooses either a Cumulative Bonus, which raises the death and disablement compensation by 5% of CSI for every claim-free year up to 50%, or a No Claim Discount of 2% of the renewal premium for every claim-free year up to 20%. Only one of the two applies, the choice can be changed only at renewal, and the benefit becomes nil for an insured person who reports a claim.'],
@@ -7309,14 +7311,15 @@ function drawPapsCoverPages(doc, q){
   const D = PAPS_COVER_DATA;
   const R = n => 'Rs. ' + Math.round(Number(n) || 0).toLocaleString('en-IN');
   const planName = q.plan === 'E' ? 'Elite Plan' : 'Premium Plan';
-  const sub = (q.proposer || '') + '   |   ' + planName + '   |   ' + q.memberCount + ' insured person' + (q.memberCount > 1 ? 's' : '') + '   |   ' + q.termLabel;
+  const sub = (q.proposer || '') + '   |   ' + planName + '   |   ' + q.memberCount + ' insured person' + (q.memberCount > 1 ? 's' : '') + '   |   ' + (q.years === 1 ? '1 Year' : q.years + ' Years');
   const P = makeCoverPainter(doc, 'PERSONAL ACCIDENT PARIVAAR SURAKSHA - SCOPE OF COVER & CONDITIONS', sub,
     'The Oriental Insurance Company Limited   ·   Summary from the Customer Information Sheet and policy wordings; the policy wording prevails', 'Cover Schedule');
   doc.addPage(); P.header();
   P.note(D.intro); P.gap(8);
 
   P.section('IN-BUILT BENEFITS INCLUDED IN THIS PLAN');
-  P.table2(['Benefit', 'What the policy pays'], D.inbuilt, 0.36); P.gap(8);
+  const col = q.plan === 'E' ? 2 : 1;
+  P.table2(['Benefit', 'What the policy pays under the ' + planName], D.inbuilt.filter(r => r[col]).map(r => [r[0], r[col]]), 0.36); P.gap(8);
 
   P.section('OPTIONAL COVERS OPTED IN THIS QUOTATION');
   const opted = [];
@@ -25206,7 +25209,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v116 · Parivaar fixes: an off-chart Sum Insured falls back to the next tabulated figure instead of pricing at zero, New Quote resets the plan, and the quote warns about a non-earning proposer, duplicate proposers and the TTD chart ceiling · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v117 · Parivaar customer schedule: only the benefits of the plan quoted are printed, Family Support and Loss of Employment carry their real conditions, and no discount rate appears on the schedule · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
