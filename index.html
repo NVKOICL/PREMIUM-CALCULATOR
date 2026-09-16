@@ -1226,6 +1226,11 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 .addon.ps-tick:has(input:checked)::after{left:17px}
 /* the add-on card hides its checkbox, so draw the focus ring on the card for keyboard users */
 .addon:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+/* PA Parivaar: the family discount follows the member count, so the card states it */
+.ps-auto-disc{margin-top:10px;padding:10px 13px;border-radius:10px;font-size:12.5px;line-height:1.45;
+  border:1.5px dashed var(--border-strong);background:var(--bg-tint,#f6f8fc);color:var(--mute)}
+.ps-auto-disc.on{border-style:solid;border-color:#16a34a;background:#e9f9ef;color:#166534}
+.ps-auto-disc.on b,.ps-auto-disc.off b{color:inherit}
 /* PA Parivaar: type-ahead occupation box that sets the risk category */
 .ps-occ-wrap{position:relative}
 .ps-occ-hits{display:none;position:absolute;left:0;right:0;top:100%;z-index:40;margin-top:4px;
@@ -6789,7 +6794,8 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
           <option value="18">18% &middot; 9 claim-free years</option>
           <option value="20">20% &middot; 10 claim-free years (maximum)</option>
         </select>
-        <div class="hint">Family discount is added automatically: 5% for two insured persons, 10% for three or more. Every discount together is capped at 40%.</div>
+        <div class="ps-auto-disc" id="psFamilyRow"></div>
+        <div class="hint">Guideline 9: family 5% for two insured persons and 10% for three or more, applied automatically. Every discount together is capped at 40%.</div>
       </div>
     </div>
 
@@ -7354,6 +7360,7 @@ function addMember(pre){
   }, pre || {}));
   psClampDependents();   /* open a new dependent inside the ceiling, not above it */
   renderMembers();
+  psSyncFamilyRow();
 }
 function byId(id){ return members.find(m => m.id === parseInt(id, 10)); }
 /* Never leave a dependent above the ceiling the proposer's figure allows. The Rs.5 lakh minimum
@@ -7498,7 +7505,8 @@ function renderMembers(){
     renderMembers();
   }));
   host.querySelectorAll('.ps-flag').forEach(b => b.addEventListener('change', () => { const m = byId(b.dataset.id); m[b.dataset.flag] = !!b.checked; renderMembers(); }));
-  host.querySelectorAll('.member-remove').forEach(b => b.addEventListener('click', () => { const i = members.findIndex(m => m.id === parseInt(b.dataset.id, 10)); if(i > 0){ members.splice(i, 1); renderMembers(); } }));
+  host.querySelectorAll('.member-remove').forEach(b => b.addEventListener('click', () => { const i = members.findIndex(m => m.id === parseInt(b.dataset.id, 10)); if(i > 0){ members.splice(i, 1); renderMembers(); psSyncFamilyRow(); } }));
+  psSyncFamilyRow();
 }
 
 let _psCalcTimer = null;
@@ -7544,11 +7552,28 @@ function calculate(){
     if(r.loadPct > 0) h += line('&nbsp;&nbsp;Loading &middot; ' + (r.riskPct ? 'occupation ' + r.riskPct + '%' : '') + (r.riskPct && r.preExPct ? ' + ' : '') + (r.preExPct ? 'pre-existing condition ' + r.preExPct + '%' : ''), '+ &#8377; ' + fmt(r.load), 'sub');
   });
   h += line('Premium for all insured persons', '&#8377; ' + fmt(q.subtotal), 'total');
-  if(q.familyPct) h += line('Family discount &middot; ' + q.familyPct + '%', '', 'sub');
-  if(q.onlinePct) h += line('Direct / portal discount &middot; ' + q.onlinePct + '%', '', 'sub');
-  if(q.staffPct) h += line('Staff discount &middot; ' + q.staffPct + '%', '', 'sub');
-  if(q.ncdPct) h += line('No Claim Discount &middot; ' + q.ncdPct + '%', '', 'sub');
-  if(q.discPct) h += line('Total discount &middot; ' + q.discPct.toFixed(2).replace(/\.00$/, '') + '%', '&minus; &#8377; ' + fmt(q.discAmt));
+  /* Each discount shows what it is actually worth. Where the 40% cap bites the shares are no
+     longer the plain arithmetic of each rate, so the parts are left as percentages and the quote
+     says the total was capped. Otherwise the parts are allocated to add up to the total exactly,
+     the last one carrying any rounding. */
+  const _dParts = [];
+  if(q.familyPct) _dParts.push(['Family discount &middot; ' + q.familyPct + '% (' + q.memberCount + ' insured persons)', q.familyPct]);
+  if(q.onlinePct) _dParts.push(['Direct / portal discount &middot; ' + q.onlinePct + '%', q.onlinePct]);
+  if(q.staffPct)  _dParts.push(['Staff discount &middot; ' + q.staffPct + '%', q.staffPct]);
+  if(q.ncdPct)    _dParts.push(['No Claim Discount &middot; ' + q.ncdPct + '%', q.ncdPct]);
+  const _capped = q.rawDisc > q.discPct + 0.001;
+  if(_capped){
+    _dParts.forEach(p => { h += line(p[0], '', 'sub'); });
+    if(_dParts.length) h += line('&nbsp;&nbsp;These add up to ' + q.rawDisc.toFixed(2).replace(/\.00$/, '') + '%, above the 40% ceiling', '', 'sub');
+  } else {
+    let _spent = 0;
+    _dParts.forEach((p, i) => {
+      const amt = (i === _dParts.length - 1) ? (q.discAmt - _spent) : Math.round(q.subtotal * p[1] / 100);
+      _spent += amt;
+      h += line(p[0], '&minus; &#8377; ' + fmt(amt), 'sub');
+    });
+  }
+  if(q.discPct) h += line('Total discount &middot; ' + q.discPct.toFixed(2).replace(/\.00$/, '') + '%' + (_capped ? ' (capped)' : ''), '&minus; &#8377; ' + fmt(q.discAmt));
   h += line('Net Premium', '&#8377; ' + fmt(q.net), 'total');
   h += line('GST', 'Nil &middot; not charged on this policy', 'sub');
   $('psBreakdown').innerHTML = h;
@@ -7888,6 +7913,14 @@ const PAPS_VERIFIED = [
                 const found = words.filter(x => psFindOccupation(x).length).length;
                 const bad = PS_OCC.filter(o => ['I','II','III'].indexOf(o.r) < 0).length;
                 return [found === words.length, PS_OCC.length > 80, bad].join('/'); } },
+  { label:'PAPS family discount (guideline 9 Sl.4): one insured person none, two 5%, three or more 10%, barred entirely by the staff discount (Sl.3), and every discount together capped at 40% by the Note under that table', expect:'0/5/10/10/0/40',
+    check:()=>{ const mk = n => { const ms = [{ id:1, rel:'self', age:40, earning:true, risk:'I', csi:2000000, cov:{} }];
+                                  for(let i = 2; i <= n; i++) ms.push({ id:i, rel:'son', age:10, earning:false, risk:'I', csi:500000, cov:{} });
+                                  return ms; };
+                const fam = n => psCompute({ plan:'P', term:1, members:mk(n) }).familyPct;
+                const staffBars = psCompute({ plan:'P', term:1, staff:true, members:mk(3) }).familyPct;
+                const capped = psCompute({ plan:'P', term:1, online:true, ncd:20, members:mk(3) }).discPct;
+                return [fam(1), fam(2), fam(3), fam(4), staffBars, capped].join('/'); } },
   { label:'PAPS: Loan Secure and EMI Protection are priced only under the Elite Plan', expect:'0/30',
     check:()=>{ const p = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
                 const e = psCompute({ plan:'E', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
@@ -7930,7 +7963,21 @@ $('psNewBtn').addEventListener('click', newQuote);
 /* the staff discount bars the No Claim Discount, so grey it out rather than wiping the agent's
    entry, and psCompute ignores it while staff is ticked either way */
 function psSyncNcd(){ const off = $('psStaff').checked; $('psNcd').disabled = off; $('psNcd').style.opacity = off ? '.5' : ''; }
-$('psStaff').addEventListener('change', psSyncNcd); psSyncNcd();
+/* The family discount is never ticked by the agent - it follows the number of insured persons -
+   so the card has to say what is being applied, otherwise it reads as though it were missing. */
+function psSyncFamilyRow(){
+  const el = $('psFamilyRow'); if(!el) return;
+  const n = members.length;
+  const staff = $('psStaff') && $('psStaff').checked;
+  const pct = staff ? 0 : (n >= 3 ? 10 : (n === 2 ? 5 : 0));
+  let cls = 'off', txt;
+  if(staff) txt = '<b>Family discount &mdash; not allowed</b> with the staff discount (guideline 9 Sl.3)';
+  else if(pct){ cls = 'on'; txt = '<b>Family discount ' + pct + '% applied</b> &mdash; ' + n + ' insured persons on the policy'; }
+  else txt = '<b>Family discount &mdash; none yet</b>. Add a second insured person for 5%, a third for 10%';
+  el.className = 'ps-auto-disc ' + cls;
+  el.innerHTML = txt;
+}
+$('psStaff').addEventListener('change', () => { psSyncNcd(); psSyncFamilyRow(); }); psSyncNcd();
 /* the rate on the tick is written from the constant so it cannot drift from the engine again */
 (function(){ const sm = $('psStaff').closest('label').querySelector('small'); if(sm) sm.textContent = PS_STAFF_PCT + '% \u00b7 family discount, No Claim Discount and commission are not allowed with it'; })();
 addMember();
@@ -26150,7 +26197,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v136 · the taxi discount rows are the tariff taxi class of up to six PASSENGERS excluding the driver, so a 6 passenger taxi keeps 75% instead of being pushed onto the 6-17 seat row at 70% by counting the driver · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v137 · PA Parivaar: the family discount is shown as well as applied - the Discounts card states the rate the policy qualifies for as members are added, and every discount in the breakdown carries its own rupee amount · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
