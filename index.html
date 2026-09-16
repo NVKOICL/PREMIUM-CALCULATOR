@@ -9637,9 +9637,11 @@ function lookupMaxDiscount2026(){
     if(years === null) return null;
     // ODS macro (CalculateMaxDiscount): the "1 to 5 years" GCCV band covers age < 6
     // (macro uses `ElseIf age >= 6` for the 6+ table). So a vehicle in its 6th year
-    // (5–6 yrs) still takes the 1-5 cap. Previously this flipped at year 5, which
-    // under-discounted GCCV in year 6 by ~5 points.
-    const ageKey = years <= 1 ? 'new'   /* band-months: <=1 flips exactly ON the 1st birthday */ : (years <= 6 ? 'a15' : 'a6plus');
+    // The circular bands are "1-5 year" and "6th year onwards", so a vehicle that has
+    // completed 5 years is already in its 6th year and takes the lower cap. Reported from
+    // the field 15-09-2026: a 5.1 year GCV of 3,501-7,500 kg with no NCB was being offered
+    // 70% when only 50% is allowed.
+    const ageKey = years <= 1 ? 'new'   /* band-months: <=1 flips exactly ON the 1st birthday */ : (years <= 5 ? 'a15' : 'a6plus');
 
     // GCCV column rule — aligned with the global circular directive:
     //   Column 1 (wn) = expiring policy carried NCB (own renewal OR roll-over WITH NCB)
@@ -10995,12 +10997,14 @@ function updatePaUnPreview(){
 }
 
 /* PA for Un-named Persons — hidden for SAOD (liability-side cover) and for
-   Misc / PCCV / Commercial vehicle types (not offered for these). */
+   Misc / PCCV (not offered for those classes). */
 function updatePaUnRowVisibility(){
   const row = $('paUnRow');
   if(!row) return;
   const isSAOD = $('polOD') && $('polOD').checked;
-  const vehBlocked = (state.vehicleType==='misc' || state.vehicleType==='pccv' || state.vehicleType==='commercial');
+  /* Goods carrying vehicles do carry the cover (tariff rate 0.60 per mille, the same table as
+     the other classes); it is still not offered for Misc and PCCV. */
+  const vehBlocked = (state.vehicleType==='misc' || state.vehicleType==='pccv');
   const hide = isSAOD || vehBlocked;
   row.style.display = hide ? 'none' : '';
   if(hide){
@@ -11659,6 +11663,13 @@ function miscImt23BaseFor(odBase, elec, cng, towing, imt47){
 }
 
 function paUnnamedMaxSIFor(vehicleType){ return RATES.optional.paUnnamedMaxSI[vehicleType]; }
+/* Anti-theft discount: 2.5% of the basic own damage premium AFTER the OD discount, capped at
+   Rs.500. Exposed so the self-test exercises the same code the quote uses. */
+function antiTheftDiscountFor(odBase, odDiscountPct){
+  const net = (odBase || 0) * (1 - (odDiscountPct || 0) / 100);
+  return Math.min(Math.round(net * RATES.optional.antiTheftRate), RATES.optional.antiTheftCap);
+}
+window.antiTheftDiscountFor = antiTheftDiscountFor;
 window.paUnnamedMaxSIFor = paUnnamedMaxSIFor;
 function getPaUnnamedPremium(vehicleType, pax, si){
   const rate = RATES.optional.paUnnamedRate && RATES.optional.paUnnamedRate[vehicleType];
@@ -12051,11 +12062,15 @@ function calculate(silent=false){
       accInDiscBase        += (odCNGKit - cngGross);   // NCB base keeps the charged CNG figure
     }
 
-    // Anti-theft on Basic OD only, capped. ODS BE73/BE77 carry '-CV', i.e. the
-    // anti-theft discount is REMOVED from the NCB base (NCB is not given twice
-    // on the same money).
+    // Anti-theft on Basic OD only, capped. INLIAS applies it to the basic OD AFTER the OD
+    // discount, not to the gross: computation sheet R/161998/31/2027/309 (15/09/2026) shows
+    // "LESS :ANTI-THEFT DISCOUNT-GR-30  99.25" on a discounted basic OD of 3,970 (2.5% exactly).
+    // Charging it on the gross made the discount several times too large on the commercial
+    // classes, where the OD discount runs to 70-90%.
+    // ODS BE73/BE77 carry '-CV', i.e. the anti-theft discount is REMOVED from the NCB base
+    // (NCB is not given twice on the same money).
     if(data.switches.atd){
-      antiTheftDiscount = Math.min(Math.round(odBase * RATES.optional.antiTheftRate), RATES.optional.antiTheftCap);
+      antiTheftDiscount = antiTheftDiscountFor(odBase, data.odDiscount);
     }
 
     // NCB base — ODS BE73 / BE77 / BE90:
@@ -12605,17 +12620,19 @@ function calculate(silent=false){
     extras.items.push({ name:`Compulsory PA — Owner-Driver${_yrLabel(cpaYears)}`, amount:cpaAmt, termYears:cpaYears });
     extras.total += cpaAmt;
   }
-  // PA for Un-named Persons is not offered for Misc, PCCV and Commercial vehicles.
-  const paUnVehAllowed = !(data.vehicleType==='pccv' || data.vehicleType==='commercial' || isTrailer);
+  // PA for Un-named Persons: goods carrying vehicles do carry it (tariff 0.60 per mille), so only
+  // PCCV, where the passengers are fare paying and covered on the liability side, and trailers
+  // are excluded. Reported from the field 15-09-2026: the cover could not be added to a GCCV.
+  const paUnVehAllowed = !(data.vehicleType==='pccv' || isTrailer);
   if(paUnVehAllowed && data.switches.paUn && hasTP && data.paUnPax > 0 && data.paUnSI > 0){
     const maxSI = RATES.optional.paUnnamedMaxSI[data.vehicleType];
     const si = Math.min(data.paUnSI, maxSI);
     const amt1yr = getPaUnnamedPremium(data.vehicleType, data.paUnPax, si);
     const amt = amt1yr * paUnYears;
     if(amt > 0){
-      const paLabel = data.vehicleType === 'pccv'
-        ? `PA Un-named (${data.paUnPax} pax × 0.60% of ₹${fmt(si)}${_yrLabel(paUnYears)})`
-        : `PA Un-named (${data.paUnPax} pax × ₹${si/100000}L × ₹${RATES.optional.paUnnamedPerLakh}${_yrLabel(paUnYears)})`;
+      const paRate = RATES.optional.paUnnamedRate && RATES.optional.paUnnamedRate[data.vehicleType];
+      const paPerLakh = paRate ? Math.round(paRate * 100000) : RATES.optional.paUnnamedPerLakh;
+      const paLabel = `PA Un-named (${data.paUnPax} pax × ₹${si/100000}L × ₹${paPerLakh}${_yrLabel(paUnYears)})`;
       extras.items.push({ name:paLabel, amount:amt, termYears:paUnYears });
       extras.total += amt;
     }
@@ -24896,6 +24913,12 @@ window.FIRE_VERIFIED = [
   { label:'Local-language pages: palette PNG encoder present', expect:'function', check:()=>typeof (window.UPNG && UPNG.encode) },
   { label:'Local-language wordings: a language dropdown beside every Download PDF button, Telugu and Hindi defined, canvas multi-page mode works', expect:'true/te,hi/3',
     check:()=>{ const cd = new OICIMG.CanvasDoc({ all:true, scale:0.5 }); cd.addPage(); cd.text('x', 10, 10); cd.addPage(); cd.text('y', 10, 10); return [document.querySelectorAll('select.pdf-lang').length >= 5, Object.keys(OICI18N.LANGS).join(','), cd.canvases.length].join('/'); } },
+  { label:'GCCV discount bands: the circular reads 1-5 year and 6th year onwards, so a 5.1 year GCV of 3,501-7,500 kg with no NCB caps at 50% (its 6th year), while 4.5 years still takes 70%', expect:'50/70',
+    check:()=>{ const g = DISC_2026.gccv['3501-7500']; return [g.a6plus.nn, g.a15.nn].join('/'); } },
+  { label:'PA for un-named persons: goods carrying vehicles are rated at the tariff 0.60 per mille (Rs.60 per lakh) and the cover is offered for them, private car 0.50 per mille and two-wheeler 0.70 per mille', expect:'120/100/140',
+    check:()=>['commercial','privateCar','twoWheeler'].map(v => getPaUnnamedPremium(v, 1, 200000)).join('/') },
+  { label:'Anti-theft discount is 2.5% of the own damage premium AFTER the OD discount, capped at Rs.500 (INLIAS sheet R/161998/31/2027/309: Rs.99.25 on a discounted basic OD of Rs.3,970)', expect:'99/500/87',
+    check:()=>[antiTheftDiscountFor(17260, 77), antiTheftDiscountFor(100000, 0), antiTheftDiscountFor(3486, 0)].join('/') },
   { label:'PDF: every quotation carries a 7-day validity note', expect:'7/true',
     check:()=>OICPDF.QUOTE_VALID_DAYS+'/'+/valid for 7 days/.test(OICPDF.validityNote(new Date())) },
   { label:'Fire cover schedule: 14 BSU/BLU perils, 12 SFSP perils, 14 SFSP endorsements, 16 BSU exclusions, 13 terrorism exclusions', expect:'14/12/14/16/13',
@@ -25233,7 +25256,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v118 · Parivaar: the TTD Sum Insured offered is capped by the plan's weekly limit as well as by 25% of the CSI, so a non-earning person can no longer be charged for cover the policy could never pay · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v119 · GCCV corrections from the field: the OD discount drops to the 6th-year cap once 5 years are completed, PA for un-named passengers is available at the tariff Rs.60 per lakh, and the anti-theft discount is 2.5% of the own damage premium after the OD discount · 16-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
