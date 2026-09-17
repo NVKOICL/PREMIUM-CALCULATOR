@@ -6782,7 +6782,7 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
         <label class="addon" for="psStaff"><input type="checkbox" id="psStaff" /><span class="addon-name">Staff of Oriental Insurance</span><small>33% &middot; family discount, No Claim Discount and commission are not allowed with it</small></label>
       </div>
       <div class="field" style="margin-top:12px">
-        <label class="lbl" for="psNcd">No Claim Discount <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; renewal only, 2% per claim-free year, chosen instead of Cumulative Bonus</span></label>
+        <label class="lbl" for="psNcd">No Claim Discount <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; renewal only, 2% per claim-free year, chosen instead of Cumulative Bonus. Sets every insured person; change the card of anyone who claimed</span></label>
         <select id="psNcd">
           <option value="0">Nil &middot; fresh policy or Cumulative Bonus opted</option>
           <option value="2">2% &middot; 1 claim-free year</option>
@@ -6852,7 +6852,7 @@ const PS_OCC = [
   {r:'I',n:'Administrative or managing functions - office based',k:['admin','admin work','administration','administrative','administrative officer','administrator','branch head','corporate employee','desk job','desk work','executive','general manager','management','manager','managing director','md office','office job','office superintendent','office work','officer','operations manager','private job office','section officer','team lead','white collar']},
   {r:'I',n:'Architect, town planner or draughtsman',k:['architect','architect firm','architectural consultant','architecture','autocad','building plan designer','cad designer','cad operator','draftsman','draughtsman','interior architect','town planner','urban planner']},
   {r:'I',n:'BPO, call centre or customer care executive',k:['bpo','call center','call centre','chat support','customer care','customer relationship executive','customer service','customer support','help desk','kpo','non voice process','process associate','tele caller','telecaller','telecalling','telemarketing','voice process']},
-  {r:'I',n:'Banker or bank employee',k:['assistant manager bank','bank','bank clerk','bank employee','bank manager','bank officer','bank staff','banker','banking','branch manager','chief manager','clerk in bank','co operative bank','cooperative bank','credit officer','loan officer','nationalised bank','probationary officer','rbi','relationship manager','sbi']},
+  {r:'I',n:'Banker or bank employee',k:['assistant manager bank','bank','bank cashier','bank clerk','bank employee','bank manager','bank officer','bank staff','bank teller','banker','banking','branch manager','chief manager','clerk in bank','co operative bank','cooperative bank','credit officer','loan officer','nationalised bank','probationary officer','rbi','relationship manager','sbi','teller']},
   {r:'I',n:'Businessman or self-employed proprietor - office or shop',k:['business','business woman','businessman','businessperson','company owner','director','entrepreneur','family business','firm owner','msme owner','own business','partner in firm','private business','proprietor','self employed','startup founder']},
   {r:'I',n:'Chartered accountant, cost accountant, auditor or tax consultant',k:['articleship','audit','auditor','c a','ca','ca article','ca firm','chartered accountant','cma','company auditor','cost accountant','financial consultant','gst consultant','gst practitioner','icwa','income tax consultant','internal auditor','statutory auditor','tax consultant','tax practitioner']},
   {r:'I',n:'Clerk, office assistant, typist or stenographer',k:['assistant','clerical','clerk','dealing assistant','file clerk','junior assistant','ldc','lower division clerk','office assistant','office clerk','office executive','office staff','pa to officer','personal assistant','record keeper','secretary','senior assistant','steno','stenographer','typist','udc','upper division clerk']},
@@ -6877,7 +6877,7 @@ const PS_OCC = [
   {r:'I',n:'Lecturer, professor or college academic',k:['academic','assistant professor','associate professor','college lecturer','corporate trainer','dean','degree college','faculty','guest faculty','hod','junior lecturer','lecturer','phd scholar','professor','research scholar','researcher','soft skills trainer','university professor']},
   {r:'I',n:'Librarian or records / archive staff',k:['archivist','documentation library','librarian','library','library assistant','reading room','record room']},
   {r:'I',n:'Marketing or sales executive - office based',k:['ad agency','advertising executive','bde','brand manager','business development','business development executive','digital marketing','inside sales','market research','marketing','marketing executive','marketing manager','product manager','sales','sales executive','sales manager','sales officer','seo','social media manager','tele sales']},
-  {r:'I',n:'Office, bank or IT desk employee - clerical and administrative service',k:['accounts','admin','administration','attender','babu','bank employee','bank manager','bank staff','bpo','call center','call centre','cashier','clerk','computer operator','data entry','desk job','government employee','government job','govt employee','hr executive','it employee','it professional','munshi','office attendant','office clerk','office manager','office staff','office supervisor','office work','peon','receptionist','revenue clerk','sarkari job','sarkari naukri','software developer','software engineer','telecaller','typist']},
+  {r:'I',n:'Office, bank or IT desk employee - clerical and administrative service',k:['accounts','admin','administration','attender','babu','bank employee','bank manager','bank staff','billing clerk','billing operator','bpo','call center','call centre','cash clerk','cash counter','cash counter staff','cashier','clerk','collection counter','computer operator','counter clerk','data entry','desk job','government employee','government job','govt employee','hr executive','it employee','it professional','munshi','office attendant','office clerk','office manager','office staff','office supervisor','office work','peon','receptionist','revenue clerk','sarkari job','sarkari naukri','software developer','software engineer','telecaller','typist']},
   {r:'I',n:'Pharmacist or medical shop chemist',k:['b pharm','chemist shop','d pharm','dispenser','drug store','druggist','m pharm','medical shop','medical store','pharmacist','pharmacy','pharmacy owner','retail chemist']},
   {r:'I',n:'Physiotherapist, dietician or clinical therapist',k:['audiologist','dietician','dietitian','eye clinic','nutritionist','occupational therapist','ophthalmic assistant','optician','optometrist','physio','physiotherapist','physiotherapy','spectacles shop','speech therapist']},
   {r:'I',n:'Priest or religious functionary - pandit, pujari, imam, maulvi, pastor, granthi',k:['archaka','astrologer','church father','giani','granthi','imam','jyotish','jyotishi','madrasa teacher','maulana','maulvi','monk','muezzin','pandit','pandit ji','panditji','pastor','priest','pujari','purohit','religious teacher','sadhu','swami','temple priest']},
@@ -6912,8 +6912,8 @@ const PS_OCC = [
   {r:'II',n:'Barber, beautician or salon worker',k:['barber','beautician','beauty parlor','beauty parlour','bridal makeup','cosmetologist','hair cutting','hair stylist','haircut','hairdresser','hajam','makeup artist','massage','masseur','mehndi artist','naai','nai','nail artist','parlour','salon','saloon','spa worker']},
   {r:'II',n:'Barber, hairdresser or beauty parlour worker',k:['barber','beautician','beauty parlor','beauty parlour','hair cutting','hair cutting saloon','hair stylist','hairdresser','makeup artist','mangali','massage therapist','mehendi artist','nai','salon','saloon','spa staff']},
   {r:'II',n:'Blacksmith, goldsmith or metal smith',k:['bangle making','black smith','blacksmith','forge work','forging','gold smith','goldsmith','jewellery making','jewelry making','kammari','lohar','metal smith','ornament making','silversmith','smithy','sunar']},
-  {r:'II',n:'Boatman and ferry crew on river, backwater or sea',k:['boat man','boatman','country boat operator','ferry crew','ferryman','house boat crew','jetty boat crew','launch operator','majhi','motor boat operator','nav chalak','river crossing boat','speed boat operator']},
-  {r:'II',n:'Brick kiln, cement or stone-crushing unit worker (no blasting)',k:['bhatta','block making','brick kiln','brick making','brick worker','cement factory','cement plant','concrete batching','crusher unit','hollow block','lime kiln','quarry office? no','rmc plant','stone crusher','stone cutting','tiles factory']},
+  {r:'II',n:'Boatman and ferry crew - river, lake or backwater',k:['boat driver','boat man','boat operator','boatman','country boat','country boat operator','ferry','ferry crew','ferryman','house boat crew','jetty boat crew','launch operator','majhi','motor boat operator','nav chalak','navik','river crossing boat','speed boat operator']},
+  {r:'II',n:'Brick kiln, cement or tiles unit worker (no blasting)',k:['bhatta','block making','brick kiln','brick making','brick worker','cement factory','cement plant','concrete batching','hollow block','lime kiln','rmc plant','stone cutting','tiles factory']},
   {r:'II',n:'Builder - contractor',k:['builder','builder contractor','building contractor','civil contractor','construction contractor','contract works','contractor','developer working on site','electrical contractor','labour contractor','mestri contractor','sub contractor','thekadar','thekedar','works contractor']},
   {r:'II',n:'Building painter - ground or normal scaffold height',k:['building painter','distemper','emulsion painting','house painting','paint contractor','painter','painting','painting work','polish work','putty work','spray painting','varnish','wall painting','white wash','whitewash','wood polish']},
   {r:'II',n:'Bus or lorry conductor, cleaner or khalasi',k:['attendant on bus','bus conductor','cleaner','conductor','khalashi','khalasi','klesi','loading helper on vehicle','lorry cleaner','lorry helper','second driver','ticket conductor','truck cleaner','van helper']},
@@ -6921,7 +6921,7 @@ const PS_OCC = [
   {r:'II',n:'Butcher / meat, fish and poultry shop worker',k:['abattoir','butcher','chicken cutting','chicken shop','cold cuts unit','fish cutting','fish market','kasai','meat cutting','meat processing','meat shop','mutton shop','slaughter house']},
   {r:'II',n:'Carpenter / furniture maker',k:['achari carpenter','badhai','carpenter','carpentry','cot making','door fitting','furniture maker','furniture work','interior carpenter','joinery','modular kitchen fitting','plywood work','vadrangi','wood work','wooden work','woodwork']},
   {r:'II',n:'Cash carrying employee - cash van, ATM and currency handling',k:['atm cash','atm replenishment','cash carrier','cash carrying','cash carrying employee','cash collection','cash custodian','cash handling outside office','cash in transit','cash officer carrying cash','cash replenishment','cash van','cit staff','currency chest','gold loan appraiser carrying','money carrying','valuables carrier']},
-  {r:'II',n:'Cashier or counter clerk - cash handled at the counter',k:['bank teller','billing clerk','billing operator','cash clerk','cash counter','cash counter staff','cashier','collection counter','counter clerk','teller']},
+  {r:'II',n:'Cash-carrying employee - cash collection or cash in transit',k:['atm cash loading','cash carrying','cash carrying employee','cash collection','cash collection agent','cash delivery','cash in transit','cash pickup','cash van']},
   {r:'II',n:'Chemical, paint or pharma plant operative and boiler attendant (no explosives)',k:['boiler attendant','boiler operator','chemical factory','chemical handling','chemical plant','chemical worker','detergent unit','distillery worker','fertiliser plant','fertilizer unit','formulation plant','paint factory','pharma plant','pharmaceutical unit','process operator','soap factory','steam plant']},
   {r:'II',n:'Chowkidar, watchman or unarmed security guard',k:['apartment security','chokidar','chowkidar','darwan','durwan','factory security','gate keeper','gatekeeper','guard duty','night watchman','security guard','security staff','society security','watch man','watchman']},
   {r:'II',n:'Cobbler, shoe maker and leather worker',k:['bag making','belt making','chappal making','cobbler','footwear unit','leather stitching','leather work','leather worker','mochi','shoe maker','shoe repair','shoemaker','tannery','tannery worker']},
@@ -6966,15 +6966,15 @@ const PS_OCC = [
   {r:'II',n:'Nurse or nursing staff - hospital or clinic',k:['anm','bsc nursing','gnm','matron','midwife','nurse','nursing','nursing officer','nursing staff','nursing superintendent','sister hospital','staff nurse','ward nurse']},
   {r:'II',n:'Nurse, ANM, ward attendant or hospital paramedical staff',k:['ambulance staff','anm','compounder','dialysis technician','dresser','gnm','home nurse','hospital attendant','hospital staff','lab technician','laboratory technician','nurse','nursing','ot technician','paramedic','paramedical','patient attendant','physiotherapist','radiographer','sister hospital','staff nurse','ward attendant','ward boy','x ray technician']},
   {r:'II',n:'Nurse, ward attendant or hospital support staff',k:['ambulance attendant','anm','compounder working in ward','dialysis technician','dresser','gnm','hospital attendant','hospital housekeeping','hospital staff','lab technician','laboratory technician','nurse','nursing','operation theatre staff','ot technician','physiotherapy assistant','radiographer','staff nurse','ward attendant','ward boy','x ray technician']},
-  {r:'II',n:'Paid driver - car, truck, lorry or other heavy vehicle',k:['car driver','chauffeur','container driver','driver','drivership','driving instructor','driving job','driving school instructor','gadi driver','goods vehicle driver','heavy driver','heavy vehicle driver','hmv driver','lorry driver','motor training','paid driver','personal driver','private driver','professional driver','tanker driver','tempo driver','tipper driver','trailer driver','transport driver','truck driver','van driver']},
+  {r:'II',n:'Paid driver - car, truck, lorry or other heavy vehicle',k:['car driver','chauffeur','container driver','driver','drivership','driving instructor','driving job','driving school instructor','gadi driver','goods vehicle driver','heavy driver','heavy vehicle driver','hmv driver','lorry driver','motor training','paid driver','personal driver','private driver','professional driver','tempo driver','tipper driver','trailer driver','transport driver','truck driver','van driver']},
   {r:'II',n:'Pest control, fumigation and spraying worker',k:['disinfection','fogging','fumigation','mosquito spraying','pest control','pest control worker','pesticide spraying','rodent control','sanitising','spraying','termite treatment']},
   {r:'II',n:'Petrol pump attendant / LPG cylinder delivery',k:['bunk worker','cng station','cylinder delivery','diesel filling','filling station','fuel station','gas agency','gas cylinder delivery','gas delivery boy','lpg delivery','petrol bunk','petrol pump','petrol pump attendant','pump operator']},
-  {r:'II',n:'Photographer or videographer - wedding, event and outdoor shoots',k:['camera man','cameraman','candid photography','digital studio','drone camera','drone operator','event photographer','photo studio','photographer','photography','press photographer','studio photographer','video grapher','video shooting','videographer','wedding photographer','wedding videographer']},
+  {r:'II',n:'Photographer or videographer - wedding, event and outdoor shoots',k:['camera man','cameraman','candid photography','digital studio','drone camera','drone operator','event photographer','photo studio','photographer','photography','press photographer','video grapher','video shooting','videographer','wedding photographer','wedding videographer']},
   {r:'II',n:'Plastic, rubber, paper or packaging factory worker',k:['blow moulding','carton making','corrugation','extrusion','injection moulding','moulding','packaging unit','paper mill','paper unit','plastic factory','plastic unit','polythene unit','pvc pipe unit','rubber factory','rubber unit','tyre factory']},
   {r:'II',n:'Plumber / sanitary and pipe fitter',k:['bathroom fitting','drainage work','nal','overhead tank fitting','pipe fitter','pipefitter','pipeline fitting','plumber','plumbing','plumbing work','sanitary fitter','sanitary work','tap fitting','water supply fitting']},
   {r:'II',n:'Poultry, aqua and piggery farm worker',k:['aqua culture','aquaculture','broiler farm','chicken farm','duck farm','egg farm','fish farm','fish pond','fish seed','goat farm','hatchery','layer farm','pig farm','piggery','poultry','poultry farm','prawn culture','shrimp farm']},
   {r:'II',n:'Printing press operator or book binder',k:['binder','binding work','book binding','digital printing operator','flex banner','flex printing','offset operator','offset printing','paper cutting machine','press worker','printer operator','printing press','printing worker','screen printing']},
-  {r:'II',n:'Railway loco, shunting, track and workshop staff',k:['assistant loco pilot','carriage and wagon','engine driver','gangman','loco pilot','metro train operator','motorman','permanent way','pointsman','railway','railway staff','railway workshop','shunter','shunting','signal maintainer','station porter','track maintainer','trackman','train guard']},
+  {r:'II',n:'Railway loco pilot, motorman, guard and workshop staff',k:['assistant loco pilot','carriage and wagon','engine driver','loco pilot','metro train operator','motorman','railway','railway staff','railway workshop','station porter','train driver','train guard']},
   {r:'II',n:'Real estate broker or property dealer - including site visits',k:['dalal','dallal','estate agent','flat broker','land broker','plot broker','property agent','property broker','property dealer','real estate','real estate agent','real estate broker','realtor','rent agent','site visit work']},
   {r:'II',n:'Rice, flour, dal or oil mill worker',k:['atta chakki','chakki','cotton ginning mill','dal mill','flour mill','ghani','grinding mill','huller','masala grinding','mill labour','mill worker','oil mill','pulverizer','rice mill','wheat mill']},
   {r:'II',n:'Road, highway and public works labourer',k:['bitumen work','canal work','culvert work','digging work','drainage work labour','highway labour','highway work','nmr worker','panchayat worker','pipeline laying','public works','pwd worker','road labour','road laying','road work','tar work','water works labour']},
@@ -7017,8 +7017,8 @@ const PS_OCC = [
   {r:'III',n:'Firework / cracker factory worker and pyrotechnician',k:['atashbazi','atishbazi','chemical mixing for crackers','cracker factory','diwali cracker making','fire cracker','firecracker','firework','firework factory','fireworks','fireworks display operator','fireworks show','pataka','patakha','patakha factory','pyrotechnic','pyrotechnician','sivakasi']},
   {r:'III',n:'Firework, explosives, chemical or hot-process plant worker',k:['acid plant','boiler operator','chemical factory','chemical plant','cracker factory','crackers','cylinder filling','detonator','explosive','explosives','fertiliser plant','firecracker unit','firework','fireworks','fireworks display','foundry','furnace','gas plant','gunpowder','lpg bottling','magazine','match factory','matchstick','molten metal','oil refinery','pataka factory','patakha','petroleum','refinery','smelting','steel plant']},
   {r:'III',n:'Fisherman at sea / trawler or mechanised boat crew',k:['boat crew fishing','country boat fishing','deep sea fishing','fisher folk','fisherman','fishermen','fishing','fishing boat','machhimar','machhuara','matsyakara','mechanised boat','meenavar','net fishing at sea','sea fishing','trawler','trawler crew']},
-  {r:'III',n:'Fisherman or boatman - inland rivers, lakes and tanks',k:['boat man','boat operator','boatman','coracle','country boat','ferry','ferry crew','fish catching','fisher folk','fisherman','fishing','house boat crew','inland fishing','lake fishing','launch operator','machua','navik','pond fishing','river fishing','tank fishing']},
-  {r:'III',n:'Fisherman or boatman - sea, river or backwater going',k:['boat','boat driver','boatman','coastal fishing','deep sea fishing','ferry','ferryman','fisher folk','fisherman','fishermen','fishing','inland fishing','machhuara','marine fishing','net fishing','pond fishing','sea going','trawler']},
+  {r:'III',n:'Fisherman - inland rivers, lakes and tanks',k:['coracle','fish catching','fisher folk','fisherman','fishing','inland fishing','lake fishing','machua','pond fishing','river fishing','tank fishing']},
+  {r:'III',n:'Fisherman - sea, river or backwater going',k:['coastal fishing','deep sea fishing','fisher folk','fisherman','fishermen','fishing','inland fishing','machhuara','marine fishing','net fishing','pond fishing','sea going','trawler']},
   {r:'III',n:'Forest guard, wildlife ranger and anti-poaching field staff',k:['anti poaching','beat officer','elephant tracker','forest department field staff','forest guard','forest ranger','forest watcher','forester field duty','sanctuary patrol','tiger reserve staff','wildlife ranger','wildlife warden']},
   {r:'III',n:'Hazardous chemical plant or refinery process worker',k:['acid plant','ammonia plant','chemical factory hazardous','chemical plant worker','chlorine plant','explosive chemicals handling','fertilizer plant process','gas plant operator','hazardous chemicals','lpg bottling plant','msihc unit','petrochemical plant','process operator refinery','refinery worker']},
   {r:'III',n:'High-tension electrical installation worker',k:['11 kv','132 kv','220 kv','33 kv','400 kv','bijli high tension','ehv','electrical installation high tension','extra high voltage','high tension','high tension supply','high voltage','hot line','ht installation','ht line','ht supply','hv','sub station','sub-station','substation','switchgear ht','switchyard','transformer yard']},
@@ -7045,11 +7045,11 @@ const PS_OCC = [
   {r:'III',n:'Polo player',k:['chaugan','elephant polo','horse polo','polo','polo player','polo team']},
   {r:'III',n:'Power station / generating plant worker in the high-voltage area',k:['boiler maintenance','genco','generating station','generation plant ht','hydel power station','hydro power plant','ntpc plant worker','power plant worker','power station','solar plant ht yard','switchyard operator','thermal power plant','turbine hall','wind turbine technician','windmill technician']},
   {r:'III',n:'Professional sportsperson in a contact sport - boxing, wrestling, kabaddi, rugby, martial arts',k:['akhara','boxer','boxing','combat sport','contact sport','fighter professional','judo','kabaddi','kabaddi player','karate','kick boxing','kushti','martial arts coach','mixed martial arts','mma','muay thai','pehelwan','professional boxer','rugby','rugby player','sumo','taekwondo','wrestler','wrestling']},
-  {r:'III',n:'Professional sportsperson, racer or stunt artist',k:['athlete','bike racing','boxer','boxing','car racing','cricketer','equestrian','footballer','hockey player','horse rider','horse riding','kabaddi player','kushti','mma fighter','motor racing','pehlwan','professional sportsperson','race cyclist','racer','sports coach','sports person','sportsman','stunt artist','stunt man','stuntman','wrestler']},
+  {r:'III',n:'Stunt artist, professional racer or combat sportsperson',k:['bike racing','boxer','boxing','car racing','equestrian','horse rider','horse riding','kabaddi player','kushti','mma fighter','motor racing','pehlwan','race cyclist','racer','stunt artist','stunt man','stuntman','wrestler']},
   {r:'III',n:'Quarry and stone crusher worker',k:['boulder breaking','crusher operator','crusher plant','granite quarry','khadan worker','marble quarry','quarry','quarry labour','quarry mazdoor','quarry worker','quarrying','rock cutting','slate quarry','stone crusher','stone cutting at quarry','stone quarry']},
   {r:'III',n:'Racing on horseback and equestrian competitor',k:['buggy racing','dressage','endurance riding','equestrian','equestrian sport','ghudsawari','horse racing','horse riding competition','horseback racing','racing on horseback','show jumping','steeplechase','tent pegging']},
   {r:'III',n:'Racing on wheels - karting, cycling, motocross, speedway competitor',k:['bmx racing','competitive cyclist','cycle racing','dirt bike racing','downhill cycling','go kart','go karting','kart racer','karting','motocross','professional cyclist','roller racing','skating race','speedway','supercross']},
-  {r:'III',n:'Railway track, shunting or running staff - gangman, trackman, loco pilot',k:['assistant loco pilot','gangman','keyman railway','loco pilot','motorman','p way worker','permanent way','pointsman','railway gangman','railway line work','railway track worker','shunter','shunting','signal maintainer','track maintainer','trackman','train driver']},
+  {r:'III',n:'Railway track and shunting staff - gangman, trackman, pointsman, shunter',k:['gangman','keyman railway','p way worker','permanent way','pointsman','railway gangman','railway line work','railway track worker','shunter','shunting','signal maintainer','track maintainer','trackman']},
   {r:'III',n:'River rafting guide or participant',k:['canoe rapids','canoeing','coracle rapids','kayak','kayaking','raft guide','rafting','rapids','rishikesh rafting','river expedition','river guide','river rafting','white water','white water rafting','whitewater']},
   {r:'III',n:'Roofer / sheet roofing and terrace sheet fitter',k:['asbestos sheet fitting','chhat sheet','gi sheet roofing','purlin fixing','roof repair','roof sheeting','roofer','roofing','roofing work','sheet fitter','terrace sheet','tin shed roofing','truss work']},
   {r:'III',n:'Scaffolder and any worker at height on scaffolding or staging',k:['balli bandhna','building height work','cradle work','facade work','formwork at height','harness work','height work','rope access','scaffold erector','scaffolder','scaffolding','shuttering at height','staging work','suspended platform','work at height','working at height']},
@@ -7093,6 +7093,32 @@ function psFindOccupation(query){
   return hits.slice(0, 7);
 }
 window.psFindOccupation = psFindOccupation;
+const PS_RANK = { I:1, II:2, III:3 };
+/* occupations with no gainful income (guideline 4.1 footnote: pension, rent and investment income do not count) */
+const PS_OCC_NOINCOME = ['Homemaker / housewife', 'Homemaker or housewife', 'Retired person or pensioner', 'Student',
+                         'Student, retired person or not in employment'];
+/* occupations that ARE an activity the wordings exclude (III.4(c)): 'air' - in an aircraft other than
+   as a passenger; 'sport' - hazardous or adventurous sports, aviation or ballooning */
+const PS_OCC_EXCL = {
+  'Aircraft pilot and cockpit crew': 'air',
+  'Cabin crew - air hostess, flight steward, purser': 'air',
+  'Adventure sport guide or instructor - trekking, rafting, paragliding, diving': 'sport',
+  'Adventure sports instructor - paragliding, bungee, zip line, skydiving': 'sport',
+  'Big game hunter': 'sport',
+  'Ice hockey player': 'sport',
+  'Jockey': 'sport',
+  'Motor racing driver or rider - car, bike or rally': 'sport',
+  'Mountaineer / high-altitude climber': 'sport',
+  'Polo player': 'sport',
+  'Racing on horseback and equestrian competitor': 'sport',
+  'Racing on wheels - karting, cycling, motocross, speedway competitor': 'sport',
+  'River rafting guide or participant': 'sport',
+  'Scuba / recreational diving instructor and snorkelling guide': 'sport',
+  'Skier and ski instructor': 'sport',
+  'Stunt artist, professional racer or combat sportsperson': 'sport',
+  'Trekking guide, expedition porter or sherpa at altitude': 'sport',
+  'Winter sports participant or instructor': 'sport'
+};
 const PS_PREEX_LOAD = 30;                           /* pre-existing physical / medical condition */
 const PS_MIN_CSI = 500000, PS_MAX_CSI = 50000000;   /* underwriting guideline 4.8 */
 const PS_MIN_PREMIUM = 100;                         /* guideline 8; the product carries no GST, see gst in psCompute */
@@ -7118,8 +7144,13 @@ const PS_RELBY = k => PS_REL.find(r => r.k === k) || PS_REL[0];
 
 /* optional covers: key, label, short label for the PDF, rate column, plans */
 const PS_OPT = [
+  /* The Policy Wordings give a weekly benefit to the "Earning Insured / Spouse" and the "Non-Earning
+     Spouse" and to nobody else; the prospectus says the same in terms ("available for the earning
+     Insured / Spouse and non-earning Spouse"). A child, a parent or a parent-in-law has no weekly
+     benefit to claim, so the tick is not offered to them. */
   { k:'ttd', n:'Temporary Total Disablement (weekly benefit)', s:'Temporary Total Disablement', col:'TTD', plans:'PE', ownSI:'ttd',
-    d:'1% of the TTD Sum Insured a week while totally disabled, up to 100 weeks' },
+    rels:['self', 'spouse'],
+    d:'1% of the TTD Sum Insured a week while totally disabled, up to 100 weeks \u2014 proposer and spouse only' },
   { k:'med', n:'Medical Expenses (accidental hospitalisation)', s:'Medical Expenses', col:'MED', plans:'PE',
     d:'10% of CSI towards hospitalisation after an accident' },
   { k:'ahc', n:'Accident Hospital Cash', s:'Accident Hospital Cash', col:'AHC', plans:'PE',
@@ -7135,6 +7166,9 @@ const PS_OPT = [
 ];
 
 let members = [], seq = 0, psPlan = 'P', lastQuote = null;
+/* whether this insured person may take this optional cover at all */
+function psCoverAllowed(o, m){ return !o.rels || o.rels.indexOf(m.rel) >= 0; }
+const PS_OPTBY = k => PS_OPT.find(o => o.k === k);
 
 const fmt = n => Math.round(n).toLocaleString('en-IN');
 const siLabel = v => v >= 10000000 ? ((v / 10000000).toFixed(2).replace(/\.?0+$/, '') + ' Cr')
@@ -7190,15 +7224,21 @@ function psCompute(inp){
     push('base', 'In-built covers on CSI ' + siLabel(m.csi), rateAt(planKey('BASE', plan), i));
     if(m.ptd2) push('ptd2', 'Permanent Total Disablement Option II', rateAt(planKey('PTD', plan), i));
     const cov = m.cov || {};
-    if(cov.ttd){ const t = ladderIdx(PS_TTD_SI, m.ttdSi); if(t.snapped) snaps.push({ what:'TTD Sum Insured', asked:m.ttdSi, used:t.used });
+    /* eff is what is actually written for this person. A tick the plan or the relationship does
+       not allow stays on the screen, so switching back to Elite restores it, but it is neither
+       priced nor printed - the PDF and the cover pages read row.cov, which is eff. */
+    const eff = {};
+    /* the tick is not offered to a child, parent or parent-in-law; anything that still asks is
+       refused here, the way Loan Secure is refused under the Premium Plan, and psChecks says so */
+    if(cov.ttd && psCoverAllowed(PS_OPTBY('ttd'), m)){ eff.ttd = true; const t = ladderIdx(PS_TTD_SI, m.ttdSi); if(t.snapped) snaps.push({ what:'TTD Sum Insured', asked:m.ttdSi, used:t.used });
       push('ttd', 'Temporary Total Disablement on ' + siLabel(t.used), rateAt(planKey('TTD', plan), t.i)); }
-    if(cov.med) push('med', 'Medical Expenses', rateAt(planKey('MED', plan), i));
-    if(cov.ahc) push('ahc', 'Accident Hospital Cash', rateAt(planKey('AHC', plan), i));
-    if(cov.eld) push('eld', 'Elderly Care', rateAt(planKey('ELD', plan), i));
-    if(cov.chf) push('chf', 'Chauffeur Plan', rateAt(planKey('CHF', plan), i));
-    if(plan === 'E' && cov.loan){ const L = ladderIdx(PS_CSI, m.loanSi); if(L.snapped) snaps.push({ what:'Loan Secure Sum Insured', asked:m.loanSi, used:L.used });
+    if(cov.med){ eff.med = true; push('med', 'Medical Expenses', rateAt(planKey('MED', plan), i)); }
+    if(cov.ahc){ eff.ahc = true; push('ahc', 'Accident Hospital Cash', rateAt(planKey('AHC', plan), i)); }
+    if(cov.eld){ eff.eld = true; push('eld', 'Elderly Care', rateAt(planKey('ELD', plan), i)); }
+    if(cov.chf){ eff.chf = true; push('chf', 'Chauffeur Plan', rateAt(planKey('CHF', plan), i)); }
+    if(plan === 'E' && cov.loan){ eff.loan = true; const L = ladderIdx(PS_CSI, m.loanSi); if(L.snapped) snaps.push({ what:'Loan Secure Sum Insured', asked:m.loanSi, used:L.used });
       push('loan', 'Loan Secure on ' + siLabel(L.used), rateAt('LOAN_E', L.i)); }
-    if(plan === 'E' && cov.emi){ const E = ladderIdx(PS_CSI, m.emiSi); if(E.snapped) snaps.push({ what:'EMI Protection Sum Insured', asked:m.emiSi, used:E.used });
+    if(plan === 'E' && cov.emi){ eff.emi = true; const E = ladderIdx(PS_CSI, m.emiSi); if(E.snapped) snaps.push({ what:'EMI Protection Sum Insured', asked:m.emiSi, used:E.used });
       push('emi', 'EMI Protection on ' + siLabel(E.used), rateAt('EMI_E', E.i)); }
     const gross = parts.reduce((t, p) => t + p.amount, 0);
     const riskPct = PS_RISK[m.risk] || 0;
@@ -7206,7 +7246,7 @@ function psCompute(inp){
     const loadPct = riskPct + preExPct;                 /* loadings are additive, not multiplicative (guideline 10) */
     const load = gross * loadPct / 100;
     return { id:m.id, rel:m.rel, name:m.name, age:m.age, earning:!!m.earning, risk:m.risk, csi:m.csi, occupation:m.occupation || '',
-             ttdSi:m.ttdSi, loanSi:m.loanSi, emiSi:m.emiSi, cov:cov, ptd2:!!m.ptd2, preEx:!!m.preEx,
+             ttdSi:m.ttdSi, loanSi:m.loanSi, emiSi:m.emiSi, cov:eff, covAsked:cov, ptd2:!!m.ptd2, preEx:!!m.preEx,
              /* whole rupees per person, as the sheet prints and adds them; the sheet on file has no
                 fractional cover premium, so where exactly INLIAS rounds a loaded premium is not yet proven */
              parts, gross, riskPct, preExPct, loadPct, load, premium: Math.round(gross + load), snaps };
@@ -7220,11 +7260,30 @@ function psCompute(inp){
      Parivaar screen never sets it: an employee or agent is an intermediary. */
   const onlinePct = inp.online ? 10 : 0;
   const staffPct = staff ? PS_STAFF_PCT : 0;
-  const ncdPct = staff ? 0 : Math.min(20, Math.max(0, Number(inp.ncd) || 0));
-  const rawDisc = familyPct + onlinePct + staffPct + ncdPct;
-  const discPct = Math.min(PS_DISC_CAP, rawDisc);      /* every discount together is capped at 40% */
-  /* the discount is rounded to the rupee and deducted, as the sheet prints it ("LESS :Staff Discount 6,187.00") */
-  const discAmt = Math.round(subtotal * discPct / 100);
+  /* The No Claim Discount is earned by each insured person on their own claims (wordings IV(c)(ii):
+     "available separately in respect of each Insured Person, based on the individual claim
+     experience"), so a member who reported a claim, or who joins at this renewal, has none while
+     the rest keep theirs. A member with no figure of their own takes the policy-level one. The
+     40% ceiling is applied to each person's discount. */
+  const policyNcd = Number(inp.ncd) || 0;
+  rows.forEach((r, k) => {
+    const mm = (inp.members || [])[k] || {};
+    const own = (mm.ncd === undefined || mm.ncd === null || mm.ncd === '') ? policyNcd : Number(mm.ncd);
+    r.ncdPct = staff ? 0 : Math.min(20, Math.max(0, own || 0));
+    r.rawDisc = familyPct + onlinePct + staffPct + r.ncdPct;
+    r.discPct = Math.min(PS_DISC_CAP, r.rawDisc);
+  });
+  const ncdList = rows.map(r => r.ncdPct);
+  const ncdUniform = ncdList.every(v => v === ncdList[0]);
+  const ncdPct = !n ? 0 : (ncdUniform ? ncdList[0] : Math.max.apply(null, ncdList));
+  const rawDisc = !n ? familyPct + onlinePct + staffPct : Math.max.apply(null, rows.map(r => r.rawDisc));
+  const capped = rows.some(r => r.rawDisc > PS_DISC_CAP);
+  const discUniform = rows.every(r => r.discPct === rows[0].discPct);
+  /* the discount is rounded to the rupee and deducted, as the sheet prints it ("LESS :Staff Discount
+     6,187.00"); with one rate for everyone that is exactly the old single-line figure */
+  const discAmt = !n ? 0 : discUniform ? Math.round(subtotal * rows[0].discPct / 100)
+                : Math.round(rows.reduce((t, r) => t + r.premium * r.discPct / 100, 0));
+  const discPct = !n ? 0 : discUniform ? rows[0].discPct : (subtotal ? Math.round(discAmt / subtotal * 10000) / 100 : 0);
   let net = subtotal - discAmt;
   const minApplied = net < PS_MIN_PREMIUM;
   if(minApplied) net = PS_MIN_PREMIUM;
@@ -7240,7 +7299,8 @@ function psCompute(inp){
      because no intermediary is involved, so there is no one to pay in either case */
   const noComm = staff || !!inp.online;
   const commAmt = noComm ? 0 : Math.round(net * PS_COMM_PCT / 100);
-  return { plan, years, lt, rows, subtotal, familyPct, onlinePct, staffPct, ncdPct, rawDisc, discPct, discAmt,
+  return { plan, years, lt, rows, subtotal, familyPct, onlinePct, staffPct, ncdPct, ncdUniform, rawDisc, discPct, discAmt,
+           capped, discUniform,
            net, minApplied, gst, grand, commAmt, commPct: noComm ? 0 : PS_COMM_PCT, memberCount: n };
 }
 
@@ -7256,12 +7316,12 @@ function psChecks(inp, q){
   if(!self) w.push('No insured person is marked as Self (Proposer). Every policy must be proposed by an earning proposer.');
   if(selves.length > 1) w.push(selves.length + ' insured persons are marked Self (Proposer). Only one person on the policy can be the proposer.');
   if(self && self.earning === false) w.push('The proposer is marked as not earning. The proposer must be an earning member, and the Capital Sum Insured is set from the monthly gainful income.');
+  const noOcc = [];
   (inp.members || []).forEach((m, i) => {
     const r = PS_RELBY(m.rel);
     const sameRel = list.filter(x => x.rel === m.rel).length;
     const who = m.name ? (m.name + ' (' + r.n + ')') : (sameRel > 1 ? r.n + ' ' + (i + 1) : r.n);
     ((q.rows && q.rows[i] && q.rows[i].snaps) || []).forEach(sn => w.push(who + ': ' + sn.what + ' ' + siLabel(sn.asked) + ' is not a figure in the premium chart, so the quote uses the next lower tabulated figure, ' + siLabel(sn.used) + '.'));
-    if(m.cov && m.cov.ttd && floorLakh(m.csi * 0.25) > PS_TTD_SI[PS_TTD_SI.length - 1]) w.push(who + ': 25% of the CSI is ' + siLabel(floorLakh(m.csi * 0.25)) + ', but the premium chart stops at a TTD Sum Insured of ' + siLabel(PS_TTD_SI[PS_TTD_SI.length - 1]) + ', which is the most that can be quoted.');
     if(m.csi < PS_MIN_CSI) w.push(who + ': Capital Sum Insured ' + siLabel(m.csi) + ' is below the minimum of Rs.5,00,000.');
     /* 25% of a small proposer figure can fall under the per-person minimum; both rules cannot hold */
     if(i > 0 && csiSelf){
@@ -7275,13 +7335,17 @@ function psChecks(inp, q){
     else if((m.rel === 'son' || m.rel === 'daughter') && m.age > 18) w.push(who + ': a child over 18 can be covered only up to 25 while an unmarried full-time student at an accredited institution of higher learning. Confirm both before issuing.');
     if((m.rel === 'son' || m.rel === 'daughter') && m.age === 0) w.push(who + ': a child must be at least 90 days old at entry. Confirm the date of birth.');
     /* guideline 3 ii): children, parents and parents-in-law must be financially dependent */
-    if(r.dep && m.rel !== 'spouse' && m.earning) w.push(who + ': a ' + r.n.toLowerCase() + ' must be financially dependent on the proposer, so the non-earning weekly benefit cap of the plan applies.');
+    if(r.dep && m.rel !== 'spouse' && m.earning) w.push(who + ': a ' + r.n.toLowerCase() + ' must be financially dependent on the proposer, so cannot be covered as an earning member.');
     if(r.dep && m.rel !== 'spouse' && csiSelf && m.csi > floorLakh(csiSelf * r.cap)) w.push(who + ': CSI ' + siLabel(m.csi) + ' is above 25% of the proposer CSI (' + siLabel(floorLakh(csiSelf * r.cap)) + ').');
     if(m.rel === 'spouse' && !m.earning && csiSelf && m.csi > floorLakh(csiSelf * 0.5)) w.push(who + ': a non-earning spouse is limited to 50% of the proposer CSI (' + siLabel(floorLakh(csiSelf * 0.5)) + ').');
     /* an independent (earning) spouse is rated on their own declared income, so the dependent
        ceiling does not apply to them (underwriting guideline 4.3) */
     if(r.dep && !(m.rel === 'spouse' && m.earning) && m.csi > r.capAbs) w.push(who + ': CSI ' + siLabel(m.csi) + ' is above the dependent ceiling of ' + siLabel(r.capAbs) + '.');
-    if(m.cov && m.cov.ttd){
+    if(m.cov && m.cov.ttd && !psCoverAllowed(PS_OPTBY('ttd'), m)) w.push(who + ': Temporary Total Disablement is available only to the proposer and the spouse, so it has not been charged for a ' + r.n.toLowerCase() + '.');
+    if(m.cov && m.cov.ttd && psCoverAllowed(PS_OPTBY('ttd'), m)){
+      /* guideline 4.2(c): a weekly benefit for someone with no income is the case the guideline
+         singles out for strict due diligence */
+      if(m.rel === 'spouse' && !m.earning) w.push(who + ': Temporary Total Disablement for a non-earning spouse is limited to Rs.' + psWeeklyCap(false, plan).toLocaleString('en-IN') + ' a week under this plan (a TTD Sum Insured of at most ' + siLabel(psWeeklyCap(false, plan) * 100) + ') and to 25% of the spouse\'s own CSI, and the underwriter must exercise strict due diligence before accepting it.');
       if(m.ttdSi > floorLakh(m.csi * 0.25)) w.push(who + ': TTD Sum Insured ' + siLabel(m.ttdSi) + ' is above 25% of the CSI (' + siLabel(floorLakh(m.csi * 0.25)) + ').');
       if(m.ttdSi > 2500000) w.push(who + ': TTD Sum Insured above Rs.25 lakh is referred to the Head Office underwriter.');
       else if(m.ttdSi > 1000000) w.push(who + ': TTD Sum Insured above Rs.10 lakh is referred to the Regional Office underwriter.');
@@ -7294,8 +7358,9 @@ function psChecks(inp, q){
       if(m.ttdSi > useful) w.push(who + ': the weekly benefit is capped at Rs.' + wk.toLocaleString('en-IN') + ' for a' + (m.earning ? 'n earning' : ' non-earning') + ' person under this plan, so a TTD Sum Insured above ' + siLabel(useful) + ' costs premium that can never be claimed.');
       /* guideline 4.4: "in no case shall the weekly amount exceed the Insured Person's base weekly
          Gainful Income". The screen already holds the proposer's monthly income. */
-      const incM = Number(inp.monthlyIncome) || 0;
-      if(m.rel === 'self' && incM > 0){
+      const incM = m.rel === 'self' ? (Number(inp.monthlyIncome) || 0)
+                 : (m.rel === 'spouse' && m.earning ? (Number(m.income) || 0) : 0);
+      if(incM > 0){
         const weeklyIncome = Math.round(incM * 12 / 52);
         const usefulInc = Math.floor(weeklyIncome * 100 / 100000) * 100000;
         if(Math.round(m.ttdSi * 0.01) > weeklyIncome) w.push(who + ': 1% of the TTD Sum Insured is Rs.' + Math.round(m.ttdSi * 0.01).toLocaleString('en-IN') + ' a week, but the base weekly gainful income is about Rs.' + weeklyIncome.toLocaleString('en-IN') + ' and the policy can never pay more than that. A TTD Sum Insured above ' + siLabel(usefulInc) + ' is premium that can never be claimed.');
@@ -7307,9 +7372,40 @@ function psChecks(inp, q){
         if(si > m.csi) w.push(who + ': the ' + (k === 'loan' ? 'Loan Secure' : 'EMI Protection') + ' Sum Insured cannot exceed the Accidental Death CSI.');
       }
     });
+    /* the loan must stand in the insured person's own name with a licensed lender; a minor cannot hold one */
+    if(plan === 'E' && m.cov && (m.cov.loan || m.cov.emi) && m.age < 18) w.push(who + ': a person under 18 cannot hold a loan in their own name from a bank or financial institution, so ' + (m.cov.loan && m.cov.emi ? 'Loan Secure and EMI Protection' : m.cov.loan ? 'Loan Secure' : 'EMI Protection') + ' could never pay for this person. Remove it.');
+
+    /* guideline 8(ii): the category follows the declared occupation of each insured person */
+    const occ = String(m.occupation || '').trim();
+    if(!occ) noOcc.push(who);
+    else {
+      const entry = PS_OCC.find(o => o.n === occ);
+      if(entry){
+        if(PS_RANK[entry.r] > PS_RANK[m.risk]) w.push(who + ': the occupation declared, ' + entry.n + ', is Risk ' + entry.r + ', but the quote is rated as Risk ' + m.risk + '. The risk category must follow the declared occupation.');
+        /* wordings exclusion III.4(c) */
+        if(PS_OCC_EXCL[entry.n]) w.push(who + ': the policy does not cover death or injury ' + (PS_OCC_EXCL[entry.n] === 'air' ? 'while flying or travelling in an aircraft other than as a passenger' : 'while engaging in hazardous or adventurous sports, aviation or ballooning') + '. The declared occupation (' + entry.n + ') is that activity, so the Risk ' + entry.r + ' loading does not buy cover for accidents while doing it. Explain the exclusion to the proposer before issue and refer the proposal to the underwriter.');
+        /* guideline 2 and 4.3: the proposer, and a spouse rated on their own income, must have gainful income */
+        if(PS_OCC_NOINCOME.indexOf(entry.n) >= 0 && m.earning && (m.rel === 'self' || m.rel === 'spouse'))
+          w.push(who + ': the occupation declared (' + entry.n + ') carries no gainful income, but ' + (m.rel === 'self' ? 'the proposer must be an earning member whose CSI rests on income from active work' : 'this spouse is marked as earning and so escapes the non-earning 50% CSI and weekly benefit limits') + '. Pension, rent and investment income are not gainful income.');
+      } else {
+        const top = psFindOccupation(occ)[0];
+        if(!top) w.push(who + ': the occupation "' + occ + '" does not match any occupation in the list, so the risk category (Risk ' + m.risk + ') has not been checked against it. Confirm the category.');
+        else if(PS_RANK[top.risk] > PS_RANK[m.risk]) w.push(who + ': the occupation "' + occ + '" was typed but not picked from the list. Its closest match, ' + top.name + ', is Risk ' + top.risk + ', while the quote uses Risk ' + m.risk + '. Pick the matching occupation, or confirm the category.');
+      }
+    }
     /* income proof is called for on the proposer, and on an independent spouse rated on their own
        income; dependents covered off the proposer CSI need none (guideline 4.5) */
-    if(m.csi > 2000000 && (!r.dep || (m.rel === 'spouse' && m.earning))) w.push(who + ': income proof is required because the Accidental Death CSI exceeds Rs.20,00,000.');
+    if(m.csi > 2000000 && !r.dep) w.push(who + ': income proof is required because the Accidental Death CSI exceeds Rs.20,00,000.');
+    if(m.rel === 'spouse' && m.earning){
+      const incS = Number(m.income) || 0;
+      w.push(who + ': an earning spouse is covered on their own declared monthly gainful income, so documentary evidence of that income must be obtained whatever the Sum Insured.');
+      if(!incS) w.push(who + ': the spouse\'s monthly income has not been entered, so their CSI has not been checked against it (the 72 and 100 times limits) and the weekly benefit has not been checked against their weekly income.');
+      else {
+        const multS = m.csi / incS;
+        if(multS > 100) w.push(who + ': CSI is ' + multS.toFixed(0) + ' times the spouse\'s monthly income. Above 100 times is referred to the Head Office underwriter, and is accepted only case by case on due diligence.');
+        else if(multS > 72) w.push(who + ': CSI is ' + multS.toFixed(0) + ' times the spouse\'s monthly income, so the proposal goes to the Regional Office underwriter (up to 72 times needs no escalation).');
+      }
+    }
     if(m.csi > 5000000) w.push(who + ': Accidental Death CSI above Rs.50 lakh is referred to the Regional Office underwriter.');
   });
   const inc = Number(inp.monthlyIncome) || 0;
@@ -7324,7 +7420,11 @@ function psChecks(inp, q){
        72x / 100x escalation test in section 22 runs off it */
     w.push('The proposer monthly income has not been entered, so the Capital Sum Insured has not been checked against it. The 72 and 100 times limits that decide whether the proposal is escalated cannot be tested without it.');
   }
-  if(plan === 'P' && list.some(m => m.cov && (m.cov.loan || m.cov.emi))) w.push('Loan Secure and EMI Protection are available only under the Elite Plan.');
+  if(noOcc.length) w.push('Occupation not entered for ' + noOcc.join(', ') + '. The proposal must declare the occupation of every insured person, and the risk category is taken from it.');
+  if(plan === 'P' && list.some(m => m.cov && (m.cov.loan || m.cov.emi))) w.push('Loan Secure and EMI Protection are available only under the Elite Plan, so the ticks carried over from the Elite quote are left out of this premium and this quotation. They come back if the Elite Plan is chosen again.');
+  /* guideline 20(b) and (c): verified at the proposal stage, because this is where claims are later refused */
+  if(plan === 'E' && list.some(m => m.cov && m.cov.loan)) w.push('Loan Secure: before issue, see the sanction letter or loan statement and keep a copy. It must be a home loan in the insured person\'s own name, from a bank or financial institution licensed in India (not a moneylender or unregistered society), taken before the policy starts or declared and accepted with additional premium, and the loanee must not be over 70 at commencement.');
+  if(plan === 'E' && list.some(m => m.cov && m.cov.emi)) w.push('EMI Protection: before issue, see the sanction letter or loan statement and keep a copy. The loan must finance household items only (not a vehicle, property, education, mobile, jewellery, works of art or a personal loan), stand in the insured person\'s own name with a bank or financial institution licensed in India, and be declared and accepted when the insurance is taken. The loanee must not be over 70 at commencement.');
 
   /* guideline 20(b), repeated in the wordings and on the section 19 benefit table: "Only one loan
      per policy shall be covered." The chart prices the cover per insured person, so this is raised
@@ -7339,17 +7439,21 @@ function psChecks(inp, q){
   });
 
   /* guideline 4.10 and 21(c): the ladder is not simply the number of claim-free years */
-  if((Number(inp.ncd) || 0) > 0) w.push('No Claim Discount accrues only under the option already in force. If the insured is switching from Cumulative Bonus at this renewal the ladder starts again at the first slab, and it lapses entirely if the policy is renewed more than 30 days after expiry.');
-  if(q.rawDisc > PS_DISC_CAP) w.push('Discounts add up to ' + q.rawDisc.toFixed(2).replace(/\.00$/, '') + '%, so the total has been capped at ' + PS_DISC_CAP + '%.');
+  if((Number(inp.ncd) || 0) > 0 || list.some(m => (Number(m.ncd) || 0) > 0)) w.push('No Claim Discount accrues only under the option already in force, and each insured person earns it on their own claims: set it to nil on the card of anyone who reported a claim, and for anyone joining at this renewal. If the insured is switching from Cumulative Bonus at this renewal the ladder starts again at the first slab, and it lapses entirely if the policy is renewed more than 30 days after expiry.');
+  if(q.capped) w.push('Discounts add up to ' + q.rawDisc.toFixed(2).replace(/\.00$/, '') + '%, so the total has been capped at ' + PS_DISC_CAP + '%.');
   if(inp.staff) w.push('Staff discount is applied, so the family discount, the No Claim Discount and agency commission are not allowed.');
   /* both persons on the INLIAS sheet on file (R/433900/48/2027/1158) are Risk I with no loading, so the
      scope of a loading (every cover line, as applied here) and its rounding are not yet reconciled */
+  /* guideline 10 note and wordings V.8: loadings belong to fresh underwriting */
+  if(list.some(m => m.preEx)) w.push('The 30% pre-existing loading is applied at fresh underwriting - when the policy begins, or on an increase in Sum Insured at renewal. On a renewal it continues only where it was imposed when the policy began; a condition first declared after inception may be loaded only on the increase in Sum Insured, never on the Sum Insured already in force and never because of claims. This quote loads the whole premium of that person.');
   if((inp.members || []).some(m => (m.risk && m.risk !== 'I') || m.preEx)) w.push('An occupation or pre-existing loading is applied to every cover of that person. This has not yet been checked against an INLIAS computation sheet - confirm the loaded premium before issuing.');
   if(q.minApplied) w.push('The calculated premium is below the minimum of Rs.' + PS_MIN_PREMIUM + ', so the minimum premium has been charged.');
   return w;
 }
 
 /* ── member rows ───────────────────────────────────────────────────────── */
+/* the No Claim Discount chosen at policy level; each insured person starts from it */
+function psNcdPolicy(){ const e = $('psNcd'); return e ? (parseFloat(e.value) || 0) : 0; }
 function addMember(pre){
   if(members.length >= PS_MAX_MEMBERS) return;
   const isFirst = members.length === 0;
@@ -7357,7 +7461,7 @@ function addMember(pre){
     id: ++seq, rel: isFirst ? 'self' : 'spouse', name: '', age: isFirst ? 35 : 32,
     earning: isFirst, risk: 'I', csi: isFirst ? 2000000 : 1000000,
     cov: {}, ttdSi: 500000, loanSi: 1000000, emiSi: 500000, ptd2: false, preEx: false,
-    occupation: ''
+    occupation: '', income: 0, ncd: psNcdPolicy()
   }, pre || {}));
   psClampDependents();   /* open a new dependent inside the ceiling, not above it */
   renderMembers();
@@ -7374,10 +7478,13 @@ function psClampDependents(){
     const cap = Math.max(psDepCsiCap(m, proposerCsi), PS_MIN_CSI);
     if(m.csi > cap){
       m.csi = nearestCsi(cap);
-      const t = psTtdCap(m, psPlan); if(t > 0 && m.ttdSi > t) m.ttdSi = t;
       if(m.loanSi > m.csi) m.loanSi = nearestCsi(m.csi);
       if(m.emiSi > m.csi) m.emiSi = nearestCsi(m.csi);
     }
+    /* The TTD ceiling moves with the earning flag and the relationship as well as the CSI - an
+       earning spouse re-entered as not earning keeps the same CSI but drops to the Rs.5,000 cap -
+       so it is re-applied every time, not only when the CSI was cut. */
+    const t = psTtdCap(m, psPlan); if(t > 0 && m.ttdSi > t) m.ttdSi = t;
   });
 }
 
@@ -7405,7 +7512,9 @@ function renderMembers(){
     const tick = (cls, attr, on, name, sub) =>
       '<label class="addon ps-tick"><input type="checkbox" class="' + cls + '" data-id="' + m.id + '" ' + attr + (on ? ' checked' : '') + ' />' +
       '<span class="addon-name">' + name + '</span>' + (sub ? '<small>' + sub + '</small>' : '') + '</label>';
-    const chips = PS_OPT.filter(o => o.plans.indexOf(psPlan) >= 0).map(o => tick('ps-cov', 'data-cov="' + o.k + '"', m.cov && m.cov[o.k], o.s, o.d)).join('');
+    /* a cover the person cannot take is neither offered nor kept - e.g. a spouse re-entered as a son */
+    PS_OPT.forEach(o => { if(m.cov && m.cov[o.k] && !psCoverAllowed(o, m)) m.cov[o.k] = false; });
+    const chips = PS_OPT.filter(o => o.plans.indexOf(psPlan) >= 0 && psCoverAllowed(o, m)).map(o => tick('ps-cov', 'data-cov="' + o.k + '"', m.cov && m.cov[o.k], o.s, o.d)).join('');
     return '<div class="member-item" data-id="' + m.id + '" style="display:block;padding:12px">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span class="member-badge">' + (i === 0 ? 'Proposer' : 'Member ' + (i + 1)) + '</span>' +
         '<span style="font-size:11px;color:var(--mute)">Risk Category ' + m.risk + ' &middot; loading ' + (PS_RISK[m.risk] || 0) + '%</span></div>' +
@@ -7435,6 +7544,14 @@ function renderMembers(){
            quadrupled the TTD Sum Insured on offer, and the premium with it. */
         '<div class="field"><label class="lbl">Earning member</label><select class="ps-earn" data-id="' + m.id + '"' + (depOnly ? ' disabled' : '') + '><option value="1"' + (m.earning ? ' selected' : '') + '>Earning</option><option value="0"' + (!m.earning ? ' selected' : '') + '>Not earning</option></select>' + (depOnly ? '<div class="hint">A ' + r.n.toLowerCase() + ' must be financially dependent on the proposer</div>' : '') + '</div>' +
       '</div>' +
+      /* guideline 4.3: an independent spouse is rated on their own income, so the screen needs it */
+      (m.rel === 'spouse' && m.earning ? '<div class="field"><label class="lbl">Spouse monthly income <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; the CSI of an earning spouse is set from their own income, with documentary evidence</span></label>' +
+        '<div class="input-prefix" data-prefix="&#8377;"><input type="number" class="ps-inc" data-id="' + m.id + '" value="' + (m.income || '') + '" placeholder="e.g. 40000" min="0" step="1000" inputmode="numeric" /></div></div>' : '') +
+      /* the No Claim Discount is this person's own; shown once a renewal NCD is in play */
+      (!($('psStaff') && $('psStaff').checked) && (psNcdPolicy() > 0 || members.some(x => (x.ncd || 0) > 0))
+        ? '<div class="field"><label class="lbl">No Claim Discount for this person <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; nil if this person reported a claim or joins at this renewal</span></label>' +
+          '<select class="ps-ncd" data-id="' + m.id + '">' + [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20].map(v => '<option value="' + v + '"' + (v === (m.ncd || 0) ? ' selected' : '') + '>' + (v ? v + '%' : 'Nil') + '</option>').join('') + '</select></div>'
+        : '') +
       '<div class="field"><label class="lbl">Optional covers for this person <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; tick to add</span></label><div class="ps-tick-grid">' +
         tick('ps-flag', 'data-flag="ptd2"', m.ptd2, 'PTD Option II', (psPlan === 'E' ? '200%' : '150%') + ' of CSI on permanent total disablement') +
         chips +
@@ -7442,7 +7559,7 @@ function renderMembers(){
       '<div class="field"><label class="lbl">Loading</label><div class="ps-tick-grid">' +
         tick('ps-flag', 'data-flag="preEx"', m.preEx, 'Pre-existing condition', '+30% on this person\'s premium (guideline 10)') +
       '</div></div>' +
-      (m.cov && m.cov.ttd ? '<div class="field-row"><div class="field"><label class="lbl">TTD Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; up to 25% of CSI</span></label><select class="ps-ttdsi" data-id="' + m.id + '">' + ttdOptions(m.ttdSi, psTtdCap(m, psPlan)) + '</select><div class="hint">Weekly benefit &#8377;' + fmt(weekly) + ' for up to 100 weeks</div></div><div class="field"></div></div>' : '') +
+      (m.cov && m.cov.ttd ? '<div class="field-row"><div class="field"><label class="lbl">TTD Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; ' + (m.earning ? 'up to 25% of CSI' : 'non-earning spouse: up to 25% of CSI and &#8377;' + fmt(psWeeklyCap(false, psPlan)) + ' a week') + '</span></label><select class="ps-ttdsi" data-id="' + m.id + '">' + ttdOptions(m.ttdSi, psTtdCap(m, psPlan)) + '</select><div class="hint">Weekly benefit &#8377;' + fmt(weekly) + ' for up to 100 weeks</div></div><div class="field"></div></div>' : '') +
       ((psPlan === 'E' && m.cov && m.cov.loan) ? '<div class="field"><label class="lbl">Loan Secure Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; one home loan per policy, not above the CSI</span></label><select class="ps-loansi" data-id="' + m.id + '">' + csiOptions(m.loanSi, 100000, m.csi) + '</select></div>' : '') +
       ((psPlan === 'E' && m.cov && m.cov.emi) ? '<div class="field"><label class="lbl">EMI Protection Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; household goods loan, maximum 12 EMIs</span></label><select class="ps-emisi" data-id="' + m.id + '">' + csiOptions(m.emiSi, 100000, m.csi) + '</select></div>' : '') +
       (i === 0 ? '' : '<button class="member-remove" data-id="' + m.id + '" title="Remove" type="button">&times;</button>') +
@@ -7451,6 +7568,8 @@ function renderMembers(){
 
   host.querySelectorAll('.ps-rel').forEach(el => el.addEventListener('change', () => { const m = byId(el.dataset.id); m.rel = el.value; const r = PS_RELBY(m.rel); if(r.dep && m.rel !== 'spouse') m.earning = false; psClampDependents(); renderMembers(); }));
   host.querySelectorAll('.ps-name').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).name = el.value; }));
+  host.querySelectorAll('.ps-ncd').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).ncd = parseFloat(el.value) || 0; scheduleAutoCalcPaps(); }));
+  host.querySelectorAll('.ps-inc').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).income = parseFloat(el.value) || 0; scheduleAutoCalcPaps(); }));
   host.querySelectorAll('.ps-age').forEach(el => el.addEventListener('input', () => { byId(el.dataset.id).age = parseInt(el.value, 10) || 0; }));
   host.querySelectorAll('.ps-risk').forEach(el => el.addEventListener('change', () => { byId(el.dataset.id).risk = el.value; renderMembers(); }));
   host.querySelectorAll('.ps-occ').forEach(el => {
@@ -7459,6 +7578,8 @@ function renderMembers(){
     const pick = (risk, name) => {
       const m = byId(el.dataset.id);
       m.occupation = name; m.risk = risk;
+      /* a spouse declared with no gainful income falls back under the non-earning limits */
+      if(m.rel === 'spouse' && m.earning && PS_OCC_NOINCOME.indexOf(name) >= 0){ m.earning = false; psClampDependents(); }
       renderMembers();                       /* redraw so the class select and the loading follow */
       scheduleAutoCalcPaps();
     };
@@ -7559,23 +7680,28 @@ function calculate(){
      says the total was capped. Otherwise the parts are allocated to add up to the total exactly,
      the last one carrying any rounding. */
   const _dParts = [];
-  if(q.familyPct) _dParts.push(['Family discount &middot; ' + q.familyPct + '% (' + q.memberCount + ' insured persons)', q.familyPct]);
-  if(q.onlinePct) _dParts.push(['Direct / portal discount &middot; ' + q.onlinePct + '%', q.onlinePct]);
-  if(q.staffPct)  _dParts.push(['Staff discount &middot; ' + q.staffPct + '%', q.staffPct]);
-  if(q.ncdPct)    _dParts.push(['No Claim Discount &middot; ' + q.ncdPct + '%', q.ncdPct]);
-  const _capped = q.rawDisc > q.discPct + 0.001;
+  const _each = pct => q.subtotal * pct / 100;
+  if(q.familyPct) _dParts.push(['Family discount &middot; ' + q.familyPct + '% (' + q.memberCount + ' insured persons)', _each(q.familyPct)]);
+  if(q.onlinePct) _dParts.push(['Direct / portal discount &middot; ' + q.onlinePct + '%', _each(q.onlinePct)]);
+  if(q.staffPct)  _dParts.push(['Staff discount &middot; ' + q.staffPct + '%', _each(q.staffPct)]);
+  if(q.rows.some(r => r.ncdPct > 0)){
+    const _ncdLbl = q.ncdUniform ? q.ncdPct + '%'
+      : 'by person (' + q.rows.map(r => (r.name || PS_RELBY(r.rel).n) + ' ' + (r.ncdPct ? r.ncdPct + '%' : 'nil')).join(', ') + ')';
+    _dParts.push(['No Claim Discount &middot; ' + _ncdLbl, q.rows.reduce((t, r) => t + r.premium * r.ncdPct / 100, 0)]);
+  }
+  const _capped = q.capped;
   if(_capped){
     _dParts.forEach(p => { h += line(p[0], '', 'sub'); });
     if(_dParts.length) h += line('&nbsp;&nbsp;These add up to ' + q.rawDisc.toFixed(2).replace(/\.00$/, '') + '%, above the 40% ceiling', '', 'sub');
   } else {
     let _spent = 0;
     _dParts.forEach((p, i) => {
-      const amt = (i === _dParts.length - 1) ? (q.discAmt - _spent) : Math.round(q.subtotal * p[1] / 100);
+      const amt = (i === _dParts.length - 1) ? (q.discAmt - _spent) : Math.round(p[1]);
       _spent += amt;
       h += line(p[0], '&minus; &#8377; ' + fmt(amt), 'sub');
     });
   }
-  if(q.discPct) h += line('Total discount &middot; ' + q.discPct.toFixed(2).replace(/\.00$/, '') + '%' + (_capped ? ' (capped)' : ''), '&minus; &#8377; ' + fmt(q.discAmt));
+  if(q.discPct) h += line('Total discount &middot; ' + q.discPct.toFixed(2).replace(/\.00$/, '') + '%' + (q.discUniform ? '' : ' overall') + (_capped ? ' (capped)' : ''), '&minus; &#8377; ' + fmt(q.discAmt));
   h += line('Net Premium', '&#8377; ' + fmt(q.net), 'total');
   h += line('GST', 'Nil &middot; not charged on this policy', 'sub');
   $('psBreakdown').innerHTML = h;
@@ -7626,8 +7752,8 @@ function buildPDF(returnBlob){
     if(q.staffPct)  parts.push('Staff ' + q.staffPct + '%');
     if(q.familyPct) parts.push('Family ' + q.familyPct + '%');
     if(q.onlinePct) parts.push('Direct / portal ' + q.onlinePct + '%');
-    if(q.ncdPct)    parts.push('No Claim ' + q.ncdPct + '%');
-    const capped = q.rawDisc > q.discPct ? ' (capped at ' + q.discPct + '%)' : '';
+    if(q.rows.some(r => r.ncdPct > 0)) parts.push('No Claim ' + (q.ncdUniform ? q.ncdPct + '%' : 'by person'));
+    const capped = q.capped ? ' (capped at ' + PS_DISC_CAP + '%)' : '';
     return 'Less: Discount \u2013 ' + parts.join(' + ') + capped;
   })();
 
@@ -7656,6 +7782,7 @@ function buildPDF(returnBlob){
       if(o.k === 'emi') v = R(r.emiSi);
       rows.push({ label:o.s, value:v });
     }});
+    if(!q.ncdUniform) rows.push({ label:'No Claim Discount', value:r.ncdPct ? r.ncdPct + '%' : 'Nil' });
     rows.push({ label:'Premium for this person' + (q.discAmt > 0 ? ' (before discount)' : ''), value:R(share[i]) });
     left.push({ sub:(i + 1) + '. ' + (r.name || rel.n), rows });
   });
@@ -7675,7 +7802,7 @@ function buildPDF(returnBlob){
   const notes = [
     'Capital Sum Insured is fixed separately for each insured person. One plan applies to every insured person on the policy; the plan can be changed only at renewal.',
     'All in-built benefits of the plan are included in the premium shown. Optional covers are charged only where they are listed against an insured person above.',
-    'Cover is worldwide and applies 24 hours a day. Benefits are payable on death, disablement or injury caused solely and directly by an accident, subject to the policy terms.',
+    'Cover applies to accidents anywhere in the world, 24 hours a day (Accident Hospital Cash only for hospitalisation in India). Benefits are payable on death, disablement or injury caused solely and directly by an accident, subject to the policy terms.',
     'Cheque / DD payable to: The Oriental Insurance Company Limited. This is a system generated quote and does not require signature. Premium and terms may change at the time of issuance of the policy, and acceptance is subject to underwriting.'
   ];
   const safe = String(q.proposer || 'Customer').replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_').substring(0, 40);
@@ -7700,7 +7827,7 @@ function safeName(q){ return String(q.proposer || 'Quote').replace(/[^a-zA-Z0-9\
 
 /* ── cover & conditions pages (from the CIS, prospectus and policy wordings) ── */
 const PAPS_COVER_DATA = {
-  intro: 'Personal Accident Parivaar Suraksha covers accidental death, disablement and related expenses of the insured persons named in the schedule, anywhere in the world, 24 hours a day. This summary is taken from the Customer Information Sheet and the policy wordings; the policy wording prevails for any interpretation.',
+  intro: 'Personal Accident Parivaar Suraksha covers accidental death, disablement and related expenses of the insured persons named in the schedule, for accidents anywhere in the world, 24 hours a day; Accident Hospital Cash is paid only for hospitalisation in India, and modifications to a residence or vehicle must be carried out in India. This summary is taken from the Customer Information Sheet and the policy wordings; the policy wording prevails for any interpretation.',
   /* [benefit, what the Premium Plan pays, what the Elite Plan pays]; an empty string means the
      benefit is not available under that plan and the row is left off that plan's schedule */
   inbuilt: [
@@ -7708,28 +7835,28 @@ const PAPS_COVER_DATA = {
     ['Permanent Total Disablement', 'Option I pays 100% of the Capital Sum Insured. Option II pays 150%, on payment of additional premium.', 'Option I pays 100% of the Capital Sum Insured. Option II pays 200%, on payment of additional premium.'],
     ['Permanent Partial Disablement', 'A percentage of the Capital Sum Insured according to the scale of compensation printed in the policy.', 'A percentage of the Capital Sum Insured according to the scale of compensation printed in the policy.'],
     ['Broken Bones / Fracture', 'The Sum Insured for this benefit is 10% of the Capital Sum Insured, up to Rs. 5 lakh. What is paid is a percentage of that sum according to the scale of fractures and dislocations printed in the policy.', 'The Sum Insured for this benefit is 25% of the Capital Sum Insured, up to Rs. 10 lakh. What is paid is a percentage of that sum according to the scale of fractures and dislocations printed in the policy.'],
-    ['Burns', '10% of the Capital Sum Insured, up to Rs. 5 lakh.', '25% of the Capital Sum Insured, up to Rs. 10 lakh.'],
+    ['Burns', 'The Sum Insured for this benefit is 10% of the Capital Sum Insured, up to Rs. 5 lakh. What is paid is a percentage of that sum according to the degree of the burns and the body surface affected, as scheduled in the policy.', 'The Sum Insured for this benefit is 25% of the Capital Sum Insured, up to Rs. 10 lakh. What is paid is a percentage of that sum according to the degree of the burns and the body surface affected, as scheduled in the policy.'],
     ['Coma', '10% of the Capital Sum Insured, up to Rs. 5 lakh.', '25% of the Capital Sum Insured, up to Rs. 10 lakh.'],
     ['Funeral Expenses', '1% of the Capital Sum Insured, up to Rs. 10,000.', '1% of the Capital Sum Insured, up to Rs. 25,000.'],
     ['Transportation of Mortal Remains', 'Actuals up to 2% of the Capital Sum Insured, maximum Rs. 20,000.', 'Actuals up to 2% of the Capital Sum Insured, maximum Rs. 40,000.'],
-    ['Emergency Road Ambulance', '2% of the Capital Sum Insured, up to Rs. 5,000. Payable only where a claim is admissible under benefits 1 to 6.', '2% of the Capital Sum Insured, up to Rs. 20,000 where the Capital Sum Insured is Rs. 30 lakh or less and up to Rs. 30,000 above that. Payable only where a claim is admissible under benefits 1 to 6.'],
-    ['Education Fund', 'For up to two dependent children, 10% of the Capital Sum Insured per child, maximum Rs. 2 lakh per child, up to age 25.', 'For up to two dependent children, 10% of the Capital Sum Insured per child, maximum Rs. 4 lakh per child, up to age 25.'],
+    ['Emergency Road Ambulance', '2% of the Capital Sum Insured, up to Rs. 5,000. Payable only where a claim is admissible for accidental death, permanent total or partial disablement, broken bones, burns or coma.', '2% of the Capital Sum Insured, up to Rs. 20,000 where the Capital Sum Insured is Rs. 30 lakh or less and up to Rs. 30,000 above that. Payable only where a claim is admissible for accidental death, permanent total or partial disablement, broken bones, burns or coma.'],
+    ['Education Fund', 'On accidental death or permanent total disablement of the insured person, reimburses the tuition and hostel fees of up to two dependent children in full-time study, up to 10% of the Capital Sum Insured and Rs. 2 lakh per child, up to age 25.', 'On accidental death or permanent total disablement of the insured person, reimburses the tuition and hostel fees of up to two dependent children in full-time study, up to 10% of the Capital Sum Insured and Rs. 4 lakh per child, up to age 25.'],
     ['Family Support (Double Benefit)', 'Where the insured person and the insured spouse are both injured in the same accident and both die of those injuries within 365 days, an additional 100% of the Capital Sum Insured is paid for each of them, over and above the accidental death benefit. The amount does not change with the number of children.', 'Where the insured person and the insured spouse are both injured in the same accident and both die of those injuries within 365 days, an additional 100% of the Capital Sum Insured is paid for each of them, over and above the accidental death benefit. The amount does not change with the number of children.'],
     ['Cost of Prosthetics / Wheelchair', '', 'Actuals up to Rs. 30,000 per policy, where a permanent total or permanent partial disablement claim has been accepted.'],
-    ['Loss of Employment', 'A one-time payment of 2% of the Capital Sum Insured or two months gross monthly income, whichever is less, where permanent total disablement causes involuntary loss of employment. Gross monthly income for this benefit excludes bonuses, tips, commissions and other special compensation, unless commission is one component of salary. The insured person must have been in gainful employment with the same employer for at least six months before the accident.', 'A one-time payment of 2% of the Capital Sum Insured or two months gross monthly income, whichever is less, where permanent total disablement causes involuntary loss of employment. Gross monthly income for this benefit excludes bonuses, tips, commissions and other special compensation, unless commission is one component of salary. The insured person must have been in gainful employment with the same employer for at least six months before the accident.'],
-    ['Modification of Residence or Vehicle', 'On permanent total disablement, 25% of the Capital Sum Insured, up to Rs. 1 lakh.', 'On permanent total disablement, 25% of the Capital Sum Insured, up to Rs. 3 lakh.'],
-    ['Emergency Air Ambulance', '', 'Actuals up to Rs. 2 lakh within India and Rs. 10 lakh outside India. Payable only where a claim is admissible under benefits 1 to 6.'],
+    ['Loss of Employment', 'A one-time payment of 2% of the Capital Sum Insured or two months gross monthly income, whichever is less, where permanent total disablement causes involuntary loss of employment. Gross monthly income for this benefit excludes bonuses, tips, commissions and other special compensation, unless commission is one component of salary. The insured person must have been in gainful employment with the same employer continuously for at least six months immediately before the accident.', 'A one-time payment of 2% of the Capital Sum Insured or two months gross monthly income, whichever is less, where permanent total disablement causes involuntary loss of employment. Gross monthly income for this benefit excludes bonuses, tips, commissions and other special compensation, unless commission is one component of salary. The insured person must have been in gainful employment with the same employer continuously for at least six months immediately before the accident.'],
+    ['Modification of Residence or Vehicle', 'On permanent total disablement, 25% of the Capital Sum Insured, up to Rs. 1 lakh, for modifications carried out in India with the company\'s prior approval.', 'On permanent total disablement, 25% of the Capital Sum Insured, up to Rs. 3 lakh, for modifications carried out in India with the company\'s prior approval.'],
+    ['Emergency Air Ambulance', '', 'Actuals up to Rs. 2 lakh within India and Rs. 10 lakh outside India. Payable only where a claim is admissible for accidental death, permanent total or partial disablement, broken bones, burns or coma.'],
     ['Transportation of Imported Medicines or Implants', '', 'Up to 5% of the Capital Sum Insured, maximum Rs. 25,000.'],
     ['Health Insurance Premium Indemnity', 'Where a claim for accidental death or permanent total disablement has been admitted, the premium for the next renewal of a health insurance policy that was already in force on the date of the accident, up to Rs. 1 lakh in the policy period. Payable once only for the same insured person, and for one renewal cycle.', 'Where a claim for accidental death or permanent total disablement has been admitted, the premium for the next renewal of a health insurance policy that was already in force on the date of the accident, up to Rs. 1 lakh in the policy period. Payable once only for the same insured person, and for one renewal cycle.']
   ],
   optional: {
-    ttd: ['Pays 1% of the Temporary Total Disablement Sum Insured every week while the insured person is totally disabled, for a maximum of 100 weeks.',
+    ttd: ['Pays 1% of the Temporary Total Disablement Sum Insured every week while the insured person is totally disabled, for a maximum of 100 weeks. This cover is available to the proposer and the spouse.',
           'The weekly amount is capped at Rs. 20,000 under the Premium Plan and Rs. 50,000 under the Elite Plan for an earning person, and at Rs. 5,000 and Rs. 10,000 respectively for a non-earning spouse, and can never exceed the weekly gainful income.',
           'The Sum Insured for this section cannot exceed 25% of the Capital Sum Insured.'],
     med: ['Reimburses hospitalisation expenses following an accident, up to 10% of the Capital Sum Insured.',
-          'Premium Plan pays the least of the Sum Insured, actuals, or 40% of the admissible claim under benefits 1 to 6; the Elite Plan pays up to 100% of that claim.',
+          'Premium Plan pays the least of the Sum Insured, actuals, or 40% of the claim admitted for accidental death, permanent total or partial disablement, broken bones, burns or coma; the Elite Plan pays up to 100% of that claim.',
           'The Sum Insured is restored once under the Premium Plan and twice under the Elite Plan, on full utilisation within the policy period.'],
-    ahc:  ['Pays 0.1% of the Capital Sum Insured for each day of hospitalisation after an accident, for a maximum of 30 days in a policy year.',
+    ahc:  ['Pays 0.1% of the Capital Sum Insured for each completed 24 hours of in-patient hospitalisation in India after an accident (at least 24 hours in hospital), for a maximum of 30 days in a policy year. The hospitalisation must begin in the policy year in which the accident occurs.',
            'The daily amount is capped at Rs. 1,000 under the Premium Plan and Rs. 2,500 under the Elite Plan.'],
     eld:  ['Where a claim for accidental death or permanent total disablement of 100% has been admitted, the Sum Insured for this cover is paid in addition, to support the dependent parents, parents-in-law or grandparents of the insured person.',
            'The Sum Insured is 10% of the Capital Sum Insured up to Rs. 5 lakh under the Premium Plan and 25% up to Rs. 10 lakh under the Elite Plan. The benefit is payable only once per policy year per policy.'],
@@ -7738,9 +7865,10 @@ const PAPS_COVER_DATA = {
            'The daily amount is capped at Rs. 1,000 under the Premium Plan and Rs. 2,500 under the Elite Plan.'],
     loan: ['Elite Plan only. Where a claim for accidental death has been admitted under the policy, this pays in addition the outstanding principal of one eligible home loan standing in the name of the insured person as on the date of the accident, up to the Sum Insured opted, which cannot exceed the Accidental Death Capital Sum Insured.',
            'The loan must stand in the individual name of the insured person and must have been availed from a bank or a financial institution licensed in India; loans from moneylenders, unregistered credit societies or other unorganised lenders are not eligible. The age of the loanee must not exceed 70 years at the commencement of the policy.',
+           'The loan must have been taken before the policy began, or declared during the policy period and accepted on payment of additional premium. Penal charges, overdues and interest arrears are not covered.',
            'Only one loan per policy is covered. Where more than one eligible loan exists, the highest outstanding principal is the one considered.'],
     emi:  ['Elite Plan only. Where a claim for accidental death has been admitted under the policy, this pays in addition the EMIs falling due for up to 12 months from the date of the accident, or the remaining EMIs if fewer, up to the Sum Insured opted.',
-           'The loan must be for household items such as furniture, appliances and electronics. Loans for vehicles, real estate, education, mobiles, jewellery and works of art are not covered.',
+           'The loan must be for household items such as furniture, appliances and electronics. Loans for vehicles, real estate, education, mobiles, jewellery and works of art are not covered. Where more than one eligible loan exists, only the highest EMI of any one loan is covered. Penal charges, overdues and interest arrears are not covered.',
            'The loan must stand in the individual name of the insured person, must be sanctioned by a bank or a financial institution licensed in India, and the age of the loanee must not exceed 70 years at the commencement of the policy. It must have been taken before the policy began, or declared during the policy period and accepted on payment of additional premium.']
   },
   exclusions: [
@@ -7761,15 +7889,15 @@ const PAPS_COVER_DATA = {
     ['Who can be covered', 'An earning adult proposer, the legally wedded spouse, dependent children between 90 days and 18 years (25 years while a full-time student, unmarried), dependent natural or adoptive parents, and dependent parents-in-law while the marriage subsists.'],
     ['Age at entry', 'Minimum 18 years for the proposer and maximum 70 years for every insured person.'],
     ['Number of members', 'A maximum of 10 members including the proposer may be covered under one policy.'],
-    ['Capital Sum Insured', 'Minimum Rs. 5,00,000 and maximum Rs. 5,00,00,000 for each insured person, based on the monthly gainful income of the proposer. A non-earning spouse is limited to 50% of the proposer CSI subject to Rs. 50 lakh; dependent children, parents and parents-in-law to 25% subject to Rs. 25 lakh.'],
+    ['Capital Sum Insured', 'Minimum Rs. 5,00,000 and maximum Rs. 5,00,00,000 for each insured person. The proposer\'s Capital Sum Insured is based on the proposer\'s monthly gainful income, and an earning spouse\'s on his or her own. A non-earning spouse is limited to 50% of the proposer CSI subject to Rs. 50 lakh; dependent children, parents and parents-in-law to 25% subject to Rs. 25 lakh.'],
     ['Policy term', 'One, two or three years, against a single premium paid at inception.']
   ],
   conditions: [
-    ['Cumulative Bonus or No Claim Discount', 'At inception the insured chooses either a Cumulative Bonus, which raises the death and disablement compensation by 5% of CSI for every claim-free year up to 50%, or a No Claim Discount of 2% of the renewal premium for every claim-free year up to 20%. Only one of the two applies, the choice can be changed only at renewal, and the benefit becomes nil for an insured person who reports a claim.'],
+    ['Cumulative Bonus or No Claim Discount', 'At inception the insured chooses either a Cumulative Bonus, which raises the compensation for accidental death, permanent total disablement and permanent partial disablement by 5% of the CSI for every claim-free year the policy stays continuously in force, up to 50%, or a No Claim Discount of 2% of the renewal premium for every claim-free year up to 20%. Only one of the two applies, the choice can be changed only at renewal, and each insured person earns it separately: it becomes nil for an insured person who reports a claim.'],
     ['Free look', 'Thirty days from receipt of the policy to review it and return it if it is not acceptable, provided no claim has been made. The refund is the premium paid less the proportionate risk premium for the period on cover, medical examination costs and stamp duty. The free-look period applies when the policy is first taken; it is not available on a renewal.'],
-    ['Cancellation', 'The insured may cancel at any time without giving reasons. For a term of up to one year with no claim, the proportionate premium for the unexpired period is refunded; for longer terms, the premium is refunded for the policy years whose risk has not commenced. The company may cancel only for established fraud, on seven days notice.'],
+    ['Cancellation', 'The insured may cancel at any time by written notice. For a term of up to one year with no claim, the proportionate premium for the unexpired period is refunded; for longer terms, the premium for the policy years whose risk has not commenced is refunded proportionately, provided no claim has been made in that policy year. The company may cancel only for established fraud, on seven days notice.'],
     ['Grace period and renewal', 'Thirty days from the due date. A policy renewed within the grace period keeps the Sum Insured and the accrued Cumulative Bonus or No Claim Discount; there is no cover during the grace period until the renewal premium is received. Renewal is not refused because a claim was made.'],
-    ['Adding a member mid-term', 'A newly married spouse within 60 days of marriage, a new-born between 90 and 180 days of age whose mother is herself insured under this policy, and an adopted child between 90 days and 18 years within 60 days of adoption may be added on pro-rata premium. A fresh proposal form is required and the addition takes effect only on the endorsement being issued against the additional premium. Optional covers cannot be added mid-term except Loan Secure and EMI Protection.'],
+    ['Adding a member mid-term', 'A newly married spouse within 60 days of marriage, a new-born between 90 and 180 days of age whose mother is herself insured under this policy, and an adopted child between 90 days and 18 years within 60 days of adoption may be added on pro-rata premium. A fresh proposal form is required and the addition takes effect only on the endorsement being issued against the additional premium. Optional covers cannot be added mid-term, except Loan Secure and EMI Protection, which may be added on declaration of the loan, subject to underwriting and payment of additional premium.'],
     ['End of cover for an insured person', 'Cover for an insured person ends as soon as 100% of the Sum Insured is admitted and paid under accidental death, permanent total disablement, permanent partial disablement or temporary total disablement.'],
     ['Nomination', 'The proposer must nominate at inception. For the other insured persons the proposer is deemed to be the nominee. A nomination may be changed at any time and is recorded by endorsement without any fee.'],
     ['Disclosure', 'All information in the proposal must be complete and correct, and any change in occupation or business must be notified to the company immediately.']
@@ -7817,7 +7945,8 @@ function drawPapsCoverPages(doc, q){
   P.block('Excluded', D.exclusions, { numbered:true, tint:'red' }); P.gap(8);
 
   P.section('IMPORTANT CONDITIONS');
-  D.conditions.forEach(r => P.block(r[0], [r[1]])); P.gap(8);
+  D.conditions.forEach(r => P.block(r[0], [q.plan !== 'E' && r[0] === 'Adding a member mid-term'
+    ? r[1].replace(/, except Loan Secure and EMI Protection,[^.]*\./, '.') : r[1]])); P.gap(8);
 
   P.section('HOW TO MAKE A CLAIM');
   P.block('The insured person must', D.claims, { numbered:true }); P.gap(8);
@@ -7885,11 +8014,11 @@ const PAPS_VERIFIED = [
     check:()=>{ const mk = n => { const ms = []; for(let i = 1; i <= n; i++) ms.push({ id:i, rel:i === 1 ? 'self' : 'spouse', age:40, earning:true, risk:'I', csi:5000000, loanSi:1000000, cov:{ loan:true } });
                                   return psChecks({ plan:'E', term:1, members:ms }, psCompute({ plan:'E', term:1, members:ms })).some(x => /only one loan per policy/i.test(x)); };
                 return [mk(2), mk(1)].join('/'); } },
-  { label:'PAPS: a dependent father marked as earning is flagged - the non-earning weekly cap applies to him, and treating him as earning quadruples the TTD Sum Insured on offer (Rs.1,140 of premium where Rs.285 is the most the policy can pay)', expect:'true/285/1140',
+  { label:'PAPS: a dependent father marked as earning is flagged, and no weekly benefit is ever written for him - the Policy Wordings give Temporary Total Disablement to the earning insured or spouse and to a non-earning spouse only, so a tick that still reaches the engine is refused and the quote says why', expect:'true/0/0/true',
     check:()=>{ const mk = e => [{ id:1, rel:'father', age:65, earning:e, risk:'I', csi:10000000, ttdSi:e ? 2000000 : 500000, cov:{ ttd:true } }];
-                const warned = psChecks({ plan:'P', term:1, members:mk(true) }, psCompute({ plan:'P', term:1, members:mk(true) })).some(x => /financially dependent/i.test(x));
-                const p = m => psCompute({ plan:'P', term:1, members:m }).rows[0].parts.find(x => x.k === 'ttd').amount;
-                return [warned, p(mk(false)), p(mk(true))].join('/'); } },
+                const w = psChecks({ plan:'P', term:1, members:mk(true) }, psCompute({ plan:'P', term:1, members:mk(true) }));
+                const n = m => psCompute({ plan:'P', term:1, members:m }).rows[0].parts.filter(x => x.k === 'ttd').length;
+                return [w.some(x => /financially dependent/i.test(x)), n(mk(false)), n(mk(true)), w.some(x => /available only to the proposer and the spouse/.test(x))].join('/'); } },
   { label:'PAPS: with no proposer income entered the quote says the 72 and 100 times escalation test could not be run, and above 100 times it names the Head Office rather than calling the case dead', expect:'true/true',
     check:()=>{ const ms = [{ id:1, rel:'self', age:40, earning:true, risk:'I', csi:5000000, cov:{} }];
                 const blank = psChecks({ plan:'P', term:1, members:ms }, psCompute({ plan:'P', term:1, members:ms })).some(x => /has not been entered/i.test(x));
@@ -7932,7 +8061,83 @@ const PAPS_VERIFIED = [
     check:()=>{ const p = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
                 const e = psCompute({ plan:'E', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,loanSi:100000,cov:{loan:true}}] });
                 const pl = p.rows[0].parts.filter(x => x.k === 'loan').length ? 1 : 0;
-                return [pl, e.rows[0].parts.filter(x => x.k === 'loan')[0].amount].join('/'); } }
+                return [pl, e.rows[0].parts.filter(x => x.k === 'loan')[0].amount].join('/'); } },
+  { label:'PAPS Temporary Total Disablement is offered to the proposer and the spouse only (Policy Wordings TTD table: "Earning Insured / Spouse" and "Non-Earning Spouse"; prospectus: "available for the earning Insured / Spouse and non-earning Spouse") - not to a son, daughter, father, mother or parent-in-law', expect:'true/true/false/false/false/false/false/false',
+    check:()=>PS_REL.map(r => psCoverAllowed(PS_OPTBY('ttd'), { rel:r.k })).join('/') },
+  { label:'PAPS guideline 4.2(c): TTD for a non-earning spouse is capped at Rs.5,000 a week under the Premium Plan and Rs.10,000 under the Elite Plan (a TTD Sum Insured of Rs.5 lakh / Rs.10 lakh on a spouse CSI of Rs.50 lakh), and the quote carries the strict due-diligence note - an earning spouse does not', expect:'true/false/500000/1000000',
+    check:()=>{ const mk = e => [{ id:1, rel:'self', age:45, earning:true, risk:'I', csi:10000000, occupation:'Banker or bank employee', cov:{} },
+                                  { id:2, rel:'spouse', age:40, earning:e, income:e ? 90000 : 0, risk:'I', csi:5000000, occupation:'Banker or bank employee', ttdSi:500000, cov:{ ttd:true } }];
+                const dd = e => psChecks({ plan:'P', term:1, monthlyIncome:200000, members:mk(e) }, psCompute({ plan:'P', term:1, members:mk(e) })).some(x => /strict due diligence/.test(x));
+                const sp = { rel:'spouse', earning:false, csi:5000000 };
+                return [dd(false), dd(true), psTtdCap(sp, 'P'), psTtdCap(sp, 'E')].join('/'); } },
+  { label:'PAPS guideline 4.3 / 4.4: an earning spouse is covered on their own declared income with documentary evidence - with no income entered the quote says so; at Rs.20,000 a month a CSI of Rs.50 lakh (250 times) goes to the Head Office and at Rs.60,000 (83 times) to the Regional Office; and a TTD of Rs.10 lakh (Rs.10,000 a week) exceeds a weekly income of about Rs.4,615', expect:'true/true/true/true/true',
+    check:()=>{ const mk = inc => [{ id:1, rel:'self', age:45, earning:true, risk:'I', csi:5000000, occupation:'Banker or bank employee', cov:{} },
+                                    { id:2, rel:'spouse', age:40, earning:true, income:inc, risk:'I', csi:5000000, occupation:'Banker or bank employee', ttdSi:1000000, cov:{ ttd:true } }];
+                const W = inc => psChecks({ plan:'P', term:1, monthlyIncome:500000, members:mk(inc) }, psCompute({ plan:'P', term:1, members:mk(inc) }));
+                return [W(0).some(x => /monthly income has not been entered/.test(x) && /spouse/.test(x)),
+                        W(0).some(x => /documentary evidence/.test(x)),
+                        W(20000).some(x => /250 times the spouse.s monthly income. Above 100 times is referred to the Head Office/.test(x)),
+                        W(60000).some(x => /83 times the spouse.s monthly income, so the proposal goes to the Regional Office/.test(x)),
+                        W(20000).some(x => /base weekly gainful income is about Rs.4,615/.test(x))].join('/'); } },
+  { label:'PAPS: a cover the plan or the relationship does not allow is neither priced nor printed - row.cov (what the PDF and the cover pages read) leaves out Loan Secure under the Premium Plan and TTD for a father, while the tick the agent made is kept for a switch back', expect:'false/true/false/true',
+    check:()=>{ const p = psCompute({ plan:'P', term:1, members:[{ id:1, rel:'self', age:40, earning:true, risk:'I', csi:2000000, loanSi:1000000, cov:{ loan:true } }] }).rows[0];
+                const f = psCompute({ plan:'P', term:1, members:[{ id:1, rel:'father', age:65, risk:'I', csi:1000000, ttdSi:200000, cov:{ ttd:true } }] }).rows[0];
+                const e = psCompute({ plan:'E', term:1, members:[{ id:1, rel:'self', age:40, earning:true, risk:'I', csi:2000000, loanSi:1000000, cov:{ loan:true } }] }).rows[0];
+                return [!!p.cov.loan, !!p.covAsked.loan, !!f.cov.ttd, !!e.cov.loan].join('/'); } },
+  { label:'PAPS No Claim Discount is earned per insured person (wordings IV(c)(ii), guideline 9 Sl.5): a proposer on Rs.1 crore who claimed (nil) with a spouse on Rs.50 lakh and a son on Rs.25 lakh at 20%, family 10% - 8,532 x 10% + 7,495 x 30% = 3,102 off 16,027, net 12,925; the same family at a policy-wide 20% nets 11,219', expect:'16027/3102/12925/false/11219',
+    check:()=>{ const mk = own => [{ id:1, rel:'self', age:45, earning:true, risk:'I', csi:10000000, cov:{}, ncd: own ? 0 : undefined },
+                                    { id:2, rel:'spouse', age:40, earning:false, risk:'I', csi:5000000, cov:{}, ncd: own ? 20 : undefined },
+                                    { id:3, rel:'son', age:12, earning:false, risk:'I', csi:2500000, cov:{}, ncd: own ? 20 : undefined }];
+                const a = psCompute({ plan:'P', term:1, members:mk(true) });
+                const b = psCompute({ plan:'P', term:1, ncd:20, members:mk(false) });
+                return [a.subtotal, a.discAmt, a.net, a.ncdUniform, b.net].join('/'); } },
+  { label:'PAPS: the staff discount bars every member\'s own No Claim Discount as well as the policy-level one', expect:'0/0/33',
+    check:()=>{ const q = psCompute({ plan:'P', term:1, staff:true, ncd:20, members:[{ id:1, rel:'self', age:45, earning:true, risk:'I', csi:2000000, cov:{}, ncd:20 },
+                                                                                    { id:2, rel:'spouse', age:40, earning:false, risk:'I', csi:1000000, cov:{} }] });
+                return [q.rows[0].ncdPct, q.rows[1].ncdPct, q.discPct].join('/'); } },
+  { label:'PAPS guideline 8(ii): the declared occupation drives and checks the risk category - a blank occupation, a picked Risk II occupation rated as Risk I, an excluded activity (mountaineering; flying other than as a passenger), a retired proposer marked as earning and an unpicked "lorry driver" on Risk I are all raised, while an unpicked "teacher" on Risk I is not', expect:'true/true/true/true/true/true/false',
+    check:()=>{ const W = (occ, risk, extra) => { const ms = [Object.assign({ id:1, rel:'self', age:45, earning:true, risk:risk, csi:2000000, occupation:occ, cov:{} }, extra || {})];
+                                                   return psChecks({ plan:'P', term:1, monthlyIncome:60000, members:ms }, psCompute({ plan:'P', term:1, members:ms })); };
+                return [W('', 'I').some(x => /Occupation not entered for/.test(x)),
+                        W('Paid driver - car, truck, lorry or other heavy vehicle', 'I').some(x => /is Risk II, but the quote is rated as Risk I/.test(x)),
+                        W('Mountaineer / high-altitude climber', 'III').some(x => /while engaging in hazardous or adventurous sports/.test(x)),
+                        W('Aircraft pilot and cockpit crew', 'III').some(x => /other than as a passenger/.test(x)),
+                        W('Retired person or pensioner', 'I').some(x => /carries no gainful income/.test(x)),
+                        W('lorry driver', 'I').some(x => /was typed but not picked/.test(x)),
+                        W('teacher', 'I').some(x => /was typed but not picked|does not match any occupation/.test(x))].join('/'); } },
+  { label:'PAPS occupation table: each occupation the audit found under two classes now has one - a loco pilot is II (a paid driver of a heavy vehicle), a gangman on the track III, a boatman II, a cricketer II, a stone crusher III (quarry work), a bank teller and a counter cashier I (a banker), a cash-in-transit employee II (the guideline\'s "cash carrying employee") and a tanker driver III', expect:'II/III/II/II/III/I/I/II/III',
+    check:()=>{ const f = q => { const h = psFindOccupation(q); return h.length ? h[0].risk : 'none'; };
+                return ['loco pilot', 'gangman', 'boatman', 'cricketer', 'stone crusher', 'bank teller', 'cashier', 'cash in transit', 'tanker driver'].map(f).join('/'); } },
+  { label:'PAPS: every occupation named in the no-income and excluded-activity lists exists in the occupation table', expect:'5/18/0',
+    check:()=>{ const names = PS_OCC.map(o => o.n);
+                const ex = Object.keys(PS_OCC_EXCL);
+                return [PS_OCC_NOINCOME.length, ex.length, PS_OCC_NOINCOME.concat(ex).filter(n => names.indexOf(n) < 0).length].join('/'); } },
+  { label:'PAPS guideline 20(b)/(c): Loan Secure and EMI Protection carry the proposal-stage loan checks under the Elite Plan, and a loan cover on a 12-year-old is flagged because a minor cannot hold a loan in their own name', expect:'true/true/true/false',
+    check:()=>{ const ms = [{ id:1, rel:'self', age:40, earning:true, risk:'I', csi:2000000, occupation:'Banker or bank employee', loanSi:1000000, emiSi:500000, cov:{ loan:true, emi:true } },
+                            { id:2, rel:'son', age:12, earning:false, risk:'I', csi:500000, occupation:'Student', loanSi:500000, cov:{ loan:true } }];
+                const E = psChecks({ plan:'E', term:1, monthlyIncome:60000, members:ms }, psCompute({ plan:'E', term:1, members:ms }));
+                const Pw = psChecks({ plan:'P', term:1, monthlyIncome:60000, members:ms }, psCompute({ plan:'P', term:1, members:ms }));
+                return [E.some(x => /under 18 cannot hold a loan/.test(x)), E.some(x => /^Loan Secure: before issue/.test(x)), E.some(x => /^EMI Protection: before issue/.test(x)),
+                        Pw.some(x => /^Loan Secure: before issue/.test(x))].join('/'); } },
+  { label:'PAPS customer schedule follows the wordings: no "benefits 1 to 6" reference; Accident Hospital Cash is for hospitalisation in India; TTD is for the proposer and the spouse; Burns and Education Fund are not flat payments; the Cumulative Bonus raises death, PTD and PPD only; an earning spouse\'s CSI rests on their own income; and a Premium Plan schedule does not offer to add loan covers mid-term', expect:'false/true/true/true/true/true/true/true',
+    check:()=>{ const D = PAPS_COVER_DATA, all = JSON.stringify(D);
+                const row = (list, k) => ((list.find(r => r[0] === k) || [])[1] || '');
+                const mid = row(D.conditions, 'Adding a member mid-term');
+                const prem = mid.replace(/, except Loan Secure and EMI Protection,[^.]*\./, '.');
+                return [/benefits 1 to 6/.test(all), /in India/.test(D.optional.ahc[0]), /proposer and the spouse/.test(D.optional.ttd[0]),
+                        /percentage of that sum/.test(row(D.inbuilt, 'Burns')), /accidental death or permanent total disablement/.test(row(D.inbuilt, 'Education Fund')),
+                        /permanent partial disablement/.test(row(D.conditions, 'Cumulative Bonus or No Claim Discount')),
+                        /earning spouse/.test(row(D.eligibility, 'Capital Sum Insured')),
+                        /Loan Secure/.test(mid) && !/Loan Secure/.test(prem) && /cannot be added mid-term\.$/.test(prem) && /Adding a member mid-term/.test(String(drawPapsCoverPages))].join('/'); } },
+  { label:'PAPS: the TTD ceiling is re-applied whenever the member list is tidied, not only when a CSI was cut - a non-earning spouse already at the 50% CSI ceiling with a TTD of Rs.12 lakh falls to Rs.5 lakh on the Premium Plan', expect:'500000',
+    check:()=>{ const saved = members, savedPlan = psPlan;
+                try{
+                  psPlan = 'P';
+                  members = [{ id:1, rel:'self', age:40, earning:true, risk:'I', csi:10000000, cov:{}, ttdSi:500000 },
+                             { id:2, rel:'spouse', age:38, earning:false, risk:'I', csi:5000000, cov:{ ttd:true }, ttdSi:1200000 }];
+                  psClampDependents();
+                  return String(members[1].ttdSi);
+                } finally { members = saved; psPlan = savedPlan; } } }
 ];
 
 /* ── wiring ────────────────────────────────────────────────────────────── */
@@ -7984,7 +8189,9 @@ function psSyncFamilyRow(){
   el.className = 'ps-auto-disc ' + cls;
   el.innerHTML = txt;
 }
-$('psStaff').addEventListener('change', () => { psSyncNcd(); psSyncFamilyRow(); }); psSyncNcd();
+$('psStaff').addEventListener('change', () => { psSyncNcd(); psSyncFamilyRow(); renderMembers(); }); psSyncNcd();
+/* the policy select sets every insured person; a card is then changed for anyone who claimed */
+$('psNcd').addEventListener('change', () => { const v = psNcdPolicy(); members.forEach(m => { m.ncd = v; }); renderMembers(); scheduleAutoCalcPaps(); });
 /* the rate on the tick is written from the constant so it cannot drift from the engine again */
 (function(){ const sm = $('psStaff').closest('label').querySelector('small'); if(sm) sm.textContent = PS_STAFF_PCT + '% \u00b7 family discount, No Claim Discount and commission are not allowed with it'; })();
 addMember();
@@ -26347,7 +26554,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v141 · the regression suite now takes IMT-23 on the classes that carry it, so the priced Nil Depreciation path is tested at last: 360 fixtures with the endorsement, 220 of them pricing the cover, and 18 with it switched off so the gate stays pinned both ways · 16-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v142 · PA Parivaar read against all 23 underwriting sections again: the weekly benefit (TTD) is for the proposer and the spouse only, a non-earning spouse's TTD shows its Rs.5,000 / Rs.10,000 weekly cap and the due-diligence note, an earning spouse is checked against their own income, No Claim Discount is set per insured person, the declared occupation drives and checks the risk category, and the customer schedule no longer lists covers it does not charge · 17-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
