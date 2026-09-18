@@ -24211,9 +24211,12 @@ function updateFlags(){
   // 9b. Add-on covers rated on a declared value
   try{
     const needVal = FIRE_ADDONS.filter(a => a.declare && fireAddonOn(a.key) && !(parseFloat(fireAddonSt(a.key).val) > 0));
-    if(needVal.length) flags.push({ title: needVal.map(a => a.short).join(', ') + ' \u2014 declare the value for the cover',
-      detail:'This cover is rated at the policy rate on the value declared for it (' + needVal.map(a => a.limit).join('; ') + '), not on the whole sum insured. With no figure entered the quote falls back to 1% of the sum insured, which is not the insured\'s declared value.',
+    if(needVal.length) flags.push({ title: needVal.map(a => a.short).join(', ') + ' \u2014 not charged: declare the value for the cover',
+      detail:'This cover is rated at the policy rate on the value declared for it (' + needVal.map(a => a.limit).join('; ') + '), and the schedule gives it no percentage of the sum insured to fall back on. Until that figure is entered the cover is left out of the premium and off the quotation. Enter the value, or untick the cover.',
       ref:'Revised add-on rating schedule' });
+    if(fireAddonRatio > 50) flags.push({ title:'Add-on premium is ' + fireAddonRatio.toFixed(0) + '% of the basic premium \u2014 above the 50% ceiling',
+      detail:'The Bharat Sookshma and Laghu wordings state that the additional premium for all add-ons together shall not exceed 50% of the base premium, and the quotation prints that promise. Reduce the covers opted, or refer the case before issuing.',
+      ref:'Bharat Sookshma / Laghu policy wording \u00b7 add-on conditions' });
     if(FIRE_ADDONS.some(a => a.free && fireAddonOn(a.key))) flags.push({ title:'Free add-on covers opted \u2014 Regional Office authority',
       detail:'The covers granted without premium are allowed within 5% of the sum insured, and the schedule places them with the Regional Office. Get the RO approval on record before issuing.',
       ref:'Revised add-on rating schedule \u00b7 SFSP free add-ons' });
@@ -24484,6 +24487,7 @@ const FIRE_ADDONS = [
 ];
 const FIRE_ADDON_LISTS = { sfsp:'SFSP', iar:'IAR', dec:'Declaration / Floater' };
 let fireAddonList = 'sfsp';
+let fireAddonRatio = 0, fireAddonUndeclared = [];   /* set by calculate(), read by updateFlags() */
 const fireAddonState = {};                 /* key -> { on, disc, val } - survives a list change */
 function fireAddonSt(key){ return (fireAddonState[key] = fireAddonState[key] || { on:false, disc:'', val:'' }); }
 function fireAddonInList(a){ return a.lists.indexOf(fireAddonList) >= 0; }
@@ -24530,8 +24534,9 @@ function renderFireAddons(){
         : '');
   };
   const rated = rows.filter(a => !a.free), free = rows.filter(a => a.free);
+  const sheetCount = rated.filter(a => !a.tariff).length;   /* the tabs count the sheet, not the tariff extension */
   const head = (t, n) => '<div class="section-label" style="margin-top:10px">' + t + ' <span style="' + mute + '">&mdash; ' + n + '</span></div>';
-  host.innerHTML = head('Rated add-on covers', rated.length + ' in the ' + FIRE_ADDON_LISTS[fireAddonList] + ' schedule') + rated.map(row).join('') +
+  host.innerHTML = head('Rated add-on covers', sheetCount + ' in the ' + FIRE_ADDON_LISTS[fireAddonList] + ' schedule, with the Escalation Clause alongside') + rated.map(row).join('') +
     (free.length ? head('Granted free of premium', free.length + ' covers, Regional Office authority') + free.map(row).join('') : '');
 }
 function toggleSwitch(type){
@@ -25037,7 +25042,12 @@ function calculate(){
   const addonLimitIn = Math.max(0, parseFloat((document.getElementById('addon-limit')||{}).value) || 0);
   const addonLimit   = addonLimitIn || Math.round(si * 0.01);   /* the schedule's usual limit */
   const addonDisc    = Math.min(100, Math.max(0, parseFloat((document.getElementById('addon-discount')||{}).value) || 0));
-  const addonLines   = FIRE_ADDONS.filter(a => fireAddonOn(a.key)).map(a => {
+  /* A cover the sheet rates on a value the insured declares (Catalyst and Consumables on the
+     catalyst value, Undamaged Foundation on the plinth and foundation sum insured) has no figure to
+     rate until that value is entered. Quoting it at nil would put a cover on the schedule that has
+     not been paid for, so it is left out of the premium and off the schedule, and the quote says so. */
+  const addonUndeclared = FIRE_ADDONS.filter(a => fireAddonOn(a.key) && a.declare && !(parseFloat(fireAddonSt(a.key).val) > 0));
+  const addonLines   = FIRE_ADDONS.filter(a => fireAddonOn(a.key) && addonUndeclared.indexOf(a) < 0).map(a => {
     const st       = fireAddonSt(a.key);
     const limitRs  = fireAddonLimit(a, si, addonLimitIn);
     const declared = Math.max(0, parseFloat(st.val) || 0);
@@ -25056,6 +25066,10 @@ function calculate(){
   const addonGross   = addonLines.reduce((t, a) => t + a.gross, 0);
   const addonNet     = addonLines.reduce((t, a) => t + a.amount, 0);
   const addonDiscAmt = addonGross - addonNet;
+  /* the Bharat policies promise the customer that every add-on together stays within half the base
+     premium, and the revised schedule can pass that (10% + 10% + 10% + 5% ...) */
+  fireAddonRatio = flexaGross > 0 ? addonGross / flexaGross * 100 : 0;
+  fireAddonUndeclared = addonUndeclared.map(a => a.short);
 
   const totalNet = (flexaNet+stfiNet+eqNet+terrorNet+burgNet+addonNet)*period;
   const gst   = totalNet*0.18;
@@ -25137,6 +25151,8 @@ function calculate(){
       if(a.disc > 0) html += `<div class="line sub"><span class="k">Discount (${a.disc}%)</span><span class="v discount">− ${fmtR(a.discAmt)}</span></div>`;
     });
     html += `<div class="line net-line"><span class="k">Net Add-on Premium</span><span class="v">${fmtR(addonNet)}</span></div>`;
+    if(fireAddonRatio > 50) html += `<div class="line sub"><span class="k">Add-on premium is ${fireAddonRatio.toFixed(0)}% of the basic premium; the Bharat wordings keep every add-on together within 50%</span><span class="v"></span></div>`;
+    if(fireAddonUndeclared.length) html += `<div class="line sub"><span class="k">${fireAddonUndeclared.join(', ')} — not charged until the value insured for the cover is entered</span><span class="v"></span></div>`;
   }
 
   // Period multiplier
@@ -25419,14 +25435,17 @@ const FIRE_COVER_DATA = (function(){
     rows.push(["Costs compelled by municipal regulations", "Additional cost of reconstruction incurred solely to comply with municipal regulations"]);
     return rows;
   };
+  /* the percentage a cover actually costs, read from the rating table so the prose on this page can
+     never again promise one figure while section C of the same PDF charges another */
+  const addonPct = function(key){ const a = (typeof FIRE_ADDONS !== 'undefined') ? FIRE_ADDONS.find(x => x.key === key) : null; return a ? a.pct : 0; };
   const addonsBSU = function(mode){
     const rows = [["Declaration policy for stocks (standard add-on)", "Takes care of frequent fluctuations in stocks / stock values, subject to the declaration conditions"]];
     if(mode === 'laghu') rows.push(["Floater cover (standard add-on)", "Stocks at more than one location under one Sum Insured, subject to the floater conditions"]);
-    rows.push(["Escalation clause", "Automatic increase in Sum Insured during the policy period, as under SFSP; premium 5% of the basic fire premium"]);
-    rows.push(["Removal of debris (including external debris and ingressed water)", "Cost of removing debris of the insured property, debris of third parties that has entered the premises and water that has entered the premises, following an insured event; premium 1% of the basic fire premium"]);
-    rows.push(["Involuntary betterment", "Where damaged property cannot be replaced like for like, the extra cost of the nearest currently available equivalent, within the limit; premium 1% of the basic fire premium"]);
-    rows.push(["Claim preparation clause", "Reasonable professional fees incurred in preparing and substantiating a claim, within the limit; premium 1% of the basic fire premium"]);
-    rows.push(["Brands and trademarks clause", "Damaged branded goods are not sold as salvage until brands, labels and trademarks are removed, so the insured pays only for goods that cannot be de-branded; premium 0.1% of the basic fire premium"]);
+    rows.push(["Escalation clause", "Automatic increase in Sum Insured during the policy period, as under SFSP; premium " + addonPct('escalation') + "% of the policy rate, which is that percentage of the basic fire premium"]);
+    rows.push(["Removal of debris (including external debris and ingressed water)", "Cost of removing debris of the insured property, debris of third parties that has entered the premises and water that has entered the premises, following an insured event; premium " + addonPct('debris') + "% of the policy rate, which is that percentage of the basic fire premium"]);
+    rows.push(["Involuntary betterment", "Where damaged property cannot be replaced like for like, the extra cost of the nearest currently available equivalent, within the limit; premium " + addonPct('betterment') + "% of the policy rate, which is that percentage of the basic fire premium"]);
+    rows.push(["Claim preparation clause", "Reasonable professional fees incurred in preparing and substantiating a claim, within the limit; premium " + addonPct('claimPrep') + "% of the policy rate, which is that percentage of the basic fire premium"]);
+    rows.push(["Brands and trademarks clause", "Damaged branded goods are not sold as salvage until brands, labels and trademarks are removed, so the insured pays only for goods that cannot be de-branded; premium " + addonPct('brands') + "% of the policy rate, which is that percentage of the basic fire premium"]);
     rows.push(["Adequacy of Sum Insured", "Waiver of underinsurance for claim amounts below Rs. 1 Cr"]);
     rows.push(["Accidental damage", "Loss or damage whilst in the insured premises due to accident from any fortuitous cause, including accidental discharge / leakage / overflow of water or steam from plumbing, tanks, cylinders, appliances, refrigerating and air-conditioning systems, and rain admitted through defective roofs, windows, doors or skylights"]);
     rows.push(["Incidental costs", "Where a loss is payable under the base policy, incidental costs associated with the insured property up to a fixed percentage of the admissible claim"]);
@@ -25663,7 +25682,16 @@ function drawFireCoverPages(doc, q){
   if(isSFSP){
     table2(['Endorsement', 'Scope'], D.endorsementsSFSP, 0.36);
   } else {
-    table2(['Add-on', 'Scope'], D.addonsBSU(mode).map(function(r){ const on = (q.addonLines||[]).some(function(a){ return r[0].toLowerCase().indexOf(a.name.split(' ')[0].toLowerCase()) === 0 && r[0].toLowerCase().indexOf(a.name.split(' (')[0].toLowerCase().slice(0, 12)) >= 0; }); return on ? [r[0] + '  -  OPTED', r[1]] : r; }), 0.36);
+    const _bsuRows = D.addonsBSU(mode);
+    /* up to 32 covers can be charged; whatever is opted and not described above is added here with
+       the loss limit the schedule gives it, so no cover is charged without being described */
+    (q.addonLines || []).forEach(function(a){
+      const nm = (a.short || a.name).toLowerCase();
+      const described = _bsuRows.some(function(r){ return r[0].toLowerCase().indexOf(nm.split(' ')[0]) >= 0; });
+      if(!described) _bsuRows.push([(a.short || a.name), (a.free ? 'Granted without premium. ' : 'Charged at ' + (a.pct === 100 ? 'the policy rate' : a.pct + '% of the policy rate') + '. ')
+        + (a.limitText ? 'Limit: ' + a.limitText + '.' : 'No separate loss limit.')]);
+    });
+    table2(['Add-on', 'Scope'], _bsuRows.map(function(r){ const on = (q.addonLines||[]).some(function(a){ return r[0].toLowerCase().indexOf(a.name.split(' ')[0].toLowerCase()) === 0 && r[0].toLowerCase().indexOf(a.name.split(' (')[0].toLowerCase().slice(0, 12)) >= 0; }); return on ? [r[0] + '  -  OPTED', r[1]] : r; }), 0.36);
     note('Additional premium for all add-ons together shall not exceed 50% of the base premium. Kutcha construction is not excluded (an addition applies). Short-period policies are permitted only for specific reasons such as coinciding with the financial year or other renewals.');
   }
   y += 6;
@@ -26170,7 +26198,10 @@ function buildFirePDF(returnBlob){
   if(q.addonLines && q.addonLines.length){
     addonKey = String.fromCharCode(66 + (q.stfiOn ? 1 : 0) + (q.eqOn ? 1 : 0) + (terrorKey ? 1 : 0) + (burgKey ? 1 : 0));
     /* each add-on is printed at its net amount; the discount itself is not itemised */
-    const arows = q.addonLines.map(a => ({ label: (a.short || a.name) + (a.free ? ' (free of premium)' : (a.disc > 0 ? '' : ' @ ' + (a.pct === 100 ? 'the policy rate' : a.pct + '% of the policy rate'))),
+    const arows = q.addonLines.map(a => ({ label: (a.short || a.name)
+                                             + (a.free ? ' (free of premium)'
+                                                       : (a.disc > 0 ? '' : ' @ ' + (a.pct === 100 ? 'the policy rate' : a.pct + '% of the policy rate'))
+                                                         + (a.onValue ? ' on ' + R(a.limit) : '')),
                                            value: a.free ? '\u2014' : R(a.amount) }));
     arows.push({ label:'Net Add-on Premium (' + addonKey + ')', value:R(q.addonNet), total:true });
     right.push({ sub:'Section ' + addonKey + ' \u2013 Add-on Covers', rows:arows });
@@ -26282,6 +26313,19 @@ window.FIRE_VERIFIED = [
                   const decBoxes = decRated.filter(a => document.getElementById('addon-' + a.key + '-disc')).length;
                   return [rated.length, boxes, decRated.length, decBoxes].join('/');
                 } finally { setAddonList(keep); } } },
+  { label:'Fire: the two covers the sheet rates on a value the insured declares (Catalyst and Consumables on the catalyst value, Undamaged Foundation on the plinth and foundation Sum Insured) carry no percentage of the Sum Insured to fall back on, so the quote leaves them out of the premium until the value is entered and says so', expect:'true/true/0/0/true/true',
+    check:()=>{ const c = FIRE_ADDONS.find(a => a.key === 'catalyst'), f = FIRE_ADDONS.find(a => a.key === 'foundation');
+                const src = String(updateFlags);
+                return [!!c.declare, !!f.declare, fireAddonLimit(c, 40000000, 0), fireAddonLimit(f, 40000000, 0),
+                        /not charged: declare the value/.test(src), /left out of the premium/.test(src)].join('/'); } },
+  { label:'Fire: the Bharat wordings keep every add-on together within 50% of the base premium, and the revised schedule can pass that (Property Offsite 50 + Leak Search 10 + Leakage 10 + Obsolete Equipment 10 = 80%), so the quote checks the ratio', expect:'80/true/true',
+    check:()=>{ const p = k => FIRE_ADDONS.find(a => a.key === k).pct;
+                return [p('offsite') + p('leakSearch') + p('leakage') + p('obsoleteEquip'),
+                        /fireAddonRatio > 50/.test(String(updateFlags)), /above the 50% ceiling/.test(String(updateFlags))].join('/'); } },
+  { label:'Fire: the cover pages take the add-on percentages from the rating table, so the prose can never promise one figure while the premium charges another (Involuntary Betterment 5%, Brands 2%)', expect:'true/5/2',
+    check:()=>{ const src = String(FIRE_COVER_DATA.addonsBSU);
+                return [/addonPct\('betterment'\)/.test(src) && /addonPct\('brands'\)/.test(src),
+                        FIRE_ADDONS.find(a => a.key === 'betterment').pct, FIRE_ADDONS.find(a => a.key === 'brands').pct].join('/'); } },
   { label:'Fire: a discount typed on one add-on applies to that add-on only, and the all-add-ons box covers the rest (basic 34,960: debris 350 less 20% = 280)', expect:'280/1748',
     check:()=>{ const g = Math.round(34960 * FIRE_ADDONS.find(a => a.key === 'debris').pct / 100);
                 return [Math.round(g * (1 - 20 / 100)), Math.round(34960 * FIRE_ADDONS.find(a => a.key === 'betterment').pct / 100)].join('/'); } },
@@ -26753,7 +26797,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v144 · the office's revised Fire add-on schedule: 31 rated covers for SFSP, 29 for IAR, 5 for a Declaration or Floater policy and 11 granted free of premium, each rated on the policy rate and each with its own discount box · 18-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v145 · the revised Fire add-on schedule after review: a cover rated on a declared value is not charged until the value is entered, the Sookshma / Laghu cover pages take their percentages from the rating table and describe every cover charged, and the quote flags an add-on total above the 50% ceiling · 18-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
