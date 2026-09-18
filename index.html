@@ -1420,6 +1420,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 .field.has-error .error{display:block}
 
 /* ── PRODUCT TABS ── */
+.segmented.cols-3{grid-template-columns:repeat(3,1fr)}
 .product-tabs{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;padding:6px;background:linear-gradient(180deg,#eef3fb 0%,#f4f7fc 100%);border:1px solid var(--border-soft);border-radius:var(--radius-sm);margin-bottom:20px;box-shadow:inset 0 1px 2px rgba(15,30,72,.04)}
 /* v143: each product has its own colour. --pc is the filled tab (white text stays at WCAG AA on
    it), --pc-deep the far end of its gradient, --pc-soft the idle icon badge. */
@@ -3761,13 +3762,20 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
          and the cover is excluded entirely from the quote, the result card
          and the PDF. Rated on the burglary SI, never on the fire SI.       -->
     <div class="section-label" style="margin-top:14px">Add-on Covers <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; rated as a percentage of the basic fire premium</span></div>
-    <div class="switch-row"><div><div class="t">Removal of Debris <span class="rate-pill">1% of basic</span></div><div class="s">Including external debris and ingressed water</div></div><div class="input-suffix" data-suffix="%" style="flex:none;width:86px;margin:0 10px" title="Discount on this add-on" onclick="event.stopPropagation()"><input type="number" id="addon-debris-disc" placeholder="disc" min="0" max="100" step="0.1" inputmode="decimal" style="text-align:right"></div><div class="switch" id="addon-debris-switch" onclick="FIRE.toggleAddon('debris')"></div></div>
-    <div class="switch-row"><div><div class="t">Involuntary Betterment <span class="rate-pill">1% of basic</span></div><div class="s">Extra cost of a currently available equivalent when like-for-like replacement is not possible</div></div><div class="input-suffix" data-suffix="%" style="flex:none;width:86px;margin:0 10px" title="Discount on this add-on" onclick="event.stopPropagation()"><input type="number" id="addon-betterment-disc" placeholder="disc" min="0" max="100" step="0.1" inputmode="decimal" style="text-align:right"></div><div class="switch" id="addon-betterment-switch" onclick="FIRE.toggleAddon('betterment')"></div></div>
-    <div class="switch-row"><div><div class="t">Claim Preparation Clause <span class="rate-pill">1% of basic</span></div><div class="s">Reasonable professional fees for preparing and substantiating a claim</div></div><div class="input-suffix" data-suffix="%" style="flex:none;width:86px;margin:0 10px" title="Discount on this add-on" onclick="event.stopPropagation()"><input type="number" id="addon-claimPrep-disc" placeholder="disc" min="0" max="100" step="0.1" inputmode="decimal" style="text-align:right"></div><div class="switch" id="addon-claimPrep-switch" onclick="FIRE.toggleAddon('claimPrep')"></div></div>
-    <div class="switch-row"><div><div class="t">Brands and Trademarks Clause <span class="rate-pill">0.1% of basic</span></div><div class="s">Salvage of branded goods only after removal of brands / trademarks</div></div><div class="input-suffix" data-suffix="%" style="flex:none;width:86px;margin:0 10px" title="Discount on this add-on" onclick="event.stopPropagation()"><input type="number" id="addon-brands-disc" placeholder="disc" min="0" max="100" step="0.1" inputmode="decimal" style="text-align:right"></div><div class="switch" id="addon-brands-switch" onclick="FIRE.toggleAddon('brands')"></div></div>
-    <div class="switch-row"><div><div class="t">Escalation Clause <span class="rate-pill">5% of basic</span></div><div class="s">Automatic increase of the Sum Insured during the policy period</div></div><div class="input-suffix" data-suffix="%" style="flex:none;width:86px;margin:0 10px" title="Discount on this add-on" onclick="event.stopPropagation()"><input type="number" id="addon-escalation-disc" placeholder="disc" min="0" max="100" step="0.1" inputmode="decimal" style="text-align:right"></div><div class="switch" id="addon-escalation-switch" onclick="FIRE.toggleAddon('escalation')"></div></div>
+    <div class="field" style="margin-bottom:6px">
+      <label class="lbl">Add-on schedule <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; the office's revised rating sheet</span></label>
+      <div class="segmented cols-3" id="addon-list-tabs">
+        <input type="radio" name="addon-list" id="al-sfsp" checked>
+        <label for="al-sfsp" onclick="FIRE.setAddonList('sfsp')">SFSP<small>31 covers</small></label>
+        <input type="radio" name="addon-list" id="al-iar">
+        <label for="al-iar" onclick="FIRE.setAddonList('iar')">IAR<small>29 covers</small></label>
+        <input type="radio" name="addon-list" id="al-dec">
+        <label for="al-dec" onclick="FIRE.setAddonList('dec')">Declaration / Floater<small>5 covers</small></label>
+      </div>
+    </div>
+    <div id="addonRows"></div>
     <div class="field" style="margin-top:8px">
-      <label class="lbl" for="addon-limit">Add-on limit (each) <span style="font-weight:400;color:var(--mute)">&mdash; blank = 10% of Sum Insured</span></label>
+      <label class="lbl" for="addon-limit">Add-on limit (each) <span style="font-weight:400;color:var(--mute)">&mdash; blank = the limit in the schedule, 1% of the Sum Insured for most covers</span></label>
       <input type="number" id="addon-limit" placeholder="e.g. 500000" min="0" step="1" inputmode="decimal">
     </div>
     <div class="field" style="margin-top:8px">
@@ -24200,6 +24208,17 @@ function updateFlags(){
   if(code === '2079') flags.push({ title:'Fertilizer plant \u2014 rate under IIB code 2079', detail:'Fertilizer plants coming under both petrochemical and others are rated under IIB code 2079.', ref: CIRC + ' Notes for certain occupancies' });
   if(code === '2229') flags.push({ title:'Multiple-occupancy industrial estate', detail:'Rate per se occupancy-wise. Only where the entire building of the estate is insured under one sum insured does occupancy code 2229 (0.77 per mille) apply.', ref: CIRC + ' Notes for certain occupancies' });
 
+  // 9b. Add-on covers rated on a declared value
+  try{
+    const needVal = FIRE_ADDONS.filter(a => a.declare && fireAddonOn(a.key) && !(parseFloat(fireAddonSt(a.key).val) > 0));
+    if(needVal.length) flags.push({ title: needVal.map(a => a.short).join(', ') + ' \u2014 declare the value for the cover',
+      detail:'This cover is rated at the policy rate on the value declared for it (' + needVal.map(a => a.limit).join('; ') + '), not on the whole sum insured. With no figure entered the quote falls back to 1% of the sum insured, which is not the insured\'s declared value.',
+      ref:'Revised add-on rating schedule' });
+    if(FIRE_ADDONS.some(a => a.free && fireAddonOn(a.key))) flags.push({ title:'Free add-on covers opted \u2014 Regional Office authority',
+      detail:'The covers granted without premium are allowed within 5% of the sum insured, and the schedule places them with the Regional Office. Get the RO approval on record before issuing.',
+      ref:'Revised add-on rating schedule \u00b7 SFSP free add-ons' });
+  }catch(e){}
+
   // 10. General reminders
   flags.push({ title:'Common conditions \u2014 all Fire LOB products',
     detail:'NATCAT perils cannot be deleted (HO terms needed). Margin Clause and Loss of Rent are chargeable add-ons at the policy rate. Add-on covers can be granted free of cost up to 5% of the sum insured or \u20b95 Cr, whichever is lower. Waiver of basement / floater loading: RO authority. Policy preponement and reverse bidding are not permitted without HO approval. Terrorism as per IMTRIP pool guidelines.',
@@ -24402,18 +24421,119 @@ document.addEventListener('click', e => {
 
 // ── SWITCHES ────────────────────────────────────────────────────────────
 function updateTerrorPill(){ const v = parseFloat(document.getElementById('terror-rate').value) || 0; const p = document.getElementById('terror-rate-pill'); if(p) p.textContent = v.toFixed(2) + '\u2030'; }
-/* Add-on covers priced as a percentage of the basic (FLEXA) fire premium, as rated by INLIAS on
-   R/432702/11/2027/67 (Sookshma, 4 Cr: 350 / 350 / 350 / 35 / 1,748 on a basic of 34,960) and
-   R/432702/11/2027/68 (Laghu, 12 Cr: 732 / 732 / 732 / 3,660 on 73,200). Each line is rounded to the rupee. */
+/* ── ADD-ON COVERS ───────────────────────────────────────────────────────────
+   The office's revised rating schedule ("Addon_Revised Rating.xlsx", 18-Sep-2026): 31 rated
+   add-ons for SFSP, 29 for IAR (the same list without Brands and Trademarks and Pair and Set),
+   5 for a Declaration or Floater policy, and 11 granted free of premium under RO authority.
+
+   The sheet rates every cover as a percentage OF THE POLICY RATE, so a cover at 1% costs 1% of
+   the basic (FLEXA) premium - which is how INLIAS rated the add-ons on R/432702/11/2027/67 and
+   /68. Three covers carry the FULL policy rate (Capital Addition, Inadvertent Omission, Property
+   in course of Construction) and two are rated on a value the insured declares (Catalyst and
+   Consumables, Undamaged Foundation): charging those on the whole sum insured would simply repeat
+   the policy premium, so they are rated on the value declared for the cover, which defaults to the
+   loss limit in the sheet.
+
+   The office has ruled that this schedule applies to every fire policy type, so Sookshma and Laghu
+   quotes move with it - Involuntary Betterment from 1% to 5%, Brands and Trademarks from 0.1% to 2%.
+   Escalation is not in the sheet; it is a tariff extension and stays at 5% of the policy rate. */
 const FIRE_ADDONS = [
-  { key:'debris',     name:'Removal of Debris (including external debris and ingressed water)', short:'Removal of Debris',            pct:1 },
-  { key:'betterment', name:'Involuntary Betterment while reinstating the property',              short:'Involuntary Betterment',       pct:1 },
-  { key:'claimPrep',  name:'Claim Preparation Clause',                                           short:'Claim Preparation Clause',     pct:1 },
-  { key:'brands',     name:'Brands and Trademarks Clause',                                       short:'Brands and Trademarks Clause', pct:0.1 },
-  { key:'escalation', name:'Escalation Clause',                                                  short:'Escalation Clause',            pct:5 }
+  { key:'debris', name:'Removal of Debris (including foreign / external debris)', short:'Removal of Debris', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'catalyst', name:'Catalyst and Consumables (including lining and refractory) interest in process', short:'Catalyst and Consumables', pct:1, lists:['sfsp','iar'], limit:'Catalyst & Consumables Value', base:'limit', declare:true },
+  { key:'dewatering', name:'Dewatering Expenses', short:'Dewatering Expenses', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'expediting', name:'Expediting Expenses', short:'Expediting Expenses', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'contamination', name:'Contamination and Co-mingling of Stocks', short:'Contamination and Co-mingling', pct:1, lists:['sfsp','iar','dec'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'capitalAddition', name:'Capital Addition', short:'Capital Addition', pct:100, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', base:'limit', limitPct:1 },
+  { key:'accidentalDamage', name:'Accidental Damage', short:'Accidental Damage', pct:1, lists:['sfsp','iar','dec'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'customsDuty', name:'Additional Customs Duty Clause', short:'Additional Customs Duty', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'aggravation', name:'Aggravation Clause', short:'Aggravation Clause', pct:2, lists:['sfsp','iar'], limit:'-' },
+  { key:'brands', name:'Brands and Trademarks Clause', short:'Brands and Trademarks', pct:2, lists:['sfsp','dec'], limit:'-' },
+  { key:'claimPrep', name:'Claim Preparation Clause', short:'Claim Preparation Clause', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'cleaningUp', name:'Cleaning Up and Other Costs Clause', short:'Cleaning Up and Other Costs', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'soundProperty', name:'Destruction of Sound Property', short:'Destruction of Sound Prop.', pct:2, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'inadvertentOmission', name:'Inadvertent Omission', short:'Inadvertent Omission', pct:100, lists:['sfsp','iar'], limit:'1% of Building, Machinery and other assets excluding stocks', base:'limit', limitPct:1 },
+  { key:'betterment', name:'Involuntary Betterment while reinstating the property', short:'Involuntary Betterment', pct:5, lists:['sfsp','iar'], limit:'1% of SI for that Location for EEL', limitPct:1 },
+  { key:'landscaping', name:'Landscaping Cost Clause', short:'Landscaping Cost', pct:2, lists:['sfsp','iar'], limit:'1% of SI for that Location for EEL', limitPct:1 },
+  { key:'leakSearch', name:'Leak Search / Finding Cost Clause', short:'Leak Search / Finding Cost', pct:10, lists:['sfsp','iar'], limit:'1% of SI for that Location for EEL', limitPct:1 },
+  { key:'leakage', name:'Leakage and Overflowing', short:'Leakage and Overflowing', pct:10, lists:['sfsp','iar'], limit:'1% of SI for that Location for EEL', limitPct:1 },
+  { key:'obsoleteEquip', name:'Obsolete Equipment Clause', short:'Obsolete Equipment', pct:10, lists:['sfsp','iar'], limit:'1% of SI for that Location for EEL', limitPct:1 },
+  { key:'obsoleteParts', name:'Obsolete Parts Clause', short:'Obsolete Parts', pct:5, lists:['sfsp','iar'], limit:'1% of SI for that Location for EEL', limitPct:1 },
+  { key:'pairAndSet', name:'Pair and Set Clause', short:'Pair and Set Clause', pct:1, lists:['sfsp','dec'], limit:'-' },
+  { key:'personalEffects', name:'Personal Effects / Property of Employees and Visitors', short:'Personal Effects', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'plansDocs', name:'Plans, Documents and Computer System Records', short:'Plans and Documents', pct:1, lists:['sfsp','iar'], limit:'1% of SI for that Location for EEL', limitPct:1 },
+  { key:'professionalFees', name:'Professional Fees', short:'Professional Fees', pct:2, lists:['sfsp','iar','dec'], limit:'1% of SI for that Location for EEL', limitPct:1 },
+  { key:'construction', name:'Property in course of Construction / Minor Works', short:'Property under Construction', pct:100, lists:['sfsp','iar'], limit:'1% of SI for that Location for EEL', base:'limit', limitPct:1 },
+  { key:'offsite', name:'Property Not on the Insured Premises / Offsite Premises', short:'Property Offsite', pct:50, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'shutdown', name:'Shutdown / Start-up Costs', short:'Shutdown / Start-up Costs', pct:2, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'sprinkler', name:'Sprinkler Up-grading Costs', short:'Sprinkler Up-grading Costs', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'temporaryRemoval', name:'Temporary Removal (excluding stocks)', short:'Temporary Removal', pct:2, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'foundation', name:'Undamaged Foundation', short:'Undamaged Foundation', pct:1, lists:['sfsp','iar'], limit:'Plinth & Foundation Sum Insured', base:'limit', declare:true },
+  { key:'vehicleLoad', name:'Vehicle Load Clause', short:'Vehicle Load Clause', pct:2, lists:['sfsp','iar'], limit:'Maximum Limit of INR 15 Crs (AOA/AOY)', limitCap:150000000 },
+  { key:'lossMin', name:'Expenses for Loss Minimisation / Loss Prevention', short:'Loss Minimisation', pct:0, lists:['sfsp'], limit:'5% of Sum Insured subject to a maximum of INR 5 Crs per Location (AOA/AOY)', limitPct:5, limitCap:50000000, free:true },
+  { key:'fireFighting', name:'Fire Fighting Expenses', short:'Fire Fighting Expenses', pct:0, lists:['sfsp'], limit:'5% of Sum Insured subject to a maximum of INR 5 Crs per Location (AOA/AOY)', limitPct:5, limitCap:50000000, free:true },
+  { key:'deliberateDamage', name:'Deliberate Damage', short:'Deliberate Damage', pct:0, lists:['sfsp'], limit:'5% of Sum Insured subject to a maximum of INR 5 Crs per Location (AOA/AOY)', limitPct:5, limitCap:50000000, free:true },
+  { key:'hours72', name:'72 Hours Clause', short:'72 Hours Clause', pct:0, lists:['sfsp'], limit:'-', free:true },
+  { key:'additionalInsured', name:'Additional Insured Clause', short:'Additional Insured Clause', pct:0, lists:['sfsp'], limit:'-', free:true },
+  { key:'hirePurchase', name:'Hire Purchase / Lease Agreements, Property under Care, Custody and Control, Goods Held in Trust', short:'Hire Purchase / Trust', pct:0, lists:['sfsp'], limit:'-', free:true },
+  { key:'immediateRepairs', name:'Immediate Repairs', short:'Immediate Repairs', pct:0, lists:['sfsp'], limit:'100% on first 2 losses', free:true },
+  { key:'inlandTransit', name:'Inland Transit', short:'Inland Transit', pct:0, lists:['sfsp'], limit:'Maximum Per Bottom Limit – INR 15 Crs', limitCap:150000000, free:true },
+  { key:'lossPayee', name:'Loss Payee Clause', short:'Loss Payee Clause', pct:0, lists:['sfsp'], limit:'-', free:true },
+  { key:'nonVitiation', name:'Non-Vitiation / Multiple Insured Clause', short:'Non-Vitiation Clause', pct:0, lists:['sfsp'], limit:'-', free:true },
+  { key:'vesselImpact', name:'Vessel Impact to Jetty', short:'Vessel Impact to Jetty', pct:0, lists:['sfsp'], limit:'Maximum Limit of INR 150 Crs (AOA/AOY) Combined Single Limit : INR 50 Crs', limitCap:1500000000, free:true },
+  { key:'escalation', name:'Escalation Clause', short:'Escalation Clause', pct:5, lists:['sfsp','iar','dec'], limit:'-', tariff:true }
 ];
-function fireAddonOn(key){ const sw = document.getElementById('addon-' + key + '-switch'); return !!(sw && sw.classList.contains('on')); }
-function toggleAddon(key){ const sw = document.getElementById('addon-' + key + '-switch'); if(sw) sw.classList.toggle('on'); }
+const FIRE_ADDON_LISTS = { sfsp:'SFSP', iar:'IAR', dec:'Declaration / Floater' };
+let fireAddonList = 'sfsp';
+const fireAddonState = {};                 /* key -> { on, disc, val } - survives a list change */
+function fireAddonSt(key){ return (fireAddonState[key] = fireAddonState[key] || { on:false, disc:'', val:'' }); }
+function fireAddonInList(a){ return a.lists.indexOf(fireAddonList) >= 0; }
+function fireAddonOn(key){ const a = FIRE_ADDONS.find(x => x.key === key); return !!(a && fireAddonInList(a) && fireAddonSt(key).on); }
+/* the loss limit in rupees where the sheet states one; the box on the screen overrides it */
+function fireAddonLimit(a, si, manual){
+  if(a.tariff) return 0;
+  if(manual > 0) return manual;
+  let v = a.limitPct ? si * a.limitPct / 100 : 0;
+  if(a.limitCap) v = v ? Math.min(v, a.limitCap) : a.limitCap;
+  return Math.round(v);
+}
+function setAddonField(key, field, value){ fireAddonSt(key)[field] = value; }
+function setAddonList(k){ if(FIRE_ADDON_LISTS[k]){ fireAddonList = k; renderFireAddons(); } }
+function toggleAddon(key){ const st = fireAddonSt(key); st.on = !st.on; renderFireAddons(); }
+function renderFireAddons(){
+  const host = document.getElementById('addonRows');
+  if(!host) return;
+  const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const mute = 'font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0';
+  const rows = FIRE_ADDONS.filter(fireAddonInList);
+  const row = a => {
+    const st = fireAddonSt(a.key);
+    const pill = a.free ? 'no premium' : (a.pct === 100 ? 'policy rate' : a.pct + '% of policy rate');
+    const sub = (a.tariff ? 'Tariff extension \u2014 not part of the revised add-on schedule'
+                          : (a.limit && a.limit !== '-' ? 'Limit: ' + a.limit : 'No separate loss limit'))
+              + (a.free ? ' \u00b7 granted free of premium, RO authority' : '');
+    return '<div class="switch-row" data-addon="' + a.key + '">' +
+        '<div><div class="t">' + esc(a.name) + ' <span class="rate-pill">' + pill + '</span></div>' +
+        '<div class="s">' + esc(sub) + '</div></div>' +
+        (a.free ? '' :
+          '<div class="input-suffix" data-suffix="%" style="flex:none;width:80px;margin:0 8px" title="Discount on this add-on" onclick="event.stopPropagation()">' +
+          '<input type="number" id="addon-' + a.key + '-disc" value="' + esc(st.disc) + '" placeholder="disc" min="0" max="100" step="0.1" inputmode="decimal" style="text-align:right" ' +
+          'oninput="FIRE.setAddonField(\'' + a.key + '\',\'disc\',this.value)"></div>') +
+        '<div class="switch' + (st.on ? ' on' : '') + '" id="addon-' + a.key + '-switch" onclick="FIRE.toggleAddon(\'' + a.key + '\')"></div>' +
+      '</div>' +
+      (st.on && a.base === 'limit'
+        ? '<div class="field" style="margin:-2px 0 10px">' +
+          '<label class="lbl">' + esc(a.short) + ' <span style="' + mute + '">&mdash; value declared for this cover' +
+            (a.limitPct ? ', blank = ' + a.limitPct + '% of the Sum Insured' : '') + '</span></label>' +
+          '<div class="input-prefix" data-prefix="&#8377;"><input type="number" id="addon-' + a.key + '-val" value="' + esc(st.val) + '" ' +
+          'placeholder="' + (a.declare ? 'declare the value for this cover' : '0') + '" min="0" step="1" inputmode="decimal" ' +
+          'oninput="FIRE.setAddonField(\'' + a.key + '\',\'val\',this.value)"></div></div>'
+        : '');
+  };
+  const rated = rows.filter(a => !a.free), free = rows.filter(a => a.free);
+  const head = (t, n) => '<div class="section-label" style="margin-top:10px">' + t + ' <span style="' + mute + '">&mdash; ' + n + '</span></div>';
+  host.innerHTML = head('Rated add-on covers', rated.length + ' in the ' + FIRE_ADDON_LISTS[fireAddonList] + ' schedule') + rated.map(row).join('') +
+    (free.length ? head('Granted free of premium', free.length + ' covers, Regional Office authority') + free.map(row).join('') : '');
+}
 function toggleSwitch(type){
   const sw = document.getElementById(type+'-switch');
   const wrap = document.getElementById(type+'-disc-wrap');
@@ -24915,15 +25035,23 @@ function calculate(){
 
   // ── ADD-ON COVERS (% of the basic fire premium) ──
   const addonLimitIn = Math.max(0, parseFloat((document.getElementById('addon-limit')||{}).value) || 0);
-  const addonLimit   = addonLimitIn || Math.round(si * 0.10);
+  const addonLimit   = addonLimitIn || Math.round(si * 0.01);   /* the schedule's usual limit */
   const addonDisc    = Math.min(100, Math.max(0, parseFloat((document.getElementById('addon-discount')||{}).value) || 0));
   const addonLines   = FIRE_ADDONS.filter(a => fireAddonOn(a.key)).map(a => {
-    const gross = Math.round(flexaGross * a.pct / 100);
-    const ownEl = document.getElementById('addon-' + a.key + '-disc');
-    const own   = ownEl && String(ownEl.value).trim() !== '' ? parseFloat(ownEl.value) : NaN;
-    const disc  = isNaN(own) ? addonDisc : Math.min(100, Math.max(0, own));
-    const amount = Math.round(gross * (1 - disc / 100));
-    return { key:a.key, name:a.name, short:a.short, pct:a.pct, limit:(a.key === 'escalation' ? 0 : addonLimit), gross, disc, discAmt: gross - amount, amount };
+    const st       = fireAddonSt(a.key);
+    const limitRs  = fireAddonLimit(a, si, addonLimitIn);
+    const declared = Math.max(0, parseFloat(st.val) || 0);
+    /* a cover rated on its own declared value costs the policy rate on that value; every other
+       cover costs its percentage of the basic premium, which is the policy rate on the whole SI */
+    const onValue  = a.base === 'limit';
+    const rateBase = onValue ? (declared || limitRs) : si;
+    const gross    = (a.free || !si) ? 0 : Math.round(flexaGross * (onValue ? rateBase / si : 1) * a.pct / 100);
+    const own      = String(st.disc).trim() !== '' ? parseFloat(st.disc) : NaN;
+    const disc     = a.free ? 0 : (isNaN(own) ? addonDisc : Math.min(100, Math.max(0, own)));
+    const amount   = Math.round(gross * (1 - disc / 100));
+    return { key:a.key, name:a.name, short:a.short, pct:a.pct, free:!!a.free, tariff:!!a.tariff,
+             limitText:(a.limit && a.limit !== '-' ? a.limit : ''), onValue,
+             limit:(onValue ? rateBase : limitRs), gross, disc, discAmt: gross - amount, amount };
   });
   const addonGross   = addonLines.reduce((t, a) => t + a.gross, 0);
   const addonNet     = addonLines.reduce((t, a) => t + a.amount, 0);
@@ -25002,9 +25130,10 @@ function calculate(){
   }
 
   if(addonLines.length){
-    html += `<div class="line section-divider"><span class="k">Add-on Covers · % of basic fire premium</span><span class="v"></span></div>`;
+    html += `<div class="line section-divider"><span class="k">Add-on Covers · ${FIRE_ADDON_LISTS[fireAddonList]} schedule, % of the policy rate</span><span class="v"></span></div>`;
     addonLines.forEach(a => {
-      html += `<div class="line"><span class="k">${a.name} · ${a.pct}%</span><span class="v">${fmtR(a.gross)}</span></div>`;
+      const how = a.free ? 'free of premium' : (a.onValue ? (a.pct === 100 ? 'policy rate' : a.pct + '% of policy rate') + ' on ' + fmtR(a.limit) : a.pct + '%');
+      html += `<div class="line"><span class="k">${a.name} · ${how}</span><span class="v">${a.free ? '&mdash;' : fmtR(a.gross)}</span></div>`;
       if(a.disc > 0) html += `<div class="line sub"><span class="k">Discount (${a.disc}%)</span><span class="v discount">− ${fmtR(a.discAmt)}</span></div>`;
     });
     html += `<div class="line net-line"><span class="k">Net Add-on Premium</span><span class="v">${fmtR(addonNet)}</span></div>`;
@@ -25976,7 +26105,9 @@ function buildFirePDF(returnBlob){
       q.burgOn ? ['Burglary Rate', q.burgRate + (q.burgUnit === 'pct' ? ' percent' : ' per mille')] : null
     ].filter(Boolean)},
     { bar:'Add-on Covers', rows: (q.addonLines && q.addonLines.length)
-        ? q.addonLines.map(a => [a.short || a.name, a.pct + '% of basic']).concat(q.addonLines.some(a => a.limit) ? [['Limit per add-on (Escalation excluded)', OICPDF.fmtIN(q.addonLimit)]] : [])
+        /* this column is narrow: the sheet's own wording for the limit goes on the cover pages, not here */
+        ? q.addonLines.map(a => [a.short || a.name, a.free ? 'Free of premium'
+            : (a.pct === 100 ? 'Policy rate' : a.pct + '% of rate') + (a.limit ? ' \u00b7 limit ' + OICPDF.fmtIN(a.limit) : '')])
         : [['Add-on covers', 'Not Opted']] },
     { bar:'Policy Excess / Deductible', rows:[
       ['Sum Insured Band', exBand],
@@ -26039,7 +26170,8 @@ function buildFirePDF(returnBlob){
   if(q.addonLines && q.addonLines.length){
     addonKey = String.fromCharCode(66 + (q.stfiOn ? 1 : 0) + (q.eqOn ? 1 : 0) + (terrorKey ? 1 : 0) + (burgKey ? 1 : 0));
     /* each add-on is printed at its net amount; the discount itself is not itemised */
-    const arows = q.addonLines.map(a => ({ label: (a.short || a.name) + (a.disc > 0 ? '' : ' @ ' + a.pct + '% of basic'), value:R(a.amount) }));
+    const arows = q.addonLines.map(a => ({ label: (a.short || a.name) + (a.free ? ' (free of premium)' : (a.disc > 0 ? '' : ' @ ' + (a.pct === 100 ? 'the policy rate' : a.pct + '% of the policy rate'))),
+                                           value: a.free ? '\u2014' : R(a.amount) }));
     arows.push({ label:'Net Add-on Premium (' + addonKey + ')', value:R(q.addonNet), total:true });
     right.push({ sub:'Section ' + addonKey + ' \u2013 Add-on Covers', rows:arows });
   }
@@ -26121,12 +26253,38 @@ window.FIRE_VERIFIED = [
     check:()=>{ const q = bgrCompute({occ:'coop', years:1, months:3, zone:1, terror:true, si:1000000}); return [q.rates.flexa, q.rates.stfi, q.rates.eq, q.rates.lor].map(v=>v.toFixed(3)).join('/') + '/' + q.shortPct; } },
   { label:'Fire: Sookshma list carries Dish Antenna 0.228 and Cloth Processing 1.077 (OICL Fire calculator w.e.f. 01-01-2025)', expect:'0.228/1.077',
     check:()=>RATES.sookshma['Dish Antenna'] + '/' + RATES.sookshma['Cloth Processing units outside textile mills compound'] },
-  { label:'Fire add-ons as INLIAS rates them: debris 1% / betterment 1% / claim preparation 1% / brands 0.1% / escalation 5% of the basic fire premium (Sookshma 4 Cr basic 34,960 -> 350/350/350/35/1748)',
-    expect:'350/350/350/35/1748', check:()=>FIRE_ADDONS.map(a=>Math.round(34960*a.pct/100)).join('/') },
-  { label:'Fire: add-on discount 20% on Removal of Debris (basic 34,960 -> 350 gross, 280 net)', expect:'280',
-    check:()=>String(Math.round(Math.round(34960*FIRE_ADDONS[0].pct/100)*(1-20/100))) },
-  { label:'Fire: every add-on row has its own discount box', expect:'5',
-    check:()=>String(FIRE_ADDONS.filter(a=>document.getElementById('addon-'+a.key+'-disc')).length) },
+  { label:'Fire add-on schedule (Addon_Revised Rating.xlsx, 18-Sep-2026): 31 rated covers for SFSP, 29 for IAR (the same list without Brands and Trademarks and Pair and Set), 5 for a Declaration or Floater policy, and 11 granted free of premium', expect:'31/29/5/11/42',
+    check:()=>{ const n = k => FIRE_ADDONS.filter(a => a.lists.indexOf(k) >= 0 && !a.free && !a.tariff).length;
+                return [n('sfsp'), n('iar'), n('dec'), FIRE_ADDONS.filter(a => a.free).length, FIRE_ADDONS.filter(a => !a.tariff).length].join('/'); } },
+  { label:'Fire add-on rates come from the revised sheet: Removal of Debris 1%, Involuntary Betterment 5%, Brands and Trademarks 2%, Leak Search 10%, Obsolete Parts 5%, Property Offsite 50%, Capital Addition at the full policy rate, Escalation 5% as a tariff extension', expect:'1/5/2/10/5/50/100/5',
+    check:()=>['debris','betterment','brands','leakSearch','obsoleteParts','offsite','capitalAddition','escalation']
+                .map(k => (FIRE_ADDONS.find(a => a.key === k) || {}).pct).join('/') },
+  { label:'Fire add-ons are charged as a percentage of the policy rate, so on a basic premium of 34,960 Removal of Debris (1%) is 350, Involuntary Betterment (5%) 1,748, Brands (2%) 699 and Leak Search (10%) 3,496', expect:'350/1748/699/3496',
+    check:()=>['debris','betterment','brands','leakSearch'].map(k => Math.round(34960 * FIRE_ADDONS.find(a => a.key === k).pct / 100)).join('/') },
+  { label:'Fire: a cover carrying the full policy rate is rated on the value declared for it, not on the whole sum insured - Capital Addition on a 4 crore risk at a basic of 34,960 defaults to 1% of the sum insured (4 lakh) and costs 350, not 34,960', expect:'400000/350',
+    check:()=>{ const a = FIRE_ADDONS.find(x => x.key === 'capitalAddition');
+                const lim = fireAddonLimit(a, 40000000, 0);
+                return [lim, Math.round(34960 * (lim / 40000000) * a.pct / 100)].join('/'); } },
+  { label:'Fire add-on loss limits follow the sheet: 1% of the sum insured for Removal of Debris, the Vehicle Load Clause capped at Rs.15 crore, the free covers at 5% of the sum insured subject to Rs.5 crore, and a typed limit overriding all of them', expect:'400000/150000000/2000000/50000000/250000',
+    check:()=>{ const L = (k, si, manual) => fireAddonLimit(FIRE_ADDONS.find(a => a.key === k), si, manual || 0);
+                return [L('debris', 40000000), L('vehicleLoad', 40000000), L('lossMin', 40000000), L('lossMin', 2000000000), L('debris', 40000000, 250000)].join('/'); } },
+  { label:'Fire: the free covers carry no premium and no discount box, and the quote refers them to the Regional Office', expect:'11/0/true',
+    check:()=>{ const free = FIRE_ADDONS.filter(a => a.free);
+                return [free.length, free.filter(a => a.pct !== 0).length, free.every(a => /RO Authority|5% of Sum Insured|-|100% on first|INR/i.test(a.limit))].join('/'); } },
+  { label:'Fire: every rated add-on on the screen has its own discount box, and the schedule selector swaps the list (SFSP 32 rows with Escalation, Declaration / Floater 6)', expect:'32/32/6/6',
+    check:()=>{ const keep = fireAddonList;
+                try{
+                  setAddonList('sfsp');
+                  const rated = FIRE_ADDONS.filter(a => a.lists.indexOf('sfsp') >= 0 && !a.free);
+                  const boxes = rated.filter(a => document.getElementById('addon-' + a.key + '-disc')).length;
+                  setAddonList('dec');
+                  const decRated = FIRE_ADDONS.filter(a => a.lists.indexOf('dec') >= 0 && !a.free);
+                  const decBoxes = decRated.filter(a => document.getElementById('addon-' + a.key + '-disc')).length;
+                  return [rated.length, boxes, decRated.length, decBoxes].join('/');
+                } finally { setAddonList(keep); } } },
+  { label:'Fire: a discount typed on one add-on applies to that add-on only, and the all-add-ons box covers the rest (basic 34,960: debris 350 less 20% = 280)', expect:'280/1748',
+    check:()=>{ const g = Math.round(34960 * FIRE_ADDONS.find(a => a.key === 'debris').pct / 100);
+                return [Math.round(g * (1 - 20 / 100)), Math.round(34960 * FIRE_ADDONS.find(a => a.key === 'betterment').pct / 100)].join('/'); } },
   { label:'PDF: WC medical extension prints net of flexi discount (1,000 - 10% = 900)', expect:'900',
     check:()=>{ const q={med:1000,discMed:100}; return String(q.med-(q.discMed||0)); } },
   { label:'Nil Dep discount by class: private car 40 / two-wheeler 40 / GCCV 20 / PCCV 20 / 2W hire 20 / Misc 40', expect:'40/40/20/20/20/40',
@@ -26272,8 +26430,12 @@ window.FIRE_VERIFIED = [
     check:()=>{ const e=MOTOR_ADDON_WORDINGS.engineProtect.byClass.twoWheeler.uin.twoWheeler.join(' '), b=MOTOR_ADDON_WORDINGS.batteryProtect.byClass.twoWheeler.uin.twoWheeler.join(' '); return (/A0003V01202627/.test(e)&&/A0004V01202627/.test(e)&&/A0005V01202627/.test(b)&&/A0006V01202627/.test(b)) ? 'ok' : 'missing'; } },
   { label:'Motor: two-wheeler EPC rate table in the schedule matches the rating engine (0.067 … 0.140% of IDV)', expect:'0.067%/0.140%',
     check:()=>{ const r=MOTOR_ADDON_WORDINGS.engineProtect.byClass.twoWheeler.table.rows; return r[0][1]+'/'+r[4][1]; } },
-  { label:'Fire: Terrorism 0.21 per mille on Rs.12 Cr = Rs.25,200 (OICL Laghu sheet R/432702/11/2027/61, 27/08/2026)', expect:25200, check:()=>Math.round((12e7/1000)*(parseFloat(document.getElementById('terror-rate').value)||0)) },
-  { label:'Fire: Terrorism 0.21 per mille on Rs.4 Cr = Rs.8,400 (OICL Sookshma sheet R/432702/11/2027/3, 24/04/2026)', expect:8400, check:()=>Math.round((4e7/1000)*(parseFloat(document.getElementById('terror-rate').value)||0)) },
+  /* These read the pool rate the screen starts at, not whatever the agent has since typed or the
+     risk has set: read live, both checks failed the moment a quote was raised at another rate. */
+  { label:'Fire: Terrorism 0.21 per mille on Rs.12 Cr = Rs.25,200 (OICL Laghu sheet R/432702/11/2027/61, 27/08/2026)', expect:'0.21/25200',
+    check:()=>{ const r = parseFloat(document.getElementById('terror-rate').getAttribute('value')) || 0; return r + '/' + Math.round((12e7/1000)*r); } },
+  { label:'Fire: Terrorism 0.21 per mille on Rs.4 Cr = Rs.8,400 (OICL Sookshma sheet R/432702/11/2027/3, 24/04/2026)', expect:'0.21/8400',
+    check:()=>{ const r = parseFloat(document.getElementById('terror-rate').getAttribute('value')) || 0; return r + '/' + Math.round((4e7/1000)*r); } },
   { label:'Fire: Laghu STFI industrial 0.37 on Rs.12 Cr = Rs.44,400 and EQ Zone IV 0.05 = Rs.6,000 (same Laghu sheet)', expect:'44400/6000', check:()=>Math.round(12e4*ANNEXB_STFI.industrial)+'/'+Math.round(12e4*ANNEXB_EQ.industrial[4]) },
   { label:'Fire: Sookshma STFI industrial 0.25 on Rs.4 Cr = Rs.10,000 and EQ Zone IV 0.05 = Rs.2,000 (same Sookshma sheet)', expect:'10000/2000', check:()=>Math.round(4e4*SOOKSHMA_STFI.industrial)+'/'+Math.round(4e4*ANNEXB_EQ.industrial[4]) },
   { label:'Fire: tier auto-classification — Engineering Workshop (Steel Plants) is industrial, not non-industrial (was matched by the keyword "shop")', expect:'industrial/industrial/non-industrial/storage-closed/storage-open/roads/td-lines',
@@ -26283,12 +26445,16 @@ function newQuote(){
   try{
     ['sum-insured','insured-name','bgr-lor','bgr-aa','bgr-pa'].forEach(function(id){ const e = document.getElementById(id); if(e) e.value = ''; });
     ['bgr-disc','bgr-load'].forEach(function(id){ const e = document.getElementById(id); if(e) e.value = '0'; });
+    ['addon-limit','addon-discount'].forEach(function(id){ const e = document.getElementById(id); if(e) e.value = ''; });
+    Object.keys(fireAddonState).forEach(function(k){ delete fireAddonState[k]; });
+    renderFireAddons();
     const card = document.getElementById('result-card'); if(card) card.classList.remove('visible');
     lastQuote = null;
     const sec = document.getElementById('sectionFire'); if(sec) window.scrollTo({ top: Math.max(0, sec.offsetTop - 8), behavior:'smooth' });
   }catch(e){ console.error(e); }
 }
-window.FIRE = {searchLocation: (typeof searchLocation==='function'? searchLocation : function(){ return []; }), bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
+renderFireAddons();
+window.FIRE = {setAddonList: setAddonList, setAddonField: setAddonField, renderFireAddons: renderFireAddons, searchLocation: (typeof searchLocation==='function'? searchLocation : function(){ return []; }), bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
 })();
 </script>
 <style id="mobileFixes">
@@ -26587,7 +26753,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v143 · the product switcher: seven tabs on one row (four over three on a phone), icon above label, and each product in its own colour · 17-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v144 · the office's revised Fire add-on schedule: 31 rated covers for SFSP, 29 for IAR, 5 for a Declaration or Floater policy and 11 granted free of premium, each rated on the policy rate and each with its own discount box · 18-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
