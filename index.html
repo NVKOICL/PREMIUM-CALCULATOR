@@ -3126,10 +3126,10 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
     </details>
   </section>
 
-  <button class="btn btn-primary" id="hCalcBtn" style="margin-bottom:16px" type="button">
+  <div class="sticky-calc-wrap"><button class="btn btn-primary" id="hCalcBtn" type="button">
     <svg class="icon" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
     Calculate Health Premium
-  </button>
+  </button></div>
 
   <!-- HEALTH RESULT -->
   <section class="card h-calc-card result" id="hResultCard" style="display:none">
@@ -4909,7 +4909,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
       <div class="section-label mt">Worker Groups</div>
       <p class="hint" style="margin-bottom:12px">Add one group per occupation / wage band. The E.C. Act caps monthly wages at &#8377;15,000 for compensation; workers above that are shown on a separate schedule and may be rated on full earnings.</p>
       <div id="wcGroups"></div>
-      <button type="button" class="btn-secondary" id="wcAddGroup" style="width:100%;margin-top:10px">+ Add Worker Group</button>
+      <button type="button" class="btn btn-secondary" id="wcAddGroup" style="width:100%;margin-top:10px">+ Add Worker Group</button>
 
       <div class="section-label mt">Medical Extension Add-on</div>
       <div class="field">
@@ -4954,7 +4954,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
       </div>
       <div class="hint" id="wcDiscMedWarn" style="display:none;color:var(--accent-dark)">Medical Extension discount is allowed within the same office authority as the basic premium. Beyond that authority a reference must be made to Head Office.</div>
 
-      <button type="button" class="btn" id="wcCalcBtn" style="width:100%;margin-top:20px">Calculate Premium</button>
+      <div class="sticky-calc-wrap" style="margin-top:20px"><button type="button" class="btn" id="wcCalcBtn" style="width:100%">Calculate Premium</button></div>
     </div>
 
     <div id="wcResult"></div>
@@ -16788,6 +16788,30 @@ function updateSiNote() {
   el.textContent = msg;
 }
 
+/* What a change of age can alter in the member rows: which member is the eldest, whether an age
+   loading pill shows, and whether the entry-age row appears. The list is rebuilt only when one of
+   those actually changes. */
+function hMemberShape(){
+  const ms = hState.members || [];
+  const sorted = [...ms].map((m, i) => ({ ...m, origIdx:i })).sort((a, b) => b.age - a.age);
+  return (sorted[0] ? sorted[0].origIdx : 0) + '|' + hState.basis + '|' + ms.map(m => {
+    const l = OSSS.getAgeLoading(m.age);
+    return (l > 0 ? 1 : 0) + (l > 0 && m.entryAge != null && m.entryAge <= 65 ? 'w' : '');
+  }).join(',');
+}
+let _hShape = '';
+function hRenderMembersKeepingFocus(){
+  const el = document.activeElement;
+  const cls = el && el.className ? String(el.className).split(' ')[0] : '';
+  const idx = el && el.dataset ? el.dataset.idx : null;
+  let pos = null;
+  try{ pos = (el && el.selectionStart != null) ? el.selectionStart : null; }catch(e){}
+  renderHMembers();
+  if(cls && idx != null){
+    const back = document.querySelector('#hMemberList .' + cls + '[data-idx="' + idx + '"]');
+    if(back){ back.focus(); try{ if(pos != null) back.setSelectionRange(pos, pos); }catch(e){} }
+  }
+}
 // ── Render members ──
 function renderHMembers() {
   const list = document.getElementById('hMemberList');
@@ -16846,7 +16870,7 @@ function renderHMembers() {
   });
 
   list.querySelectorAll('.member-age-input').forEach(input => {
-    input.addEventListener('change', () => {
+    const readAge = () => {
       const idx = parseInt(input.dataset.idx);
       // A BLANK age must stay blank, not become 0. `parseInt('') || 0` made an
       // empty box price as a new-born — the cheapest band — so clearing an age
@@ -16856,7 +16880,20 @@ function renderHMembers() {
       hState.members[idx].age = (_raw === '')
         ? null
         : Math.max(0, Math.min(99, parseInt(_raw, 10) || 0));
-      renderHMembers();
+    };
+    /* While the agent is still in this box: keep the badges and the entry-age row in step, and put
+       the caret back, because renderHMembers() replaces the whole list. */
+    input.addEventListener('input', () => {
+      readAge();
+      const sig = hMemberShape();
+      if(sig !== _hShape){ _hShape = sig; hRenderMembersKeepingFocus(); }
+    });
+    /* On blur - which on a phone is the moment the agent taps the NEXT age box - price it, but
+       never rebuild the list here: doing so destroyed the box under their finger and shut the
+       keyboard, so every age had to be tapped twice. */
+    input.addEventListener('change', () => {
+      readAge();
+      _hShape = hMemberShape();
       updateHPaRows();
       updateRiskBadge();
       hCalcAndShow();
@@ -24516,26 +24553,54 @@ function fireAddonLimit(a, si, manual){
   return Math.round(v);
 }
 function setAddonField(key, field, value){ fireAddonSt(key)[field] = value; }
+let fireAddonMode = 'all', fireAddonQuery = '';
+function setAddonMode(m){ fireAddonMode = (m === 'sel') ? 'sel' : 'all'; renderFireAddons(); applyAddonFilter(); }
+/* the search hides rows with CSS; every row, discount box and switch stays in the DOM */
+function applyAddonFilter(){
+  const host = document.getElementById('addonRows'); if(!host) return;
+  const q = fireAddonQuery.trim().toLowerCase();
+  host.querySelectorAll('.ao').forEach(el => {
+    el.dataset.hit = (!q || (el.dataset.name || '').indexOf(q) >= 0) ? '1' : '0';
+  });
+  host.dataset.searching = q ? '1' : '0';
+}
+function filterAddons(v){ fireAddonQuery = String(v || ''); applyAddonFilter(); }
 function setAddonList(k){ if(FIRE_ADDON_LISTS[k] && k !== 'bsu'){ fireAddonSchedule = k; fireAddonList = k; renderFireAddons(); } }
-function toggleAddon(key){ const st = fireAddonSt(key); st.on = !st.on; renderFireAddons(); }
+function toggleAddon(key){ const st = fireAddonSt(key); st.on = !st.on; renderFireAddons(); applyAddonFilter(); }
 function renderFireAddons(){
   const host = document.getElementById('addonRows');
   if(!host) return;
   const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   const mute = 'font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0';
   const rows = FIRE_ADDONS.filter(fireAddonInList);
+  /* the limit in a few words for the chip on a phone; the sentence stays in the title attribute */
+  const shortLimit = a => {
+    if(a.tariff) return 'tariff extension';
+    if(!a.limit || a.limit === '-') return 'no limit';
+    if(a.declare) return 'declared value';
+    if(a.limitPct && a.limitCap) return a.limitPct + '% SI, max ' + Math.round(a.limitCap / 10000000) + ' Cr';
+    if(a.limitPct) return a.limitPct + '% SI';
+    if(a.limitCap) return 'max ' + Math.round(a.limitCap / 10000000) + ' Cr';
+    return 'see limit';
+  };
   const row = a => {
     const st = fireAddonSt(a.key);
     const pill = a.free ? 'no premium' : (fireAddonPct(a) === 100 ? 'policy rate' : fireAddonPct(a) + '% of policy rate');
+    const pillShort = a.free ? 'free' : (fireAddonPct(a) === 100 ? 'policy rate' : fireAddonPct(a) + '%');
     const sub = (a.tariff ? 'Tariff extension \u2014 not part of the revised add-on schedule'
                           : (a.limit && a.limit !== '-' ? 'Limit: ' + a.limit : 'No separate loss limit'))
               + (a.free ? ' \u00b7 granted free of premium, RO authority' : '');
-    return '<div class="switch-row" data-addon="' + a.key + '">' +
-        '<div><div class="t">' + esc(a.name) + ' <span class="rate-pill">' + pill + '</span></div>' +
-        '<div class="s">' + esc(sub) + '</div></div>' +
+    /* one line on a phone (short name + two chips), the full wording on a wider screen; both are in
+       the DOM so nothing that reads these rows can miss them */
+    return '<div class="switch-row ao" data-addon="' + a.key + '" data-on="' + (st.on ? 1 : 0) + '"' +
+        ' data-name="' + esc((a.name + ' ' + a.short).toLowerCase()) + '" title="' + esc(a.name + ' \u2014 ' + sub) + '">' +
+        '<div><div class="t"><span class="ao-long">' + esc(a.name) + '</span><span class="ao-short">' + esc(a.short) + '</span> ' +
+          '<span class="rate-pill"><span class="ao-long">' + pill + '</span><span class="ao-short">' + pillShort + '</span></span>' +
+          '<span class="rate-pill ao-short ao-lim">' + esc(shortLimit(a)) + '</span></div>' +
+        '<div class="s ao-long">' + esc(sub) + '</div></div>' +
         (a.free ? '' :
-          '<div class="input-suffix" data-suffix="%" style="flex:none;width:80px;margin:0 8px" title="Discount on this add-on" onclick="event.stopPropagation()">' +
-          '<input type="number" id="addon-' + a.key + '-disc" value="' + esc(st.disc) + '" placeholder="disc" min="0" max="100" step="0.1" inputmode="decimal" style="text-align:right" ' +
+          '<div class="input-suffix ao-disc" data-suffix="%" style="flex:none;width:80px;margin:0 8px" title="Discount on this add-on" onclick="event.stopPropagation()">' +
+          '<input type="number" id="addon-' + a.key + '-disc" value="' + esc(st.disc) + '" placeholder="0" min="0" max="100" step="0.1" inputmode="decimal" style="text-align:right" ' +
           'oninput="FIRE.setAddonField(\'' + a.key + '\',\'disc\',this.value)"></div>') +
         '<div class="switch' + (st.on ? ' on' : '') + '" id="addon-' + a.key + '-switch" onclick="FIRE.toggleAddon(\'' + a.key + '\')"></div>' +
       '</div>' +
@@ -24551,10 +24616,24 @@ function renderFireAddons(){
   const rated = rows.filter(a => !a.free), free = rows.filter(a => a.free);
   const sheetCount = rated.filter(a => !a.tariff).length;   /* the tabs count the sheet, not the tariff extension */
   const head = (t, n) => '<div class="section-label" style="margin-top:10px">' + t + ' <span style="' + mute + '">&mdash; ' + n + '</span></div>';
-  host.innerHTML = head('Rated add-on covers', fireAddonList === 'bsu'
+  /* how many are on, a search box, and Selected / All - it opens on All because every cover starts off */
+  const onCount = rows.filter(a => fireAddonSt(a.key).on).length;
+  const strip = '<div class="ao-find">' +
+      '<div class="ao-count"><b>' + onCount + '</b> of ' + rows.filter(a => !a.free).length + ' chosen</div>' +
+      '<input type="search" id="addonSearch" placeholder="Find a cover\u2026" autocomplete="off" oninput="FIRE.filterAddons(this.value)" />' +
+      '<div class="ao-mode"><button type="button" class="' + (fireAddonMode === 'sel' ? 'on' : '') + '" onclick="FIRE.setAddonMode(\'sel\')">Chosen</button>' +
+      '<button type="button" class="' + (fireAddonMode === 'all' ? 'on' : '') + '" onclick="FIRE.setAddonMode(\'all\')">All</button></div>' +
+    '</div>';
+  host.dataset.mode = fireAddonMode;
+  host.innerHTML = strip + head('Rated add-on covers', fireAddonList === 'bsu'
       ? 'the five covers of the Bharat Sookshma / Laghu policies, as rated on the computation sheets'
       : sheetCount + ' in the ' + FIRE_ADDON_LISTS[fireAddonList] + ' schedule, with the Escalation Clause alongside') + rated.map(row).join('') +
     (free.length ? head('Granted free of premium', free.length + ' covers, Regional Office authority') + free.map(row).join('') : '');
+  if(fireAddonMode === 'sel' && !rows.some(a => fireAddonSt(a.key).on))
+    host.insertAdjacentHTML('beforeend', '<div class="ao-empty">No add-on cover chosen yet \u2014 tap <b>All</b> to pick from the schedule.</div>');
+  const sb = document.getElementById('addonSearch');
+  if(sb && fireAddonQuery){ sb.value = fireAddonQuery; }
+  applyAddonFilter();
 }
 function toggleSwitch(type){
   const sw = document.getElementById(type+'-switch');
@@ -26352,6 +26431,39 @@ window.FIRE_VERIFIED = [
                   const b = fireAddonList + '/' + f().style.display;
                   return a + '/' + b;
                 } finally { currentPolicy = keepP; fireAddonSchedule = keepS; syncAddonSchedule(); } } },
+  { label:'Fire on a phone: every add-on row carries a short name and a long one, the limit as a chip and the full wording in the title, so the 273px five-line row becomes one line - and the row, its discount box and its switch all stay in the DOM at every width', expect:'true/true/true/true/32',
+    check:()=>{ const keepP = currentPolicy;
+                try{
+                  currentPolicy = 'tariff'; setAddonList('sfsp');
+                  const host = document.getElementById('addonRows');
+                  const r = host.querySelector('.ao');
+                  const rated = FIRE_ADDONS.filter(a => fireAddonInList(a) && !a.free);
+                  return [!!r.querySelector('.ao-long'), !!r.querySelector('.ao-short'), !!r.querySelector('.ao-lim'),
+                          (r.getAttribute('title') || '').length > 20,
+                          rated.filter(a => document.getElementById('addon-' + a.key + '-disc')).length].join('/');
+                } finally { currentPolicy = keepP; syncAddonSchedule(); } } },
+  { label:'Fire: the find strip filters the list by name and by whether the cover is chosen, using CSS only - no row is ever removed, so a hidden row keeps its discount box and its value', expect:'all/1/0/all/32',
+    check:()=>{ const keepP = currentPolicy, keepMode = fireAddonMode;
+                try{
+                  currentPolicy = 'tariff'; setAddonList('sfsp'); setAddonMode('all');
+                  const host = document.getElementById('addonRows');
+                  filterAddons('leak');
+                  const hit = host.querySelector('.ao[data-addon="leakSearch"]').dataset.hit;
+                  const miss = host.querySelector('.ao[data-addon="debris"]').dataset.hit;
+                  filterAddons('');
+                  return [host.dataset.mode, hit, miss, host.dataset.mode,
+                          FIRE_ADDONS.filter(a => fireAddonInList(a) && !a.free).filter(a => document.getElementById('addon-' + a.key + '-disc')).length].join('/');
+                } finally { filterAddons(''); setAddonMode(keepMode); currentPolicy = keepP; syncAddonSchedule(); } } },
+  { label:'Every product carries its Calculate button in the sticky bar, Health and WC included - Health\'s used to sit five screens down the page', expect:'7',
+    check:()=>['motor','health','fire','wc','car','cpm','paps'].filter(p => {
+                 const sec = document.getElementById('section' + p.charAt(0).toUpperCase() + p.slice(1));
+                 return sec && sec.querySelector('.sticky-calc-wrap .btn'); }).length + '' },
+  { label:'Health: typing an age no longer rebuilds the member list on blur, which on a phone destroyed the box the agent was tapping into and shut the keyboard; the list is rebuilt while they type, only when a badge or the entry-age row actually changes, and the caret is put back', expect:'true/true/true',
+    check:()=>{ const src = String(renderHMembers);
+                const onChange = src.slice(src.indexOf("querySelectorAll('.member-age-input')"));
+                const chunk = onChange.slice(0, onChange.indexOf('member-entry-age-input'));
+                return [/addEventListener\('input'/.test(chunk), !/addEventListener\('change'[\s\S]{0,400}renderHMembers\(\)/.test(chunk),
+                        /setSelectionRange/.test(String(hRenderMembersKeepingFocus))].join('/'); } },
   { label:'Fire: the two covers the sheet rates on a value the insured declares (Catalyst and Consumables on the catalyst value, Undamaged Foundation on the plinth and foundation Sum Insured) carry no percentage of the Sum Insured to fall back on, so the quote leaves them out of the premium until the value is entered and says so', expect:'true/true/0/0/true/true',
     check:()=>{ const c = FIRE_ADDONS.find(a => a.key === 'catalyst'), f = FIRE_ADDONS.find(a => a.key === 'foundation');
                 const src = String(updateFlags);
@@ -26538,7 +26650,7 @@ function newQuote(){
   }catch(e){ console.error(e); }
 }
 syncAddonSchedule();
-window.FIRE = {setAddonList: setAddonList, syncAddonSchedule: syncAddonSchedule, setAddonField: setAddonField, renderFireAddons: renderFireAddons, searchLocation: (typeof searchLocation==='function'? searchLocation : function(){ return []; }), bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
+window.FIRE = {setAddonList: setAddonList, syncAddonSchedule: syncAddonSchedule, setAddonMode: setAddonMode, filterAddons: filterAddons, setAddonField: setAddonField, renderFireAddons: renderFireAddons, searchLocation: (typeof searchLocation==='function'? searchLocation : function(){ return []; }), bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
 })();
 </script>
 <style id="mobileFixes">
@@ -26579,6 +26691,73 @@ select.pdf-lang{appearance:auto;-webkit-appearance:menulist;padding:9px 10px;bor
 /* v101: installment schedule scrolls inside its own box on narrow screens */
 #ce-install-table{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
 @media (max-width:480px){ #ce-install-table .install-table{font-size:12px} #ce-install-table .install-table th,#ce-install-table .install-table td{padding:7px 6px;white-space:nowrap} #ce-install-table .install-table td:first-child{white-space:normal;min-width:120px} }
+/* ══ v147: the phone pass ══════════════════════════════════════════════════
+   Measured at 375x812 before this: the Fire add-on card was 10,114px because each cover's name
+   wrapped over six lines and its limit over four - 273px a row. Nothing below removes an element;
+   the rows, the discount boxes and the switches are all still in the DOM at every width. */
+.ao-short{display:none}
+#sectionFire .ao-find{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
+#sectionFire .ao-find .ao-count{font-size:12px;color:var(--mute);font-weight:600;white-space:nowrap}
+#sectionFire .ao-find .ao-count b{color:var(--accent-dark);font-size:13px}
+/* the search takes the first line, the count and the Chosen/All pair the second, so nothing is
+   squeezed at 375px where the card is only 277px wide */
+#sectionFire .ao-find input[type="search"]{flex:1 1 100%;order:-1;min-width:0;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;
+  font-family:inherit;font-size:16px;font-weight:600;background:var(--card);color:var(--ink);-webkit-appearance:none;appearance:none}
+#sectionFire .ao-find input[type="search"]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+#sectionFire .ao-find .ao-count{flex:0 0 auto}
+#sectionFire .ao-mode{display:inline-flex;flex:0 0 auto;margin-left:auto;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;background:var(--card)}
+#sectionFire .ao-mode button{flex:0 0 auto;white-space:nowrap;border:none;background:transparent;font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-soft);
+  padding:9px 14px;min-height:40px;cursor:pointer}
+#sectionFire .ao-mode button.on{background:var(--grad-ink);color:#fff}
+#addonRows[data-mode="sel"][data-searching="0"] .ao[data-on="0"]{display:none}
+#addonRows .ao[data-hit="0"]{display:none}
+/* the declared-value field belongs to the row above it, so it follows the row out of sight */
+#addonRows[data-mode="sel"][data-searching="0"] .ao[data-on="0"] + .field{display:none}
+#sectionFire .ao-empty{font-size:12.5px;color:var(--mute);padding:10px 2px}
+/* the rate and the limit read as chips, not as more of the cover's name */
+#sectionFire #addonRows .rate-pill{display:inline-block;background:var(--accent-soft);color:var(--accent-dark);
+  font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap;vertical-align:middle}
+#sectionFire #addonRows .ao-lim{background:var(--bg-tint);color:var(--ink-soft)}
+/* right-aligned digits were running under the % suffix */
+#sectionFire #addonRows .ao-disc input{padding-right:26px}
+
+@media(max-width:600px){
+  /* one line per cover: the short name and two chips, the full wording kept in the title attribute */
+  #addonRows .ao-long{display:none}
+  #addonRows .ao-short{display:inline}
+  #addonRows .switch-row{padding:9px 0;align-items:center;gap:8px}
+  #addonRows .switch-row .t{font-size:13px;line-height:1.25;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  #addonRows .rate-pill{font-size:9.5px;padding:2px 6px}
+  #addonRows .ao[data-on="0"] .ao-disc{display:none}   /* a discount matters once the cover is on */
+  #addonRows .ao-disc{width:64px!important;margin:0 4px!important}
+  #addonRows .ao-disc input{padding:9px 20px 9px 8px}
+  /* the list heading ran to three lines at this width */
+  #addonRows .section-label{display:block;font-size:10.5px;margin-top:14px}
+  #addonRows .section-label span{display:block;margin-top:2px}
+  /* the app's chrome: a phone gave 443px to the header and the tabs before the first field */
+  .header{margin-bottom:10px;padding-top:6px}
+  .header .brand-mark{display:none}        /* the title says the same thing, 40px lower down */
+  .header .title{font-size:23px}
+  .header .subtitle{display:none}
+  /* 16px stops iOS zooming the page the moment a field is focused - and the two pixels the text
+     gains are taken back off the padding, so a field is the same height as before and Motor's 73
+     of them do not add half a screen of scrolling */
+  input,select,textarea,.chip-input,.member-age-input,.dq-idv-input{font-size:16px}
+  #sectionFire input,#sectionFire select,#sectionCar input,#sectionCar select{font-size:16px}
+  input,select,textarea{padding-top:11px;padding-bottom:11px}
+  #sectionFire input,#sectionFire select,#sectionCar input,#sectionCar select,#sectionWc input,#sectionWc select{padding-top:11px;padding-bottom:11px}
+  /* a thumb needs more than 30px: the switch keeps its look and gains hit area */
+  .switch{position:relative}
+  .switch::after{content:"";position:absolute;left:-8px;right:-8px;top:-9px;bottom:-9px}
+  .member-remove,.wc-del{padding:10px 14px;line-height:1}
+  /* Fire is the only product that stacks a second hero inside the page - 230px of branding on the
+     app's longest screen, under the one at the top that says the same thing. */
+  #sectionFire > .app > .header{display:none}
+  /* The step bar is Motor's, shows only "1 2 3 4 5" at this width, has no click handler, and the
+     Saved pill sits on top of dots 1 and 2 and swallows their taps. 51px of fixed chrome for it. */
+  .step-progress{display:none}
+}
+
 /* v92 phone-width layout fixes (audit 10-Sep-2026) */
 .toast:not(.show){opacity:0;visibility:hidden}
 .toast{transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .25s ease,visibility .25s ease}
@@ -26837,7 +27016,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v146 · the revised add-on schedule is for SFSP, IAR and a Declaration or Floater policy only; Bharat Sookshma and Laghu keep their five add-ons at the rates INLIAS charged, and the schedule selector appears only on the tariff policy · 18-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v147 · the phone pass: an add-on cover is one line instead of five (the Fire SFSP page drops from 16 phone screens to 8, or 5 showing only the covers chosen), a find strip over the list, Calculate always within reach on Health and WC, no more keyboard closing on every Health age, 16px controls so iOS stops zooming, and less chrome above the first field · 18-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
