@@ -3762,7 +3762,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
          and the cover is excluded entirely from the quote, the result card
          and the PDF. Rated on the burglary SI, never on the fire SI.       -->
     <div class="section-label" style="margin-top:14px">Add-on Covers <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; rated as a percentage of the basic fire premium</span></div>
-    <div class="field" style="margin-bottom:6px">
+    <div class="field" style="margin-bottom:6px" id="addon-list-field">
       <label class="lbl">Add-on schedule <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; the office's revised rating sheet</span></label>
       <div class="segmented cols-3" id="addon-list-tabs">
         <input type="radio" name="addon-list" id="al-sfsp" checked>
@@ -23920,6 +23920,7 @@ function setPolicy(p){
   document.body.classList.toggle('policy-bgr', p==='bgr');
   bgrApplyLayout(p==='bgr');
   { const tr = document.getElementById('terror-rate'); if(tr) delete tr.dataset.manual; }
+  try{ syncAddonSchedule(); }catch(e){}   /* the add-on list belongs to the policy type */
 
   // Update Risk Classification section label per mode
   const rcl = document.getElementById('risk-class-label');
@@ -24214,7 +24215,7 @@ function updateFlags(){
     if(needVal.length) flags.push({ title: needVal.map(a => a.short).join(', ') + ' \u2014 not charged: declare the value for the cover',
       detail:'This cover is rated at the policy rate on the value declared for it (' + needVal.map(a => a.limit).join('; ') + '), and the schedule gives it no percentage of the sum insured to fall back on. Until that figure is entered the cover is left out of the premium and off the quotation. Enter the value, or untick the cover.',
       ref:'Revised add-on rating schedule' });
-    if(fireAddonRatio > 50) flags.push({ title:'Add-on premium is ' + fireAddonRatio.toFixed(0) + '% of the basic premium \u2014 above the 50% ceiling',
+    if(fireAddonRatio > 50 && currentPolicy !== 'tariff') flags.push({ title:'Add-on premium is ' + fireAddonRatio.toFixed(0) + '% of the basic premium \u2014 above the 50% ceiling',
       detail:'The Bharat Sookshma and Laghu wordings state that the additional premium for all add-ons together shall not exceed 50% of the base premium, and the quotation prints that promise. Reduce the covers opted, or refer the case before issuing.',
       ref:'Bharat Sookshma / Laghu policy wording \u00b7 add-on conditions' });
     if(FIRE_ADDONS.some(a => a.free && fireAddonOn(a.key))) flags.push({ title:'Free add-on covers opted \u2014 Regional Office authority',
@@ -24437,11 +24438,14 @@ function updateTerrorPill(){ const v = parseFloat(document.getElementById('terro
    the policy premium, so they are rated on the value declared for the cover, which defaults to the
    loss limit in the sheet.
 
-   The office has ruled that this schedule applies to every fire policy type, so Sookshma and Laghu
-   quotes move with it - Involuntary Betterment from 1% to 5%, Brands and Trademarks from 0.1% to 2%.
-   Escalation is not in the sheet; it is a tariff extension and stays at 5% of the policy rate. */
+   The schedule is for the TARIFF products only - SFSP, IAR and a Declaration or Floater policy.
+   Bharat Sookshma Udyam Suraksha and Bharat Laghu Udyam Suraksha are not rated from it: they keep
+   the five add-ons the app has always carried, at the rates INLIAS charged on R/432702/11/2027/67
+   and /68 (bsu:true with bsuPct - Removal of Debris, Involuntary Betterment and Claim Preparation
+   1%, Brands and Trademarks 0.1%, Escalation 5%). Escalation is not in the sheet at all; it is a
+   tariff extension and is offered on every policy at 5% of the policy rate. */
 const FIRE_ADDONS = [
-  { key:'debris', name:'Removal of Debris (including foreign / external debris)', short:'Removal of Debris', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'debris', name:'Removal of Debris (including foreign / external debris)', short:'Removal of Debris', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1, bsu:true, bsuPct:1 },
   { key:'catalyst', name:'Catalyst and Consumables (including lining and refractory) interest in process', short:'Catalyst and Consumables', pct:1, lists:['sfsp','iar'], limit:'Catalyst & Consumables Value', base:'limit', declare:true },
   { key:'dewatering', name:'Dewatering Expenses', short:'Dewatering Expenses', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
   { key:'expediting', name:'Expediting Expenses', short:'Expediting Expenses', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
@@ -24450,12 +24454,12 @@ const FIRE_ADDONS = [
   { key:'accidentalDamage', name:'Accidental Damage', short:'Accidental Damage', pct:1, lists:['sfsp','iar','dec'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
   { key:'customsDuty', name:'Additional Customs Duty Clause', short:'Additional Customs Duty', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
   { key:'aggravation', name:'Aggravation Clause', short:'Aggravation Clause', pct:2, lists:['sfsp','iar'], limit:'-' },
-  { key:'brands', name:'Brands and Trademarks Clause', short:'Brands and Trademarks', pct:2, lists:['sfsp','dec'], limit:'-' },
-  { key:'claimPrep', name:'Claim Preparation Clause', short:'Claim Preparation Clause', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
+  { key:'brands', name:'Brands and Trademarks Clause', short:'Brands and Trademarks', pct:2, lists:['sfsp','dec'], limit:'-', bsu:true, bsuPct:0.1 },
+  { key:'claimPrep', name:'Claim Preparation Clause', short:'Claim Preparation Clause', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1, bsu:true, bsuPct:1 },
   { key:'cleaningUp', name:'Cleaning Up and Other Costs Clause', short:'Cleaning Up and Other Costs', pct:1, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
   { key:'soundProperty', name:'Destruction of Sound Property', short:'Destruction of Sound Prop.', pct:2, lists:['sfsp','iar'], limit:'1% of Sum Insured for a Location (AOA/AOY)', limitPct:1 },
   { key:'inadvertentOmission', name:'Inadvertent Omission', short:'Inadvertent Omission', pct:100, lists:['sfsp','iar'], limit:'1% of Building, Machinery and other assets excluding stocks', base:'limit', limitPct:1 },
-  { key:'betterment', name:'Involuntary Betterment while reinstating the property', short:'Involuntary Betterment', pct:5, lists:['sfsp','iar'], limit:'1% of SI for that Location for EEL', limitPct:1 },
+  { key:'betterment', name:'Involuntary Betterment while reinstating the property', short:'Involuntary Betterment', pct:5, lists:['sfsp','iar'], limit:'1% of SI for that Location for EEL', limitPct:1, bsu:true, bsuPct:1 },
   { key:'landscaping', name:'Landscaping Cost Clause', short:'Landscaping Cost', pct:2, lists:['sfsp','iar'], limit:'1% of SI for that Location for EEL', limitPct:1 },
   { key:'leakSearch', name:'Leak Search / Finding Cost Clause', short:'Leak Search / Finding Cost', pct:10, lists:['sfsp','iar'], limit:'1% of SI for that Location for EEL', limitPct:1 },
   { key:'leakage', name:'Leakage and Overflowing', short:'Leakage and Overflowing', pct:10, lists:['sfsp','iar'], limit:'1% of SI for that Location for EEL', limitPct:1 },
@@ -24483,14 +24487,25 @@ const FIRE_ADDONS = [
   { key:'lossPayee', name:'Loss Payee Clause', short:'Loss Payee Clause', pct:0, lists:['sfsp'], limit:'-', free:true },
   { key:'nonVitiation', name:'Non-Vitiation / Multiple Insured Clause', short:'Non-Vitiation Clause', pct:0, lists:['sfsp'], limit:'-', free:true },
   { key:'vesselImpact', name:'Vessel Impact to Jetty', short:'Vessel Impact to Jetty', pct:0, lists:['sfsp'], limit:'Maximum Limit of INR 150 Crs (AOA/AOY) Combined Single Limit : INR 50 Crs', limitCap:1500000000, free:true },
-  { key:'escalation', name:'Escalation Clause', short:'Escalation Clause', pct:5, lists:['sfsp','iar','dec'], limit:'-', tariff:true }
+  { key:'escalation', name:'Escalation Clause', short:'Escalation Clause', pct:5, lists:['sfsp','iar','dec'], limit:'-', tariff:true, bsu:true, bsuPct:5 }
 ];
-const FIRE_ADDON_LISTS = { sfsp:'SFSP', iar:'IAR', dec:'Declaration / Floater' };
-let fireAddonList = 'sfsp';
+const FIRE_ADDON_LISTS = { bsu:'Bharat Sookshma / Laghu', sfsp:'SFSP', iar:'IAR', dec:'Declaration / Floater' };
+/* the Bharat policies are not rated from the revised sheet; the tariff policy is */
+let fireAddonList = 'bsu', fireAddonSchedule = 'sfsp';   /* the schedule last chosen on the tariff policy */
 let fireAddonRatio = 0, fireAddonUndeclared = [];   /* set by calculate(), read by updateFlags() */
 const fireAddonState = {};                 /* key -> { on, disc, val } - survives a list change */
 function fireAddonSt(key){ return (fireAddonState[key] = fireAddonState[key] || { on:false, disc:'', val:'' }); }
-function fireAddonInList(a){ return a.lists.indexOf(fireAddonList) >= 0; }
+function fireAddonInList(a){ return fireAddonList === 'bsu' ? !!a.bsu : a.lists.indexOf(fireAddonList) >= 0; }
+/* the rate this cover carries on the policy being quoted */
+function fireAddonPct(a){ return (fireAddonList === 'bsu' && a.bsuPct != null) ? a.bsuPct : a.pct; }
+/* the list follows the policy type: Bharat policies their own five, the tariff policy the schedule
+   chosen on the selector, and Griha Raksha has no add-on card at all */
+function syncAddonSchedule(){
+  fireAddonList = (typeof currentPolicy !== 'undefined' && currentPolicy === 'tariff') ? fireAddonSchedule : 'bsu';
+  const f = document.getElementById('addon-list-field');
+  if(f) f.style.display = (fireAddonList === 'bsu') ? 'none' : '';
+  renderFireAddons();
+}
 function fireAddonOn(key){ const a = FIRE_ADDONS.find(x => x.key === key); return !!(a && fireAddonInList(a) && fireAddonSt(key).on); }
 /* the loss limit in rupees where the sheet states one; the box on the screen overrides it */
 function fireAddonLimit(a, si, manual){
@@ -24501,7 +24516,7 @@ function fireAddonLimit(a, si, manual){
   return Math.round(v);
 }
 function setAddonField(key, field, value){ fireAddonSt(key)[field] = value; }
-function setAddonList(k){ if(FIRE_ADDON_LISTS[k]){ fireAddonList = k; renderFireAddons(); } }
+function setAddonList(k){ if(FIRE_ADDON_LISTS[k] && k !== 'bsu'){ fireAddonSchedule = k; fireAddonList = k; renderFireAddons(); } }
 function toggleAddon(key){ const st = fireAddonSt(key); st.on = !st.on; renderFireAddons(); }
 function renderFireAddons(){
   const host = document.getElementById('addonRows');
@@ -24511,7 +24526,7 @@ function renderFireAddons(){
   const rows = FIRE_ADDONS.filter(fireAddonInList);
   const row = a => {
     const st = fireAddonSt(a.key);
-    const pill = a.free ? 'no premium' : (a.pct === 100 ? 'policy rate' : a.pct + '% of policy rate');
+    const pill = a.free ? 'no premium' : (fireAddonPct(a) === 100 ? 'policy rate' : fireAddonPct(a) + '% of policy rate');
     const sub = (a.tariff ? 'Tariff extension \u2014 not part of the revised add-on schedule'
                           : (a.limit && a.limit !== '-' ? 'Limit: ' + a.limit : 'No separate loss limit'))
               + (a.free ? ' \u00b7 granted free of premium, RO authority' : '');
@@ -24536,7 +24551,9 @@ function renderFireAddons(){
   const rated = rows.filter(a => !a.free), free = rows.filter(a => a.free);
   const sheetCount = rated.filter(a => !a.tariff).length;   /* the tabs count the sheet, not the tariff extension */
   const head = (t, n) => '<div class="section-label" style="margin-top:10px">' + t + ' <span style="' + mute + '">&mdash; ' + n + '</span></div>';
-  host.innerHTML = head('Rated add-on covers', sheetCount + ' in the ' + FIRE_ADDON_LISTS[fireAddonList] + ' schedule, with the Escalation Clause alongside') + rated.map(row).join('') +
+  host.innerHTML = head('Rated add-on covers', fireAddonList === 'bsu'
+      ? 'the five covers of the Bharat Sookshma / Laghu policies, as rated on the computation sheets'
+      : sheetCount + ' in the ' + FIRE_ADDON_LISTS[fireAddonList] + ' schedule, with the Escalation Clause alongside') + rated.map(row).join('') +
     (free.length ? head('Granted free of premium', free.length + ' covers, Regional Office authority') + free.map(row).join('') : '');
 }
 function toggleSwitch(type){
@@ -25055,11 +25072,11 @@ function calculate(){
        cover costs its percentage of the basic premium, which is the policy rate on the whole SI */
     const onValue  = a.base === 'limit';
     const rateBase = onValue ? (declared || limitRs) : si;
-    const gross    = (a.free || !si) ? 0 : Math.round(flexaGross * (onValue ? rateBase / si : 1) * a.pct / 100);
+    const gross    = (a.free || !si) ? 0 : Math.round(flexaGross * (onValue ? rateBase / si : 1) * fireAddonPct(a) / 100);
     const own      = String(st.disc).trim() !== '' ? parseFloat(st.disc) : NaN;
     const disc     = a.free ? 0 : (isNaN(own) ? addonDisc : Math.min(100, Math.max(0, own)));
     const amount   = Math.round(gross * (1 - disc / 100));
-    return { key:a.key, name:a.name, short:a.short, pct:a.pct, free:!!a.free, tariff:!!a.tariff,
+    return { key:a.key, name:a.name, short:a.short, pct:fireAddonPct(a), free:!!a.free, tariff:!!a.tariff,
              limitText:(a.limit && a.limit !== '-' ? a.limit : ''), onValue,
              limit:(onValue ? rateBase : limitRs), gross, disc, discAmt: gross - amount, amount };
   });
@@ -25144,14 +25161,14 @@ function calculate(){
   }
 
   if(addonLines.length){
-    html += `<div class="line section-divider"><span class="k">Add-on Covers · ${FIRE_ADDON_LISTS[fireAddonList]} schedule, % of the policy rate</span><span class="v"></span></div>`;
+    html += `<div class="line section-divider"><span class="k">Add-on Covers · ${fireAddonList === 'bsu' ? 'Bharat Sookshma / Laghu' : FIRE_ADDON_LISTS[fireAddonList] + ' schedule'}, % of the policy rate</span><span class="v"></span></div>`;
     addonLines.forEach(a => {
       const how = a.free ? 'free of premium' : (a.onValue ? (a.pct === 100 ? 'policy rate' : a.pct + '% of policy rate') + ' on ' + fmtR(a.limit) : a.pct + '%');
       html += `<div class="line"><span class="k">${a.name} · ${how}</span><span class="v">${a.free ? '&mdash;' : fmtR(a.gross)}</span></div>`;
       if(a.disc > 0) html += `<div class="line sub"><span class="k">Discount (${a.disc}%)</span><span class="v discount">− ${fmtR(a.discAmt)}</span></div>`;
     });
     html += `<div class="line net-line"><span class="k">Net Add-on Premium</span><span class="v">${fmtR(addonNet)}</span></div>`;
-    if(fireAddonRatio > 50) html += `<div class="line sub"><span class="k">Add-on premium is ${fireAddonRatio.toFixed(0)}% of the basic premium; the Bharat wordings keep every add-on together within 50%</span><span class="v"></span></div>`;
+    if(fireAddonRatio > 50 && currentPolicy !== 'tariff') html += `<div class="line sub"><span class="k">Add-on premium is ${fireAddonRatio.toFixed(0)}% of the basic premium; the Bharat wordings keep every add-on together within 50%</span><span class="v"></span></div>`;
     if(fireAddonUndeclared.length) html += `<div class="line sub"><span class="k">${fireAddonUndeclared.join(', ')} — not charged until the value insured for the cover is entered</span><span class="v"></span></div>`;
   }
 
@@ -25437,7 +25454,8 @@ const FIRE_COVER_DATA = (function(){
   };
   /* the percentage a cover actually costs, read from the rating table so the prose on this page can
      never again promise one figure while section C of the same PDF charges another */
-  const addonPct = function(key){ const a = (typeof FIRE_ADDONS !== 'undefined') ? FIRE_ADDONS.find(x => x.key === key) : null; return a ? a.pct : 0; };
+  /* this page is printed for the Bharat policies, so it quotes their rates, not the tariff schedule's */
+  const addonPct = function(key){ const a = (typeof FIRE_ADDONS !== 'undefined') ? FIRE_ADDONS.find(x => x.key === key) : null; return a ? (a.bsuPct != null ? a.bsuPct : a.pct) : 0; };
   const addonsBSU = function(mode){
     const rows = [["Declaration policy for stocks (standard add-on)", "Takes care of frequent fluctuations in stocks / stock values, subject to the declaration conditions"]];
     if(mode === 'laghu') rows.push(["Floater cover (standard add-on)", "Stocks at more than one location under one Sum Insured, subject to the floater conditions"]);
@@ -26287,7 +26305,7 @@ window.FIRE_VERIFIED = [
   { label:'Fire add-on schedule (Addon_Revised Rating.xlsx, 18-Sep-2026): 31 rated covers for SFSP, 29 for IAR (the same list without Brands and Trademarks and Pair and Set), 5 for a Declaration or Floater policy, and 11 granted free of premium', expect:'31/29/5/11/42',
     check:()=>{ const n = k => FIRE_ADDONS.filter(a => a.lists.indexOf(k) >= 0 && !a.free && !a.tariff).length;
                 return [n('sfsp'), n('iar'), n('dec'), FIRE_ADDONS.filter(a => a.free).length, FIRE_ADDONS.filter(a => !a.tariff).length].join('/'); } },
-  { label:'Fire add-on rates come from the revised sheet: Removal of Debris 1%, Involuntary Betterment 5%, Brands and Trademarks 2%, Leak Search 10%, Obsolete Parts 5%, Property Offsite 50%, Capital Addition at the full policy rate, Escalation 5% as a tariff extension', expect:'1/5/2/10/5/50/100/5',
+  { label:'Fire add-on rates on the tariff products come from the revised sheet: Removal of Debris 1%, Involuntary Betterment 5%, Brands and Trademarks 2%, Leak Search 10%, Obsolete Parts 5%, Property Offsite 50%, Capital Addition at the full policy rate, Escalation 5% as a tariff extension', expect:'1/5/2/10/5/50/100/5',
     check:()=>['debris','betterment','brands','leakSearch','obsoleteParts','offsite','capitalAddition','escalation']
                 .map(k => (FIRE_ADDONS.find(a => a.key === k) || {}).pct).join('/') },
   { label:'Fire add-ons are charged as a percentage of the policy rate, so on a basic premium of 34,960 Removal of Debris (1%) is 350, Involuntary Betterment (5%) 1,748, Brands (2%) 699 and Leak Search (10%) 3,496', expect:'350/1748/699/3496',
@@ -26302,17 +26320,38 @@ window.FIRE_VERIFIED = [
   { label:'Fire: the free covers carry no premium and no discount box, and the quote refers them to the Regional Office', expect:'11/0/true',
     check:()=>{ const free = FIRE_ADDONS.filter(a => a.free);
                 return [free.length, free.filter(a => a.pct !== 0).length, free.every(a => /RO Authority|5% of Sum Insured|-|100% on first|INR/i.test(a.limit))].join('/'); } },
-  { label:'Fire: every rated add-on on the screen has its own discount box, and the schedule selector swaps the list (SFSP 32 rows with Escalation, Declaration / Floater 6)', expect:'32/32/6/6',
-    check:()=>{ const keep = fireAddonList;
+  { label:'Fire: every rated add-on on the screen has its own discount box, and the schedule selector swaps the list (SFSP 32 rows with Escalation, Declaration / Floater 6, Bharat 5)', expect:'32/32/6/6/5/5',
+    check:()=>{ const keepList = fireAddonList, keepSched = fireAddonSchedule;
+                const boxes = list => { const r = FIRE_ADDONS.filter(a => (list === 'bsu' ? !!a.bsu : a.lists.indexOf(list) >= 0) && !a.free);
+                                        return [r.length, r.filter(a => document.getElementById('addon-' + a.key + '-disc')).length]; };
                 try{
-                  setAddonList('sfsp');
-                  const rated = FIRE_ADDONS.filter(a => a.lists.indexOf('sfsp') >= 0 && !a.free);
-                  const boxes = rated.filter(a => document.getElementById('addon-' + a.key + '-disc')).length;
-                  setAddonList('dec');
-                  const decRated = FIRE_ADDONS.filter(a => a.lists.indexOf('dec') >= 0 && !a.free);
-                  const decBoxes = decRated.filter(a => document.getElementById('addon-' + a.key + '-disc')).length;
-                  return [rated.length, boxes, decRated.length, decBoxes].join('/');
-                } finally { setAddonList(keep); } } },
+                  setAddonList('sfsp'); const sf = boxes('sfsp');
+                  setAddonList('dec');  const dc = boxes('dec');
+                  fireAddonList = 'bsu'; renderFireAddons(); const bs = boxes('bsu');
+                  return sf.concat(dc, bs).join('/');
+                } finally { fireAddonSchedule = keepSched; fireAddonList = keepList; renderFireAddons(); } } },
+  { label:'Fire: the revised schedule is for the tariff products only - the Bharat Sookshma and Laghu policies keep their five add-ons at the rates INLIAS charged on R/432702/11/2027/67 and /68 (Removal of Debris, Involuntary Betterment and Claim Preparation 1%, Brands and Trademarks 0.1%, Escalation 5%), while the same covers under SFSP carry the revised 1 / 5 / 1 / 2 / 5%', expect:'1/1/1/0.1/5 | 1/5/1/2/5',
+    check:()=>{ const keep = fireAddonList;
+                const K = ['debris','betterment','claimPrep','brands','escalation'];
+                const rates = () => K.map(k => fireAddonPct(FIRE_ADDONS.find(a => a.key === k))).join('/');
+                try{ fireAddonList = 'bsu'; const b = rates(); fireAddonList = 'sfsp'; const t = rates(); return b + ' | ' + t; }
+                finally { fireAddonList = keep; } } },
+  { label:'Fire add-ons on a Bharat policy as INLIAS rates them: on a basic premium of 34,960 the five come to 350 / 350 / 350 / 35 / 1,748', expect:'350/350/350/35/1748',
+    check:()=>{ const keep = fireAddonList;
+                try{ fireAddonList = 'bsu';
+                     return ['debris','betterment','claimPrep','brands','escalation']
+                       .map(k => Math.round(34960 * fireAddonPct(FIRE_ADDONS.find(a => a.key === k)) / 100)).join('/');
+                } finally { fireAddonList = keep; } } },
+  { label:'Fire: the add-on list follows the policy type - the Bharat policies take their own five and the schedule selector is hidden, the tariff policy takes the schedule chosen on it, and Griha Raksha has no add-on card', expect:'bsu/none/sfsp/',
+    check:()=>{ const keepP = currentPolicy, keepS = fireAddonSchedule;
+                const f = () => document.getElementById('addon-list-field');
+                try{
+                  currentPolicy = 'sookshma'; syncAddonSchedule();
+                  const a = fireAddonList + '/' + f().style.display;
+                  currentPolicy = 'tariff'; syncAddonSchedule();
+                  const b = fireAddonList + '/' + f().style.display;
+                  return a + '/' + b;
+                } finally { currentPolicy = keepP; fireAddonSchedule = keepS; syncAddonSchedule(); } } },
   { label:'Fire: the two covers the sheet rates on a value the insured declares (Catalyst and Consumables on the catalyst value, Undamaged Foundation on the plinth and foundation Sum Insured) carry no percentage of the Sum Insured to fall back on, so the quote leaves them out of the premium until the value is entered and says so', expect:'true/true/0/0/true/true',
     check:()=>{ const c = FIRE_ADDONS.find(a => a.key === 'catalyst'), f = FIRE_ADDONS.find(a => a.key === 'foundation');
                 const src = String(updateFlags);
@@ -26322,10 +26361,11 @@ window.FIRE_VERIFIED = [
     check:()=>{ const p = k => FIRE_ADDONS.find(a => a.key === k).pct;
                 return [p('offsite') + p('leakSearch') + p('leakage') + p('obsoleteEquip'),
                         /fireAddonRatio > 50/.test(String(updateFlags)), /above the 50% ceiling/.test(String(updateFlags))].join('/'); } },
-  { label:'Fire: the cover pages take the add-on percentages from the rating table, so the prose can never promise one figure while the premium charges another (Involuntary Betterment 5%, Brands 2%)', expect:'true/5/2',
+  { label:'Fire: the Sookshma / Laghu cover pages take their add-on percentages from the rating table and print the Bharat rates (Involuntary Betterment 1%, Brands 0.1%), not the tariff schedule\'s 5% and 2%', expect:'true/1/0.1/5/2',
     check:()=>{ const src = String(FIRE_COVER_DATA.addonsBSU);
+                const B = k => FIRE_ADDONS.find(a => a.key === k).bsuPct, T = k => FIRE_ADDONS.find(a => a.key === k).pct;
                 return [/addonPct\('betterment'\)/.test(src) && /addonPct\('brands'\)/.test(src),
-                        FIRE_ADDONS.find(a => a.key === 'betterment').pct, FIRE_ADDONS.find(a => a.key === 'brands').pct].join('/'); } },
+                        B('betterment'), B('brands'), T('betterment'), T('brands')].join('/'); } },
   { label:'Fire: a discount typed on one add-on applies to that add-on only, and the all-add-ons box covers the rest (basic 34,960: debris 350 less 20% = 280)', expect:'280/1748',
     check:()=>{ const g = Math.round(34960 * FIRE_ADDONS.find(a => a.key === 'debris').pct / 100);
                 return [Math.round(g * (1 - 20 / 100)), Math.round(34960 * FIRE_ADDONS.find(a => a.key === 'betterment').pct / 100)].join('/'); } },
@@ -26497,8 +26537,8 @@ function newQuote(){
     const sec = document.getElementById('sectionFire'); if(sec) window.scrollTo({ top: Math.max(0, sec.offsetTop - 8), behavior:'smooth' });
   }catch(e){ console.error(e); }
 }
-renderFireAddons();
-window.FIRE = {setAddonList: setAddonList, setAddonField: setAddonField, renderFireAddons: renderFireAddons, searchLocation: (typeof searchLocation==='function'? searchLocation : function(){ return []; }), bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
+syncAddonSchedule();
+window.FIRE = {setAddonList: setAddonList, syncAddonSchedule: syncAddonSchedule, setAddonField: setAddonField, renderFireAddons: renderFireAddons, searchLocation: (typeof searchLocation==='function'? searchLocation : function(){ return []; }), bgrRefresh: bgrRefresh, toggleAddon: toggleAddon, newQuote: newQuote, shareImage: (typeof shareImage==='function'? shareImage : function(){}), updateTerrorPill: (typeof updateTerrorPill==='function'? updateTerrorPill : function(){}), buildFirePDF: (typeof buildFirePDF==='function'? buildFirePDF : function(){}), calculate: (typeof calculate==='function'? calculate : function(){}), clearSelection: (typeof clearSelection==='function'? clearSelection : function(){}), generatePDF: (typeof generatePDF==='function'? generatePDF : function(){}), lookupCompany: (typeof lookupCompany==='function'? lookupCompany : function(){}), onLocInput: (typeof onLocInput==='function'? onLocInput : function(){}), searchOcc: (typeof searchOcc==='function'? searchOcc : function(){}), selectOcc: (typeof selectOcc==='function'? selectOcc : function(){}), setPolicy: (typeof setPolicy==='function'? setPolicy : function(){}), shareOnWhatsApp: (typeof shareOnWhatsApp==='function'? shareOnWhatsApp : function(){}), toggleSwitch: (typeof toggleSwitch==='function'? toggleSwitch : function(){}), updateEQDesc: (typeof updateEQDesc==='function'? updateEQDesc : function(){}), updateICR: (typeof updateICR==='function'? updateICR : function(){}), updateFlags: (typeof updateFlags==='function'? updateFlags : function(){}), updateSTFIRate: (typeof updateSTFIRate==='function'? updateSTFIRate : function(){}), set_userOverrodeTier: function(val){ try{ userOverrodeTier = val; }catch(e){} }, closeLocResults: (typeof closeLocResults==='function'? closeLocResults : function(){})};
 })();
 </script>
 <style id="mobileFixes">
@@ -26797,7 +26837,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v145 · the revised Fire add-on schedule after review: a cover rated on a declared value is not charged until the value is entered, the Sookshma / Laghu cover pages take their percentages from the rating table and describe every cover charged, and the quote flags an add-on total above the 50% ceiling · 18-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v146 · the revised add-on schedule is for SFSP, IAR and a Declaration or Floater policy only; Bharat Sookshma and Laghu keep their five add-ons at the rates INLIAS charged, and the schedule selector appears only on the tariff policy · 18-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
