@@ -2319,13 +2319,6 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
           </div>
           <div class="hint">Loads 4% on declared IDV/value.</div>
         </div>
-        <div class="field">
-          <label for="nonElecAcc">Non-Electrical Accessories</label>
-          <div class="input-prefix" data-prefix="₹">
-            <input type="number" id="nonElecAcc" inputmode="numeric" placeholder="0" min="0" />
-          </div>
-          <div class="hint">Loads 4% on declared IDV/value.</div>
-        </div>
       </div>
     </details>
 
@@ -12171,7 +12164,7 @@ document.querySelectorAll('#sectionMotor .switch').forEach(s=>{
   });
 });
 
-['idv','cngKit','elecAcc','nonElecAcc','invoiceValue'].forEach(id=>{
+['idv','cngKit','elecAcc','invoiceValue'].forEach(id=>{
   $(id).addEventListener('input', ()=>{
     if(id==='idv'){
       // IDV affects both the discount hint table and the auto-suggested OD discount
@@ -12755,7 +12748,7 @@ function calculate(silent=false){
     paxCount:     parseInt($('paxCount').value, 10) || 0,
     cngKit:       parseFloat($('cngKit').value) || 0,
     elecAcc:      parseFloat($('elecAcc').value) || 0,
-    nonElecAcc:   parseFloat($('nonElecAcc').value) || 0,
+    nonElecAcc:   0,   /* the Non-Electrical Accessories option was withdrawn in v149 */
     vehicleType:  state.vehicleType,
     zone:         state.zone,
     fuel:         state.fuel,
@@ -14393,7 +14386,6 @@ function generatePDF(q, docOverride){
     ly=row(LX,ly,colW,'IDV of Trailer', trailerIDV>0?fmt(trailerIDV):'0', {zebra:z}); z=!z;
     ly=row(LX,ly,colW,'IDV of Bi-Fuel/CNG/LPG Kit', fmt(q.data.cngKit||0), {zebra:z}); z=!z;
     ly=row(LX,ly,colW,'IDV of Electrical Accessories', fmt(q.data.elecAcc||0), {zebra:z}); z=!z;
-    ly=row(LX,ly,colW,'IDV of Non-Electrical Accessories', fmt(q.data.nonElecAcc||0), {zebra:z}); z=!z;
     ly=row(LX,ly,colW,'Total IDV', fmt(totalIDV), {total:true}); z=!z;
 
     // ── RIGHT COLUMN ──
@@ -15530,7 +15522,6 @@ function saveDraft(){
       geoExtTP:     $('geoExtTP') ? $('geoExtTP').value : '',
       cngKit:       $('cngKit').value,
       elecAcc:      $('elecAcc').value,
-      nonElecAcc:   $('nonElecAcc').value,
       odDiscCustom: $('odDiscCustom').value,
       exactCC:      $('exactCC') ? $('exactCC').value : '',
       tyreInvoice:  $('tyreInvoiceInput') ? $('tyreInvoiceInput').value : '',
@@ -15605,7 +15596,9 @@ function loadDraft(){
     }
 
     // Text/number fields
-    ['customerName','vehicleModel','regNumber','regDate','idv','paxCount','paUnPax','cngKit','elecAcc','nonElecAcc','odDiscCustom'].forEach(id=>{
+    /* nonElecAcc left the list in v149: an older saved quote still carries it, and writing it into a
+       field that no longer exists threw and stopped the quote loading */
+    ['customerName','vehicleModel','regNumber','regDate','idv','paxCount','paUnPax','cngKit','elecAcc','odDiscCustom'].forEach(id=>{
       if(d[id] !== undefined && d[id] !== null) $(id).value = d[id];
     });
     // Sync regDateText with regDate
@@ -19897,7 +19890,7 @@ function _trendComputeAt(idv){
     paxCount:     parseInt($$('paxCount').value, 10) || 0,
     cngKit:       parseFloat($$('cngKit').value) || 0,
     elecAcc:      parseFloat($$('elecAcc').value) || 0,
-    nonElecAcc:   parseFloat($$('nonElecAcc').value) || 0,
+    nonElecAcc:   0,   /* withdrawn in v149 */
     vehicleType:  state.vehicleType,
     zone:         state.zone,
     fuel:         state.fuel,
@@ -20409,7 +20402,6 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
     if(d.paxCount) $$('paxCount').value = d.paxCount;
     if(d.cngKit) $$('cngKit').value = d.cngKit;
     if(d.elecAcc) $$('elecAcc').value = d.elecAcc;
-    if(d.nonElecAcc) $$('nonElecAcc').value = d.nonElecAcc;
     if(d.invoiceValue) $$('invoiceValue').value = d.invoiceValue;
 
     // Policy type
@@ -21529,7 +21521,6 @@ function _stRun(c, opts){
   $('regDate').value = y+'-'+String(mo).padStart(2,'0')+'-01';
   if($('incDate')) $('incDate').value='2026-07-01';
   $('idv').value=idv; $('elecAcc').value=elec; $('cngKit').value=cng;
-  if($('nonElecAcc')) $('nonElecAcc').value=0;
   if($('paxCount')) $('paxCount').value=pax;
   if($('gcvActualGVW')) $('gcvActualGVW').value='';
   if($('exactCC')) $('exactCC').value='';
@@ -26516,6 +26507,13 @@ window.FIRE_VERIFIED = [
   { label:'The Nil Dep renewal switch is shown for PCCV and GCCV and follows Nil Dep when a date change refuses the cover (it used to stay on screen)', expect:'true/true/false/true',
     check:()=>[nilDepRenewalClass('pccv'), nilDepRenewalClass('commercial'), nilDepRenewalClass('privateCar'),
                /syncNilDepRenewalRow\(\)/.test(String(renderAddons))].join('/') },
+  { label:'Motor: the Non-Electrical Accessories option is withdrawn - no field on the screen, the quote reads nil, and the PDF prints no row for it', expect:'false/0/false',
+    /* these checks sit inside the Fire module, where calculate and generatePDF are Fire's own - the
+       Motor ones are reached through window, and each is proved to be Motor's before it is read */
+    check:()=>{ const mc = String(window.calculate), mp = String(window.generatePDF);
+                if(!/regDate/.test(mc) || !/IDV of Vehicle/.test(mp)) return 'not the Motor functions';
+                return [!!document.getElementById('nonElecAcc'), /nonElecAcc:\s*0/.test(mc) ? 0 : 'reads a field',
+                        /IDV of Non-Electrical Accessories/.test(mp)].join('/'); } },
   { label:'Nil Dep discount by class: private car 40 / two-wheeler 40 / GCCV 20 / PCCV 20 / 2W hire 20 / Misc 40', expect:'40/40/20/20/20/40',
     check:()=>['privateCar','twoWheeler','commercial','pccv','twoWheelerHire','misc'].map(nilDepDiscCapFor).join('/') },
   { label:'OSSS individual basis: members carry their own SI and PED buyback (Premium plan, Zone II, ages 35 @ 5L none / 40 @ 10L 2>1 yr)', expect:'true',
@@ -27049,7 +27047,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v148 · the 5% Nil Dep renewal discount is given on PCCV as well as GCCV, and its switch now follows Nil Dep when a date change refuses the cover · 19-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v149 · the Non-Electrical Accessories option is withdrawn from Motor: no field, nil in every quote, no PDF row, and an older saved quote that carries it still loads · 19-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
