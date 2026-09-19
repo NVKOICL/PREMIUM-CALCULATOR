@@ -2236,7 +2236,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
         <div id="nilDepGccvRenewalRow" class="switch-row" style="display:none;margin-top:6px;padding-top:12px;padding-bottom:0;border-top:1px dashed var(--border);border-bottom:none">
           <div class="info">
             <div class="t">Additional Nil Dep Renewal Discount (5%)</div>
-            <div class="s">GCCV only · added on top of Nil Dep discount</div>
+            <div class="s">PCCV and GCCV · added on top of the Nil Dep discount</div>
           </div>
           <div class="switch" data-key="nilDepGccvRenewal"><input type="checkbox"></div>
         </div>
@@ -11400,6 +11400,10 @@ function renderAddons(){
      redraw had to drop only because it was offered but not yet eligible - so switching IMT-23
      back on restores the Nil Depreciation it took away. An enabled card the agent has left
      unticked is in neither list, so a deliberate untick is never overridden. */
+  /* Nil Dep's availability has just been re-decided (age, IMT-23, class), so the discount block and
+     the renewal switch under it follow now - a registration-date change re-renders the add-ons
+     without going through updateAll(), and left the switch on screen for a refused cover. */
+  if(typeof syncNilDepRenewalRow === 'function'){ try{ syncNilDepRenewalRow(); }catch(e){} }
   const _carry = _addonsDropped.slice();
   _addonsDropped = [];
   new Set(_wasTicked.concat(_carry)).forEach(k => {
@@ -11795,11 +11799,29 @@ function updateLLRow(){
     }
   }
 }
+/* the classes the 5% Nil Dep renewal discount is given to (the key keeps its old GCCV name so a
+   saved quote still carries the switch) */
+function nilDepRenewalClass(vt){ return vt === 'commercial' || vt === 'pccv'; }
+function syncNilDepRenewalRow(){
+  const row = $('nilDepGccvRenewalRow'), block = $('nilDepDiscountBlock');
+  if(!row) return;
+  const nd = document.querySelector('#addonsGrid input[data-addon="nilDep"]');
+  const offered = !!nd && !nd.disabled;
+  const show = offered && nilDepRenewalClass(state.vehicleType);
+  if(block) block.style.display = offered ? '' : 'none';
+  row.style.display = show ? '' : 'none';
+  if(!show && state.switches.nilDepGccvRenewal){
+    state.switches.nilDepGccvRenewal = false;
+    const sw = row.querySelector('.switch');
+    if(sw){ sw.classList.remove('on'); (sw.querySelector('input') || {}).checked = false; }
+  }
+}
 function updateNilDepGccvRenewalRow(){
-  const isGccv = state.vehicleType === 'commercial';
+  const renewalClass = nilDepRenewalClass(state.vehicleType);
   const row = $('nilDepGccvRenewalRow');
-  row.style.display = isGccv ? '' : 'none';
-  if(!isGccv){
+  if(!row) return;
+  row.style.display = renewalClass ? '' : 'none';
+  if(!renewalClass){
     state.switches.nilDepGccvRenewal = false;
     const sw = row.querySelector('.switch');
     if(sw){
@@ -13233,7 +13255,7 @@ function calculate(silent=false){
           const nilDepDiscCap = nilDepDiscCapFor(data.vehicleType);  // GCCV/2W-Hire 20%, PCCV 25%, rest 40%
           const stdDiscPct = Math.min(Math.max(data.nilDepDiscount || 0, 0), nilDepDiscCap);
           const stdDiscAmt = Math.round(grossAmt * (stdDiscPct / 100));
-          const gccvRenewalApplies = !!data.switches.nilDepGccvRenewal && data.vehicleType === 'commercial';
+          const gccvRenewalApplies = !!data.switches.nilDepGccvRenewal && nilDepRenewalClass(data.vehicleType);
           const gccvRenewalPct = gccvRenewalApplies ? 5 : 0;
           const gccvRenewalAmt = gccvRenewalApplies ? Math.round(grossAmt * (gccvRenewalPct / 100)) : 0;
           const totalDiscAmt = stdDiscAmt + gccvRenewalAmt;
@@ -13980,7 +14002,7 @@ function renderResult(q, silent=false){
           }
           if(a.gccvRenewalAmount > 0){
             block += `
-        <div class="asub-line"><span>&middot; GCCV Renewal Discount (${a.gccvRenewalPct}%)</span><span>&minus; &#8377;${fmt(a.gccvRenewalAmount)}</span></div>`;
+        <div class="asub-line"><span>&middot; Nil Dep Renewal Discount (${a.gccvRenewalPct}%)</span><span>&minus; &#8377;${fmt(a.gccvRenewalAmount)}</span></div>`;
           }
           block += `
         <div class="asub-line"><span>&middot; Nil Dep Net</span><span>&#8377;${fmt(a.amount)}</span></div>`;
@@ -14078,7 +14100,7 @@ function buildWhatsAppText(q){
       if(a.key === 'nilDep' && (a.discountAmount > 0 || a.gccvRenewalAmount > 0)){
         t += `   - ${a.name} Gross: ₹${fmt(a.grossAmount)}\n`;
         if(a.discountAmount > 0)     t += `   - Nil Dep Discount (${a.discountPct}%): − ₹${fmt(a.discountAmount)}\n`;
-        if(a.gccvRenewalAmount > 0)  t += `   - GCCV Renewal Discount (${a.gccvRenewalPct}%): − ₹${fmt(a.gccvRenewalAmount)}\n`;
+        if(a.gccvRenewalAmount > 0)  t += `   - Nil Dep Renewal Discount (${a.gccvRenewalPct}%): − ₹${fmt(a.gccvRenewalAmount)}\n`;
         t += `   - Nil Dep Net: ₹${fmt(a.amount)}\n`;
       } else {
         t += `   - ${a.name}: ₹${fmt(a.amount)}\n`;
@@ -21497,8 +21519,9 @@ function _stBaseline(){
   ['trailerCoverCount','trailerCount'].forEach(id=>{ const e=$(id); if(e) e.value='1'; });
 }
 
-function _stRun(c){
+function _stRun(c, opts){
   _stBaseline();
+  if(opts && opts.nilDepRenewal) state.switches.nilDepGccvRenewal = true;
   const [vt,slab,zone,age,idv,fuel,pt,ncbY,pax,elec,cng,imt23] = c;
   state.vehicleType=vt; state.zone=zone; state.fuel=fuel; state.policyTerm='1yr';
   state.ncbYears=ncbY; state.odDiscount=0; state.nilDepDiscount=0;
@@ -26483,6 +26506,16 @@ window.FIRE_VERIFIED = [
                 return [Math.round(g * (1 - 20 / 100)), Math.round(34960 * FIRE_ADDONS.find(a => a.key === 'betterment').pct / 100)].join('/'); } },
   { label:'PDF: WC medical extension prints net of flexi discount (1,000 - 10% = 900)', expect:'900',
     check:()=>{ const q={med:1000,discMed:100}; return String(q.med-(q.discMed||0)); } },
+  { label:'Nil Dep renewal discount of 5% is given on PCCV and GCCV, on top of the Nil Dep discount, and not on a private car: on the golden fixtures the renewal line is 5% of the Nil Dep gross for the bus and the goods vehicle, and nil for the car', expect:'true/true/0',
+    check:()=>{ const R = c => { _stRun(c, { nilDepRenewal:true }); const it = (state.lastQuote.addons.items || []).find(a => a.key === 'nilDep') || {};
+                                 return { g: it.grossAmount || 0, r: it.gccvRenewalAmount || 0 }; };
+                const p = R(['pccv','autoLt6','A',3,95000,'diesel','comprehensive',0,20,0,0,1]);
+                const g = R(['commercial','gcv3wPublic','A',3,95000,'diesel','comprehensive',0,0,0,0,1]);
+                const c = R(['privateCar','s1','A',0.5,95000,'petrol','comprehensive',0,0,0,0,0]);
+                return [p.g > 0 && p.r === Math.round(p.g * 0.05), g.g > 0 && g.r === Math.round(g.g * 0.05), c.r].join('/'); } },
+  { label:'The Nil Dep renewal switch is shown for PCCV and GCCV and follows Nil Dep when a date change refuses the cover (it used to stay on screen)', expect:'true/true/false/true',
+    check:()=>[nilDepRenewalClass('pccv'), nilDepRenewalClass('commercial'), nilDepRenewalClass('privateCar'),
+               /syncNilDepRenewalRow\(\)/.test(String(renderAddons))].join('/') },
   { label:'Nil Dep discount by class: private car 40 / two-wheeler 40 / GCCV 20 / PCCV 20 / 2W hire 20 / Misc 40', expect:'40/40/20/20/20/40',
     check:()=>['privateCar','twoWheeler','commercial','pccv','twoWheelerHire','misc'].map(nilDepDiscCapFor).join('/') },
   { label:'OSSS individual basis: members carry their own SI and PED buyback (Premium plan, Zone II, ages 35 @ 5L none / 40 @ 10L 2>1 yr)', expect:'true',
@@ -27016,7 +27049,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v147 · the phone pass: an add-on cover is one line instead of five (the Fire SFSP page drops from 16 phone screens to 8, or 5 showing only the covers chosen), a find strip over the list, Calculate always within reach on Health and WC, no more keyboard closing on every Health age, 16px controls so iOS stops zooming, and less chrome above the first field · 18-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v148 · the 5% Nil Dep renewal discount is given on PCCV as well as GCCV, and its switch now follows Nil Dep when a date change refuses the cover · 19-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
