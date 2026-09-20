@@ -1421,13 +1421,16 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 
 /* ── PRODUCT TABS ── */
 .segmented.cols-3{grid-template-columns:repeat(3,1fr)}
-.product-tabs{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;padding:6px;background:linear-gradient(180deg,#eef3fb 0%,#f4f7fc 100%);border:1px solid var(--border-soft);border-radius:var(--radius-sm);margin-bottom:20px;box-shadow:inset 0 1px 2px rgba(15,30,72,.04)}
+.product-tabs{display:grid;grid-template-columns:repeat(20,minmax(0,1fr));gap:5px;padding:6px;background:linear-gradient(180deg,#eef3fb 0%,#f4f7fc 100%);border:1px solid var(--border-soft);border-radius:var(--radius-sm);margin-bottom:20px;box-shadow:inset 0 1px 2px rgba(15,30,72,.04)}
 /* v143: each product has its own colour. --pc is the filled tab (white text stays at WCAG AA on
    it), --pc-deep the far end of its gradient, --pc-soft the idle icon badge. */
 .product-tab{--pc:#2563eb;--pc-deep:#1e3a8a;--pc-soft:#e2eafd;
   position:relative;border:none;background:transparent;padding:8px 2px 7px;border-radius:12px;font-family:inherit;color:var(--ink-soft);cursor:pointer;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:66px;min-width:0;
+  grid-column:span 4;
   transition:background .2s ease,box-shadow .2s ease,transform .2s cubic-bezier(.2,.8,.2,1)}
+/* v150: nine products - five on the first row, four on the second, both rows filling the width */
+.product-tab:nth-child(n+6){grid-column:span 5}
 .product-tab[data-p="motor"]{--pc:#2563eb;--pc-deep:#1e3a8a;--pc-soft:#e2eafd}
 .product-tab[data-p="health"]{--pc:#be185d;--pc-deep:#831843;--pc-soft:#fce7f0}
 .product-tab[data-p="fire"]{--pc:#dc2626;--pc-deep:#7f1d1d;--pc-soft:#fde4e1}
@@ -1435,6 +1438,8 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 .product-tab[data-p="car"]{--pc:#b45309;--pc-deep:#78350f;--pc-soft:#fcefd8}
 .product-tab[data-p="cpm"]{--pc:#7c3aed;--pc-deep:#4c1d95;--pc-soft:#ede5fd}
 .product-tab[data-p="paps"]{--pc:#047857;--pc-deep:#064e3b;--pc-soft:#d8f3e8}
+.product-tab[data-p="shop"]{--pc:#4338ca;--pc-deep:#312e81;--pc-soft:#e0e7ff}
+.product-tab[data-p="office"]{--pc:#a21caf;--pc-deep:#701a75;--pc-soft:#fae8ff}
 .product-tab .pt-ico{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--pc-soft);color:var(--pc);transition:background .2s ease,color .2s ease}
 .product-tab .pt-ico svg{width:18px!important;height:18px!important}
 .product-tab .pt-lbl{font-size:11.5px;font-weight:700;line-height:1.15;letter-spacing:-.01em;max-width:100%;text-align:center;text-wrap:balance;overflow-wrap:anywhere}
@@ -1445,11 +1450,11 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 .product-tab.active .pt-ico{background:rgba(255,255,255,.18);color:#fff}
 .product-tab:focus-visible{outline:2px solid var(--pc);outline-offset:2px}
 .product-tab:active{transform:scale(.97)}
-/* a phone: four over three, both rows filling the width */
+/* a phone: five over four, both rows filling the width */
 @media(max-width:600px){
-  .product-tabs{grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;padding:5px}
-  .product-tab{grid-column:span 3;min-height:62px}
-  .product-tab:nth-child(n+5){grid-column:span 4}
+  .product-tabs{grid-template-columns:repeat(20,minmax(0,1fr));gap:4px;padding:5px}
+  .product-tab{grid-column:span 4;min-height:62px}
+  .product-tab:nth-child(n+6){grid-column:span 5}
 }
 @media(max-width:340px){.product-tab .pt-lbl{font-size:10.5px}.product-tab .pt-ico{width:28px;height:28px}}
 @media(prefers-reduced-motion:reduce){.product-tab,.product-tab .pt-ico{transition:none}.product-tab:active{transform:none}}
@@ -1818,7 +1823,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
   <header class="header">
     <div class="brand-mark">Oriental Insurance · Premium Calculator</div>
     <h1 class="title">Premium <em>Calculator</em></h1>
-    <p class="subtitle">Motor &middot; Health &middot; Fire &middot; WC &middot; CAR/EAR &middot; CPM &middot; PA &middot; Instant quotes.</p>
+    <p class="subtitle">Motor &middot; Health &middot; Fire &middot; WC &middot; CAR/EAR &middot; CPM &middot; PA &middot; Shop &middot; Office &middot; Instant quotes.</p>
   </header>
 
   <!-- PRODUCT SWITCHER -->
@@ -1850,6 +1855,14 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
     <button type="button" data-p="paps" class="product-tab" id="tabPaps" aria-pressed="false" onclick="switchProduct('paps')">
       <span class="pt-ico" aria-hidden="true"><svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7" viewBox="0 0 24 24"><path d="M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM5 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M19.5 12.5l1.8.9-.3 2 1.2 1.6-1.6 1.2-.9 1.8-2-.3"/></svg></span>
       <span class="pt-lbl">PA Parivaar</span>
+    </button>
+    <button type="button" data-p="shop" class="product-tab" id="tabShop" aria-pressed="false" aria-label="Shopkeepers' Insurance" title="Shopkeepers' Insurance" onclick="switchProduct('shop')">
+      <span class="pt-ico" aria-hidden="true"><svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7" viewBox="0 0 24 24"><path d="M4 8h16l-1.2-3.2a1 1 0 0 0-.94-.65H6.14a1 1 0 0 0-.94.65L4 8z"/><path d="M5 8v11h14V8"/><path d="M10 19v-5h4v5"/></svg></span>
+      <span class="pt-lbl">Shop</span>
+    </button>
+    <button type="button" data-p="office" class="product-tab" id="tabOffice" aria-pressed="false" aria-label="Office Umbrella" title="Office Umbrella" onclick="switchProduct('office')">
+      <span class="pt-ico" aria-hidden="true"><svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7" viewBox="0 0 24 24"><path d="M12 3V4"/><path d="M3.2 12.5a8.8 8.8 0 0 1 17.6 0z"/><path d="M12 12.5v6a2.2 2.2 0 0 0 4.4 0"/></svg></span>
+      <span class="pt-lbl">Office</span>
     </button>
   </div>
 
@@ -8706,6 +8719,894 @@ window.CPM.VERIFIED = [
     check:()=>[CPM_GROUP_RATE.I,CPM_GROUP_RATE.II,CPM_GROUP_RATE.III,CPM_GROUP_RATE.IV,CPM_GROUP_RATE.V,CPM_SHORT[3]].join('/') },
   { label:'CPM tariff Table 3 excess: SI 12 lakh -> AOG 2% min 30,000, normal 1% min 12,500; group V flat 1,000', expect:'2% of SI, min Rs. 30,000|1% of SI, min Rs. 12,500|Rs. 1,000 flat',
     check:()=>{ const a = excessFor({ si:1200000, group:'III', code:'304' }), b = excessFor({ si:5000, group:'V', code:'501' }); return a.aog + '|' + a.normal + '|' + b.aog; } }
+];
+})();
+</script>
+  <div class="product-section" id="sectionShop">
+    <div class="card">
+      <div class="section-label">Policy Details <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; Shopkeepers' Insurance Policy, rated section by section from the proposal form</span></div>
+      <div class="field"><label class="lbl" for="shkInsured">Insured Name</label><input type="text" id="shkInsured" placeholder="M/s. ..." /></div>
+      <div class="field-row">
+        <div class="field"><label class="lbl" for="shkTrade">Business / trade</label><input type="text" id="shkTrade" placeholder="e.g. Readymade garments" /></div>
+        <div class="field"><label class="lbl" for="shkOccupancy">The insured is</label>
+          <select id="shkOccupancy"><option value="owner">Owner of the premises</option><option value="tenant">Tenant</option></select>
+          <div class="hint">Owner: Sections 1A and 1B are compulsory. Tenant: Section 1B is compulsory.</div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label class="lbl" for="shkDisc">Discount</label>
+          <div class="input-suffix" data-suffix="%"><input type="number" id="shkDisc" placeholder="0" min="0" max="99.99" step="0.5" value="0" inputmode="decimal"></div>
+          <div class="hint">Applies to every section. The office's own quote sheet used 45%; the proposal form prints no discount, so the figure is yours to enter.</div>
+        </div>
+        <div class="field"><label class="lbl" for="shkS11Rate">Section 11 rate</label>
+          <select id="shkS11Rate"><option value="2">2.00&permil; &middot; proposal form</option><option value="8">8.00&permil; &middot; office quote sheet</option></select>
+          <div class="hint">Breakdown of Electrical Equipment is printed at 2.00&permil; on the proposal form and was rated at 8.00&permil; on the office's quote sheet. Confirm which stands.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Sections <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; tick a section and enter its sum insured</span></div>
+      <div id="shkSections"></div>
+      <div class="hint" id="shkCount" style="margin-top:4px"></div>
+      <div id="shkFlags" style="display:none;margin-top:12px;padding:12px 14px;border:1.5px solid #e8c56a;background:#fffaef;border-radius:12px;font-size:12.5px;line-height:1.5;color:var(--ink)"></div>
+    </div>
+
+    <div class="sticky-calc-wrap"><button class="btn btn-primary" id="shkCalcBtn" type="button">Calculate Premium</button></div>
+
+    <div class="card" id="shkResultCard" style="display:none">
+      <div class="section-label">Premium <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)" id="shkResDate"></span></div>
+      <div id="shkQuoteDetails"></div>
+      <div id="shkBreakdown" style="margin-top:10px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:2px solid var(--border-strong)"><strong>Total Premium (incl. GST 18%)</strong><strong id="shkGrand" style="font-size:20px;color:var(--accent-dark)">0</strong></div>
+      <div class="quote-actions">
+        <button type="button" class="btn btn-pdf" id="shkPdfBtn">Download PDF</button>
+        <button type="button" class="btn btn-whatsapp" id="shkWaBtn">Share PDF</button>
+        <button type="button" class="btn btn-image" id="shkImgBtn">Share Image</button>
+        <button type="button" class="btn btn-secondary" id="shkNewBtn">New Quote</button>
+      </div>
+    </div>
+  </div>
+<script>
+(function(){
+/* ═══════════════════════════════════════════════════════════════════════
+   SHOPKEEPERS' INSURANCE POLICY — section-wise rating from the proposal form
+   ("SHOPKEEPER PROPOSAL FORM", 5 pages) and the KBO quote proforma
+   ("Shopkeeper Calculator Quote Profarma.ods").
+     Sum insured of each section x its rate in rupees per mille, added up,
+     less the discount entered, plus GST 18%.
+     1A + 1B are compulsory for an owner, 1B for a tenant, and the form requires
+     at least three further sections.
+   Two things the documents disagree on are NOT decided here:
+     - Section 11 (Breakdown of Electrical Equipment): the form prints 2.00 per
+       mille, the office's quote sheet used 8.00. The rate is a choice on screen.
+     - The quote sheet's own "Basic Premium" cell adds rows 4-12 while taking the
+       discount on rows 4-18, so Fidelity, Electronic Equipment, Breakdown and both
+       Liability sections are discounted and then dropped. Every opted section is
+       charged here; that omission is a spreadsheet error, not a rule.
+   Every id and class in this module carries the "shk" prefix.
+   ═══════════════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+/* count: the number the form's "Total Number of Sections opted" box counts, so 3(a-d) and
+   3(e) are one section, 10A and 10B are one, 12A and 12B are one. */
+const SHK_SECTIONS = [
+  { key:'building',  no:'1A',      count:'1A', name:'Building', rate:1.60, compulsory:'owner',
+    label:'Sum insured &mdash; Total (a to e)',
+    hint:'Building, fixtures &amp; fittings, boundary walls, gates and fences, other property, plus a reasonable amount towards architects’ / surveyor’s / engineer’s fees and debris removal. The sum insured is the cost of reinstatement as new.' },
+  { key:'contents',  no:'1B',      count:'1B', name:'Contents', rate:2.00, compulsory:'always',
+    label:'Sum insured &mdash; Sub total (a to g)',
+    hint:'Stock in trade; business furniture, furnishings, safes, machinery, fixtures, fittings and unused stationery not insured under 1A; documents; telephone and electric meters; electronic equipment not insured under Section 10A; all other contents.' },
+  { key:'housebreak',no:'2',       count:'2',  name:'Housebreaking', rate:2.00, derivedFrom:'contents',
+    derivedNote:'Takes the Section 1B contents value — the form requires the two to be equal.' },
+  { key:'money',     no:'3 (a-d)', count:'3',  name:'Money', rate:2.00,
+    label:'Maximum limit any one loss &mdash; Sub total (a to d)',
+    hint:'Money in direct transit between two places, money in the shop during business hours and money in a locked safe outside business hours. These are per-loss limits, not a yearly total. The make, year and model of the safe go on the schedule.' },
+  { key:'turnover',  no:'3 (e)',   count:'3',  name:'Estimated turnover', rate:0.025,
+    label:'Estimated turnover during the policy period' },
+  { key:'pedal',     no:'4',       count:'4',  name:'Pedal Cycle', rate:10.00,
+    label:'Total value including accessories' },
+  { key:'glass',     no:'5',       count:'5',  name:'Plate Glass', rate:5.00,
+    label:'Total value of the glass and its framework',
+    hint:'Plate glass with its framework, including tinted, embossed, ornamental or painted glass.' },
+  { key:'neon',      no:'6',       count:'6',  name:'Neon &amp; Glow Signs', rate:5.00, label:'Value of the signs' },
+  { key:'baggage',   no:'7',       count:'7',  name:'Baggage', rate:5.00,
+    label:'Sum insured &mdash; any one year',
+    hint:'Any one event per person is limited to ₹10,000 by the form; that limit is not rated.' },
+  { key:'pa',        no:'8 (a)',   count:'8',  name:'Personal Accident', rate:0.60,
+    label:'Total capital sum insured of the persons covered',
+    hint:'The rate runs on the total of the persons listed. Age limit 16 to 65 years.',
+    extras:[{ id:'paPersons', label:'Number of persons', placeholder:'1' }] },
+  { key:'paMed',     no:'8 (b)',   count:'8',  name:'PA — Medical Expenses', rate:0.12, requires:'pa',
+    label:'Medical expenses sum insured',
+    hint:'The form caps this at 10% of the Section 8(a) capital sum insured. Anything higher is brought down to the cap.' },
+  { key:'fidelity',  no:'9',       count:'9',  name:'Fidelity Guarantee', rate:5.00,
+    label:'Maximum guarantee for any one salaried staff',
+    hint:'The premium runs on the guarantee for any one staff member; the headcount is recorded on the schedule and is not multiplied in.',
+    extras:[{ id:'fgStaff', label:'Number of salaried staff', placeholder:'1' }] },
+  { key:'electronic',no:'10A',     count:'10', name:'Electronic Equipment', rate:8.00,
+    label:'Sum insured &mdash; Total (a + b)',
+    hint:'Replacement value of the equipment listed, plus the value of the data-carrying material stated separately.',
+    checks:[{ id:'maint', label:'Under an approved maintenance agreement', note:'If it is not, the form loads this section by 50%.', checked:true }] },
+  { key:'dataProg',  no:'10B',     count:'10', name:'Data / Programme reinstatement', rate:8.00, requires:'electronic',
+    label:'Sum insured &mdash; Total (a + b)',
+    hint:'Available only where Section 10A is taken. Only standard programmes that the user can exchange are covered.' },
+  { key:'breakdown', no:'11',      count:'11', name:'Breakdown of Electrical Equipment', rate:null,
+    label:'Total replacement value of the items',
+    hint:'Rated at the rate chosen in Policy Details — the proposal form prints 2.00 per mille and the office quote sheet used 8.00.' },
+  { key:'publicLiab',no:'12A',     count:'12', name:'Public Liability', rate:0.40,
+    label:'Limit of liability',
+    hint:'Any one accident / any one year in the ratio 1:4, as printed on the form.' },
+  { key:'wc',        no:'12B',     count:'12', name:'Workmen Compensation', rate:8.00,
+    label:'Total earnings of the employees covered',
+    hint:'The form lists each employee with their earnings as per the W.C. Act.' },
+  { key:'bi',        no:'13A',     count:'13', name:'Business Interruption — Loss of Profit', rate:1.60,
+    label:'Sum insured &mdash; Total (a + b)',
+    hint:'Gross income plus the accountant’s charges.' }
+];
+const SHK_GST = 18;
+let lastQuote = null;
+function fmt(n){ return Math.round(n).toLocaleString('en-IN'); }
+function fmt2(n){ return (Math.round(n * 100) / 100).toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 }); }
+function rateTxt(r){ return r < 0.1 ? r.toFixed(3) : r.toFixed(2); }
+function secByKey(k){ return SHK_SECTIONS.filter(s => s.key === k)[0]; }
+
+/* ── pure engine — also used by the self-test ───────────────────────────── */
+function shkCompute(inp){
+  const owner = inp.occupancy !== 'tenant';
+  const opt = Object.assign({}, inp.opt || {});
+  const si  = Object.assign({}, inp.si  || {});
+  const s11 = (parseFloat(inp.s11Rate) === 8) ? 8.00 : 2.00;
+  const flags = [];
+  /* what the form makes compulsory */
+  opt.contents = true;
+  if(owner) opt.building = true;
+  /* Section 2 carries the Section 1B value */
+  if(opt.housebreak) si.housebreak = si.contents || 0;
+  /* the medical extension cannot exceed 10% of the capital sum insured */
+  let paMedAsked = si.paMed || 0, paMedCap = (si.pa || 0) * 0.10;
+  if(opt.paMed && opt.pa && paMedAsked > paMedCap){ si.paMed = paMedCap;
+    flags.push('Section 8(b): medical expenses are limited to 10% of the Section 8(a) capital sum insured, so ₹' + fmt(paMedAsked) + ' has been brought down to ₹' + fmt(paMedCap) + '.'); }
+  const rows = [];
+  SHK_SECTIONS.forEach(function(s){
+    if(!opt[s.key]) return;
+    if(s.requires && !opt[s.requires]){
+      flags.push('Section ' + s.no + ' needs Section ' + secByKey(s.requires).no + ', which is not opted, so it has been left out of the premium.');
+      return;
+    }
+    const amount = s.derivedFrom ? (si[s.derivedFrom] || 0) : (si[s.key] || 0);
+    if(!(amount > 0)) return;
+    const rate = (s.key === 'breakdown') ? s11 : s.rate;
+    let prem = amount * rate / 1000, note = '';
+    if(s.key === 'electronic' && inp.maint === false){ prem = prem * 1.5; note = 'loaded 50% — no maintenance agreement'; }
+    rows.push({ key:s.key, no:s.no, count:s.count, name:s.name, si:amount, rate, prem, note });
+  });
+  /* the form's own "Total Number of Sections opted", and its minimum of three beyond the compulsory ones */
+  const counts = [];
+  rows.forEach(function(r){ if(counts.indexOf(r.count) < 0) counts.push(r.count); });
+  const compulsory = owner ? ['1A','1B'] : ['1B'];
+  const further = counts.filter(function(c){ return compulsory.indexOf(c) < 0; }).length;
+  const sectionCount = counts.length;
+  if(further < 3) flags.push('The form asks for at least three sections besides the compulsory ones — ' + further + ' ' + (further === 1 ? 'is' : 'are') + ' opted.');
+  if(owner && !(si.building > 0)) flags.push('Section 1A (Building) is compulsory for an owner of the premises and has no sum insured yet.');
+  if(!(si.contents > 0)) flags.push('Section 1B (Contents) is compulsory and has no sum insured yet.');
+  if(opt.breakdown) flags.push('Section 11 is rated at ' + rateTxt(s11) + ' per mille — the proposal form prints 2.00 and the office quote sheet used 8.00. Please have the office confirm the rate.');
+  const subtotal = rows.reduce(function(t, r){ return t + r.prem; }, 0);
+  const discPct = Math.min(99.99, Math.max(0, parseFloat(inp.discPct) || 0));
+  const discAmt = subtotal * discPct / 100;
+  const net = subtotal - discAmt;
+  const gst = net * SHK_GST / 100;
+  const grand = Math.round(net + gst);
+  return { owner, rows, s11Rate:s11, counts, sectionCount, further, flags, subtotal, discPct, discAmt, net, gst, gstPct:SHK_GST, grand, paMedAsked, paMedCap };
+}
+
+/* ── the screen ─────────────────────────────────────────────────────────── */
+function renderSections(){
+  $('shkSections').innerHTML = SHK_SECTIONS.map(function(s){
+    const body = s.derivedFrom
+      ? '<div class="hint" id="shkDer_' + s.key + '" style="margin-top:0">' + s.derivedNote + '</div>'
+      : '<div class="field" style="margin-bottom:0"><label class="lbl" for="shkSi_' + s.key + '">' + (s.label || 'Sum insured') + '</label>'
+        + '<div class="input-prefix" data-prefix="&#8377;"><input type="number" id="shkSi_' + s.key + '" class="shk-si" data-key="' + s.key + '" min="0" step="1000" inputmode="numeric" placeholder="0"></div>'
+        + (s.hint ? '<div class="hint">' + s.hint + '</div>' : '') + '</div>'
+        + (s.extras || []).map(function(e){ return '<div class="field" style="margin-bottom:0;margin-top:10px"><label class="lbl" for="shk_' + e.id + '">' + e.label + '</label><input type="number" id="shk_' + e.id + '" min="0" step="1" inputmode="numeric" placeholder="' + (e.placeholder || '') + '"></div>'; }).join('')
+        + (s.checks || []).map(function(c){ return '<label style="display:flex;align-items:flex-start;gap:9px;margin-top:10px;cursor:pointer"><input type="checkbox" id="shk_' + c.id + '"' + (c.checked ? ' checked' : '') + ' style="-webkit-appearance:checkbox;appearance:checkbox;width:18px;height:18px;min-height:18px;padding:0;margin:2px 0 0;flex:0 0 auto;box-shadow:none;accent-color:var(--accent)"><span style="font-size:12.5px;line-height:1.45;color:var(--ink)">' + c.label + (c.note ? '<span style="display:block;color:var(--mute);font-size:11.5px">' + c.note + '</span>' : '') + '</span></label>'; }).join('');
+    return '<div class="shk-row" data-key="' + s.key + '" style="border:1.5px solid var(--border-soft);border-radius:12px;padding:11px 12px;margin-bottom:8px;background:#fff">'
+      + '<label for="shkOpt_' + s.key + '" style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0">'
+      + '<input type="checkbox" id="shkOpt_' + s.key + '" class="shk-opt" data-key="' + s.key + '" style="-webkit-appearance:checkbox;appearance:checkbox;width:20px;height:20px;min-height:20px;padding:0;margin:0;flex:0 0 auto;box-shadow:none;accent-color:var(--accent)">'
+      + '<span style="flex:1;min-width:0"><span style="display:block;font-size:13px;font-weight:700;color:var(--ink);line-height:1.3">' + s.no + ' &middot; ' + s.name + '</span></span>'
+      + '<span style="font-size:11.5px;font-weight:700;color:var(--accent-dark);white-space:nowrap">' + (s.rate === null ? '2.00 / 8.00' : rateTxt(s.rate)) + '&permil;</span></label>'
+      + '<div class="shk-body" id="shkBody_' + s.key + '" style="display:none;margin-top:11px">' + body + '</div></div>';
+  }).join('');
+  $('shkSections').querySelectorAll('.shk-opt').forEach(function(el){ el.addEventListener('change', function(){ syncRows(); }); });
+  $('shkSections').querySelectorAll('.shk-si').forEach(function(el){ el.addEventListener('input', syncDerived); });
+}
+function syncRows(){
+  const owner = $('shkOccupancy').value !== 'tenant';
+  SHK_SECTIONS.forEach(function(s){
+    const box = $('shkOpt_' + s.key);
+    const locked = s.compulsory === 'always' || (s.compulsory === 'owner' && owner);
+    if(locked) box.checked = true;
+    box.disabled = locked;
+    box.parentNode.style.opacity = locked ? '1' : '';
+    $('shkBody_' + s.key).style.display = box.checked ? '' : 'none';
+  });
+  syncDerived();
+  const opt = {}; SHK_SECTIONS.forEach(function(s){ opt[s.key] = $('shkOpt_' + s.key).checked; });
+  const counts = []; SHK_SECTIONS.forEach(function(s){ if(opt[s.key] && counts.indexOf(s.count) < 0) counts.push(s.count); });
+  const compulsory = owner ? ['1A','1B'] : ['1B'];
+  const further = counts.filter(function(c){ return compulsory.indexOf(c) < 0; }).length;
+  $('shkCount').innerHTML = 'Total number of sections opted: <strong>' + counts.length + '</strong> &middot; besides the compulsory ' + compulsory.join(' and ') + ': <strong>' + further + '</strong>'
+    + (further < 3 ? ' &mdash; the form asks for at least three.' : '.');
+}
+function syncDerived(){
+  const c = parseFloat($('shkSi_contents').value) || 0;
+  const d = $('shkDer_housebreak');
+  if(d) d.innerHTML = secByKey('housebreak').derivedNote + (c > 0 ? ' Sum insured <strong>₹' + fmt(c) + '</strong>.' : '');
+}
+function readInputs(){
+  const opt = {}, si = {};
+  SHK_SECTIONS.forEach(function(s){
+    opt[s.key] = $('shkOpt_' + s.key).checked;
+    const f = $('shkSi_' + s.key);
+    si[s.key] = f ? (parseFloat(f.value) || 0) : 0;
+  });
+  return { occupancy:$('shkOccupancy').value, opt, si, discPct:parseFloat($('shkDisc').value) || 0, s11Rate:$('shkS11Rate').value,
+           maint:$('shk_maint').checked, persons:parseFloat($('shk_paPersons').value) || 0, staff:parseFloat($('shk_fgStaff').value) || 0 };
+}
+function line(k, v, cls){ return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:13px' + (cls === 'total' ? ';font-weight:700' : '') + (cls === 'sub' ? ';color:var(--mute);font-size:12px' : '') + '"><span>' + k + '</span><span style="white-space:nowrap">' + v + '</span></div>'; }
+function calculate(){
+  const inp = readInputs();
+  const q = shkCompute(inp);
+  if(!q.rows.length){ const el = $('shkSi_contents'); if(el){ el.style.borderColor = 'var(--danger)'; setTimeout(function(){ el.style.borderColor = ''; }, 2000); el.focus(); } return; }
+  const insured = $('shkInsured').value.trim() || 'Valued Customer';
+  const fl = $('shkFlags'); fl.style.display = q.flags.length ? '' : 'none';
+  fl.innerHTML = q.flags.map(function(f){ return '<div>&#9888; ' + f + '</div>'; }).join('');
+  $('shkQuoteDetails').innerHTML = line('Insured', insured)
+    + line('Premises', q.owner ? 'Owned by the insured' : 'Tenanted')
+    + line('Sections opted', String(q.sectionCount) + ' (' + q.further + ' besides the compulsory ' + (q.owner ? '1A and 1B' : '1B') + ')')
+    + line('Total sum insured', '&#8377;' + fmt(q.rows.reduce(function(t, r){ return t + r.si; }, 0)));
+  let h = '';
+  q.rows.forEach(function(r){
+    h += line(r.no + ' &middot; ' + r.name + ' &middot; ' + rateTxt(r.rate) + '&permil; on &#8377;' + fmt(r.si), '&#8377;' + fmt2(r.prem));
+    if(r.note) h += line('&nbsp;&nbsp;' + r.note, '', 'sub');
+  });
+  h += line('Sub total', '&#8377;' + fmt2(q.subtotal), 'total');
+  if(q.discAmt) h += line('Discount ' + q.discPct + '%', '&minus; &#8377;' + fmt2(q.discAmt), 'sub');
+  h += line('Net Premium (before GST)', '&#8377;' + fmt2(q.net), 'total');
+  h += line('GST @ 18%', '&#8377;' + fmt2(q.gst));
+  $('shkBreakdown').innerHTML = h;
+  $('shkGrand').textContent = '₹' + fmt(q.grand);
+  const now = new Date();
+  $('shkResDate').textContent = now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+  lastQuote = Object.assign({ insured, trade:$('shkTrade').value.trim(), inp, now,
+    quoteRef:'SHK-' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '-' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') }, q);
+  const card = $('shkResultCard'); card.style.display = ''; setTimeout(function(){ card.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60);
+}
+
+/* ── the quotation PDF ──────────────────────────────────────────────────── */
+function buildPDF(returnBlob){
+  const q = lastQuote; if(!q){ alert('Please calculate the premium first.'); return; }
+  const R = OICPDF.money2, inp = q.inp, now = q.now;
+  const dateStr = now.toLocaleDateString('en-IN', { day:'2-digit', month:'2-digit', year:'numeric' }).replace(/\//g, '-');
+  let costCode = ''; try{ costCode = (typeof buildCostCode === 'function') ? buildCostCode(q.discPct, 0, 0) : ''; }catch(e){}
+  const AG = (typeof AGENT !== 'undefined') ? AGENT : { name:'Vinod', phone:'7032688497' };
+  const optedKeys = q.rows.map(function(r){ return r.key; });
+  const left = [
+    { bar:'Customer Details', rows:[ ['Name', q.insured], ['Mobile No', ''], ['Email', ''] ] },
+    { bar:'Employee/Intermediary Details', rows:[ ['Employee/Intermediary Code', AG.code || ''], ['Name', AG.name || ''], ['Mobile No', AG.phone || ''], ['Email', AG.email || ''] ] },
+    { bar:'Policy Details', rows:[ ['Product', "Shopkeepers' Insurance Policy"], ['Business / trade', q.trade || 'As declared'],
+      ['Premises', q.owner ? 'Owned by the insured' : 'Tenanted'], ['Policy Period', '12 months from inception'],
+      ['Sections opted', String(q.sectionCount) + ' (' + q.further + ' besides the compulsory ' + (q.owner ? '1A and 1B)' : '1B)')] ] },
+    { bar:'Sections Insured', rows: q.rows.flatMap(function(r){
+        return [ { label: r.no + '. ' + OICPDF.pdfSafe(r.name).replace(/&amp;/g, '&') + (r.note ? '  (' + r.note + ')' : '') },
+                 ['    Sum Insured  |  rate ' + rateTxt(r.rate) + ' per mille', OICPDF.fmtIN(r.si)] ]; }) },
+    { bar:'Sections Not Opted', rows:[ { label: SHK_SECTIONS.filter(function(s){ return optedKeys.indexOf(s.key) < 0; })
+        .map(function(s){ return s.no + ' ' + OICPDF.pdfSafe(s.name).replace(/&amp;/g, '&'); }).join('  |  ') || 'None - every section of the policy is opted.' } ] },
+    { bar:'Documents Required', rows:[ { label:'1. Filled and signed Proposal Form with the schedule of each section opted' },
+      { label:'2. Valuation or invoices of the stock, contents and equipment declared' },
+      { label:'3. Details of the persons and staff covered under Sections 8, 9 and 12B' },
+      { label:'4. Claims experience of the last 3 years (renewals)' } ] }
+  ];
+  const right = [ { bar:'Premium Breakup' } ];
+  /* the discount is never itemised for the customer: every section prints net of it */
+  const d = q.subtotal > 0 ? q.discAmt / q.subtotal : 0;
+  const netOf = function(v){ return v * (1 - d); };
+  const secRows = q.rows.map(function(r){ return { label:r.no + ' ' + OICPDF.pdfSafe(r.name).replace(/&amp;/g, '&') + ' @ ' + rateTxt(r.rate) + ' per mille', value:R(netOf(r.prem)) }; });
+  secRows.push({ label:'Sections Premium (A)', value:R(netOf(q.subtotal)), total:true });
+  right.push({ sub:'Section A - Sections Opted', rows:secRows });
+  right.push({ sub:'Final Premium Summary', rows:[
+    { label:'Net Premium before GST [A]', value:R(q.net) },
+    { label:'GST @ 18%', value:R(q.gst) },
+    { label:'Total Premium', value:R(q.grand), total:true } ] });
+  const notes = [
+    "Rates are as printed on the Shopkeepers' Insurance proposal form, applied section by section to the sums insured declared above. This is an indicative quotation - final premium, terms and conditions are subject to underwriting and acceptance of risk.",
+    'Every sum insured must represent the cost of reinstatement of the property as new. If the sum insured is less than that value at the time of a loss, the claim is reduced in the same proportion.',
+    'Sections 1A (Building) and 1B (Contents) are compulsory where the insured owns the premises, and Section 1B where the insured is a tenant. At least three further sections must be taken. The Housebreaking sum insured is the same as the Contents sum insured, medical expenses under Section 8 are limited to 10% of the capital sum insured, and the age limit under Section 8 is 16 to 65 years.',
+    'Cover is subject to the premises not being of kutcha construction, being in good repair, and being used solely as a shop and/or residence, not forming part of premises with manufacturing units or hazardous goods. This is a system generated quote and does not require signature; premium and risk period may change at the time of issuance of the policy.'
+  ];
+  const safe = q.insured.replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_').substring(0, 40);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const out = OICPDF.render({
+    subtitle: "Quotation Worksheet For Miscellaneous Insurance – SHOPKEEPERS' INSURANCE POLICY",
+    quoteNumber: String(Math.floor(now.getTime() / 1000)).slice(-5), quoteId: q.quoteRef, dateStr, costCode, agent: AG, left, right, notes,
+    totalLabel: 'Total Premium', totalValue: R(q.grand),
+    filename: 'Oriental_Shopkeeper_Quote_' + safe + '_' + String(now.getDate()).padStart(2,'0') + months[now.getMonth()] + now.getFullYear() + '.pdf'
+  });
+  try{ OICI18N.pages(out.doc, function(dd){ drawShkCoverPages(dd, q); }); }catch(e){ console.error('Shopkeeper cover pages skipped:', e); }
+  if(returnBlob) return { blob: new Blob([out.doc.output('arraybuffer')], { type:'application/pdf' }), filename: out.filename };
+  out.doc.save(out.filename);
+}
+
+/* Cover pages - summarised from the Shopkeepers' Insurance proposal-cum-policy schedule. */
+const SHK_COVER_DATA = {
+  intro: "This schedule summarises what the quoted Shopkeepers' Insurance policy covers section by section, the basis of the sums insured and the conditions the insured must observe. It is a summary only; the policy wording prevails.",
+  sections: [
+    { heading:'HOW THE POLICY IS BUILT', rows:[
+      { label:'Compulsory sections', lines:['Where the insured owns the premises, Section 1A (Building) and Section 1B (Contents) are compulsory. Where the insured is a tenant, Section 1B (Contents) is compulsory.'] },
+      { label:'Minimum sections', lines:['The insured must opt for at least three sections besides the compulsory ones. The number of sections opted is shown on the quotation.'] },
+      { label:'Basis of sum insured', lines:['Every sum insured must represent the cost of reinstatement of the property as new. Under-insurance reduces a claim in the same proportion.'] },
+      { label:'Premium', lines:['Each section is charged at its own rate per mille on its sum insured. The section premiums are added, the discount allowed is deducted and GST is charged on the net premium.'] } ] },
+    { heading:'WHAT EACH SECTION COVERS', rows:[
+      { label:'1A Building', lines:['The building, its fixtures and fittings, boundary walls, gates and fences and other property, together with a reasonable amount for architects’, surveyor’s and engineer’s fees and the cost of removing debris.'] },
+      { label:'1B Contents', lines:['Stock in trade; business furniture, furnishings, safes, machinery, fixtures, fittings and unused stationery; documents; telephone and electric meters; electronic equipment not insured under Section 10A; and all other contents of the shop.'] },
+      { label:'2 Housebreaking', lines:['Loss of the contents of the shop by housebreaking. The sum insured is the same as the contents sum insured under Section 1B.'] },
+      { label:'3 Money', lines:['Money in direct transit between two places, money in the shop during business hours and money in a locked safe outside business hours, each up to the limit shown for any one loss; and the money risk on the estimated turnover of the period.'] },
+      { label:'4 Pedal Cycle', lines:['The pedal cycles described, including their accessories.'] },
+      { label:'5 Plate Glass', lines:['Fixed plate glass and its framework, including tinted, embossed, ornamental and painted glass.'] },
+      { label:'6 Neon and Glow Signs', lines:['The neon signs and glow signs described.'] },
+      { label:'7 Baggage', lines:['Baggage of the insured and the family, up to ₹10,000 for any one person in any one event and up to the sum insured for any one year.'] },
+      { label:'8 Personal Accident', lines:['Death and disablement of the persons named, with medical expenses as an additional cover limited to 10% of the capital sum insured. The age limit for this section is 16 to 65 years.'] },
+      { label:'9 Fidelity Guarantee', lines:['Direct pecuniary loss caused by the dishonesty of a salaried employee, up to the guarantee shown for any one member of staff.'] },
+      { label:'10 Electronic Equipment', lines:['Physical loss or damage to the electronic equipment described and to the data-carrying material, and where opted the cost of reinstating data and standard programmes. Where the equipment is not kept under an approved maintenance agreement the premium for this section is loaded by 50%.'] },
+      { label:'11 Breakdown of Electrical Equipment', lines:['Breakdown of the electrical items described, on their replacement value by a new one of the same kind.'] },
+      { label:'12 Liabilities', lines:['Public liability up to the limit shown, in the ratio of one to four between any one accident and any one year; and the insured’s liability to the employees listed under the Workmen’s Compensation Act.'] },
+      { label:'13 Business Interruption', lines:['Loss of gross income and the accountant’s charges following a loss covered by the policy.'] } ] },
+    { heading:'WHAT THE PROPOSER DECLARES', numbered:true, rows:[
+      { label:'The premises', lines:['The building is not of kutcha construction, is in good repair and so maintained, and is occupied by the insured in connection with the business stated, used solely as a shop and/or residence. It does not form part of premises having manufacturing units, shops dealing in hazardous goods or godowns containing hazardous goods.'], numbered:true },
+      { label:'Books of account', lines:['The books of account are regularly entered up.'], numbered:true },
+      { label:'Previous insurance', lines:['No insurer has declined the proposal, cancelled or refused to renew a policy, or required special terms for any of the risks proposed.'], numbered:true },
+      { label:'Sums insured', lines:['The sums insured represent the full value of the property described.'], numbered:true },
+      { label:'Care of the property', lines:['All reasonable steps are taken to safeguard the property insured and to prevent a loss, and all proofs required in support of a claim are provided at the insured’s own cost.'], numbered:true },
+      { label:'Disclosure', lines:['All facts material to the risk have been disclosed, and any exception or variation to the declarations above has been stated on the proposal.'], numbered:true } ] }
+  ]
+};
+function drawShkCoverPages(doc, q){
+  if(typeof makeCoverPainter !== 'function') return;
+  const D = SHK_COVER_DATA;
+  const sub = (q.insured || '') + '   |   ' + q.sectionCount + ' section' + (q.sectionCount > 1 ? 's' : '') + ' opted   |   ' + (q.owner ? 'Premises owner' : 'Tenant');
+  const P = makeCoverPainter(doc, "SHOPKEEPERS' INSURANCE - SCOPE OF COVER & CONDITIONS", sub,
+    'The Oriental Insurance Company Limited   ·   Summary from the policy wording; the policy wording prevails', 'Cover Schedule');
+  doc.addPage(); P.header();
+  P.note(D.intro); P.gap(8);
+  D.sections.forEach(function(sec){
+    P.section(sec.heading);
+    (sec.rows || []).forEach(function(r){ P.block(r.label, r.lines, { numbered: !!r.numbered, tint: r.tint }); });
+    P.gap(8);
+  });
+  P.section('SECTIONS OPTED');
+  if(!q.rows.length) P.block('Sections', ['No section carries a sum insured in this quotation.']);
+  q.rows.forEach(function(r){ P.block(r.no + ' ' + String(r.name).replace(/&amp;/g, '&'), ['Sum insured Rs. ' + OICPDF.fmtIN(r.si) + ' at ' + rateTxt(r.rate) + ' per mille' + (r.note ? ', ' + r.note : '') + '.']); });
+  P.footer();
+}
+
+function newQuote(){
+  ['shkInsured','shkTrade'].forEach(function(id){ $(id).value = ''; });
+  $('shkDisc').value = '0'; $('shkS11Rate').value = '2'; $('shkOccupancy').value = 'owner';
+  SHK_SECTIONS.forEach(function(s){
+    const b = $('shkOpt_' + s.key); b.checked = false;
+    const f = $('shkSi_' + s.key); if(f) f.value = '';
+    (s.extras || []).forEach(function(e){ $('shk_' + e.id).value = ''; });
+    (s.checks || []).forEach(function(c){ $('shk_' + c.id).checked = !!c.checked; });
+  });
+  syncRows();
+  $('shkFlags').style.display = 'none';
+  $('shkResultCard').style.display = 'none';
+  lastQuote = null;
+  window.scrollTo({ top: Math.max(0, $('sectionShop').offsetTop - 8), behavior:'smooth' });
+}
+
+$('shkOccupancy').addEventListener('change', syncRows);
+$('shkS11Rate').addEventListener('change', function(){ const r = $('shkS11Rate').value === '8' ? '8.00' : '2.00';
+  const row = document.querySelector('.shk-row[data-key="breakdown"] span[style*="accent-dark"]'); if(row) row.innerHTML = r + '&permil;'; });
+$('shkCalcBtn').addEventListener('click', calculate);
+$('shkPdfBtn').addEventListener('click', function(){ try{ buildPDF(false); }catch(e){ console.error(e); alert('PDF generation failed: ' + (e.message || e)); } });
+$('shkWaBtn').addEventListener('click', async function(){ try{ const r = buildPDF(true); if(!r) return; const file = new File([r.blob], r.filename, { type:'application/pdf' });
+  if(navigator.canShare && navigator.canShare({ files:[file] })){ try{ await navigator.share({ files:[file], title:"Shopkeepers' Insurance Quote — " + lastQuote.insured }); return; }catch(e){ if(e.name === 'AbortError') return; } }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(r.blob); a.download = r.filename; a.click(); }catch(e){ console.error(e); alert('Share failed: ' + (e.message || e)); } });
+$('shkImgBtn').addEventListener('click', function(){ if(!lastQuote){ alert('Please calculate the premium first.'); return; } const q = lastQuote;
+  const safe = q.insured.replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_').substring(0, 40);
+  OICIMG.shareViaBuilder(function(){ buildPDF(true); }, 'Oriental_Shopkeeper_Quote_' + safe + '.png', "Shopkeepers' Insurance Quote — " + q.insured,
+    "Oriental Insurance Shopkeepers' Insurance quote for " + q.insured + ' — total premium ₹' + fmt(q.grand) + ' (incl. GST).'); });
+$('shkNewBtn').addEventListener('click', newQuote);
+renderSections(); syncRows();
+window.SHOP = { compute: shkCompute, calculate, buildPDF, newQuote, SECTIONS: SHK_SECTIONS, COVER: SHK_COVER_DATA };
+/* The office's quote proforma, section by section. Its own sums insured, its own 8.00 on Section 11. */
+const SHK_ODS = { occupancy:'owner', discPct:45, s11Rate:8, maint:true,
+  opt:{ building:true, contents:true, housebreak:true, money:true, turnover:true, glass:true, neon:true, pa:true, paMed:true, fidelity:true, electronic:true, breakdown:true, publicLiab:true, wc:true },
+  si:{ building:3000000, contents:7000000, money:100000, turnover:20000000, glass:200000, neon:100000, pa:100000, paMed:10000, fidelity:100000, electronic:100000, breakdown:100000, publicLiab:500000, wc:500000 } };
+window.SHOP.VERIFIED = [
+  { label:"Shopkeepers' proposal form rates: 1A 1.60 / 1B 2.00 / 2 2.00 / 3 2.00 / 3(e) 0.025 / 4 10.00 / 5 5.00 / 6 5.00 / 7 5.00 / 8a 0.60 / 8b 0.12 / 9 5.00 / 10A 8.00 / 10B 8.00 / 12A 0.40 / 12B 8.00 / 13A 1.60 per mille", expect:'1.6/2/2/2/0.025/10/5/5/5/0.6/0.12/5/8/8/0.4/8/1.6',
+    check:()=>['building','contents','housebreak','money','turnover','pedal','glass','neon','baggage','pa','paMed','fidelity','electronic','dataProg','publicLiab','wc','bi'].map(k=>secByKey(k).rate).join('/') },
+  { label:"Shopkeepers' quote proforma (office sheet): its 14 section premiums 4,800 / 14,000 / 14,000 / 200 / 500 / 1,000 / 500 / 60 / 1.20 / 500 / 800 / 800 / 200 / 4,000 - on its own 8.00 for Section 11, and with the Section 8(b) medical sum insured at the form's 10% cap", expect:'4800/14000/14000/200/500/1000/500/60/1.2/500/800/800/200/4000',
+    check:()=>shkCompute(SHK_ODS).rows.map(r=>Math.round(r.prem*100)/100).join('/') },
+  { label:"Shopkeepers' quote proforma: every section charged, not only rows 4 to 12 as its own Basic Premium cell does - sections 41,361.20, discount 45% 18,612.54, net 22,748.66, GST 4,094.76, total 26,843", expect:'41361.2/18612.54/22748.66/4094.76/26843',
+    check:()=>{ const q = shkCompute(SHK_ODS); const r2 = v => Math.round(v*100)/100; return [r2(q.subtotal),r2(q.discAmt),r2(q.net),r2(q.gst),q.grand].join('/'); } },
+  { label:"Shopkeepers' Section 11 at the proposal form's 2.00 per mille instead of the office sheet's 8.00: the same quote is 40,761.20 of sections and 26,454 in total", expect:'40761.2/26454',
+    check:()=>{ const q = shkCompute(Object.assign({}, SHK_ODS, { s11Rate:2 })); return (Math.round(q.subtotal*100)/100) + '/' + q.grand; } },
+  { label:"Shopkeepers' Section 8(b): medical expenses are capped at 10% of the capital sum insured, so 1,00,000 asked on a 1,00,000 PA sum insured is rated as 10,000 (1.20, not 12.00)", expect:'1.2/10000/true',
+    check:()=>{ const q = shkCompute({ occupancy:'tenant', opt:{ contents:true, pa:true, paMed:true }, si:{ contents:1000000, pa:100000, paMed:100000 }, discPct:0, s11Rate:2, maint:true });
+                const r = q.rows.filter(x=>x.key==='paMed')[0]; return (Math.round(r.prem*100)/100) + '/' + r.si + '/' + (q.flags.join(' ').indexOf('10%') >= 0); } },
+  { label:"Shopkeepers' Section 2: Housebreaking takes the Section 1B contents value, as the form requires - contents 70,00,000 gives 14,000 without a sum insured of its own", expect:'7000000/14000',
+    check:()=>{ const q = shkCompute({ occupancy:'tenant', opt:{ contents:true, housebreak:true }, si:{ contents:7000000 }, discPct:0, s11Rate:2, maint:true });
+                const r = q.rows.filter(x=>x.key==='housebreak')[0]; return r.si + '/' + Math.round(r.prem); } },
+  { label:"Shopkeepers' Section 10A: electronic equipment not under an approved maintenance agreement is loaded 50% - 1,00,000 goes from 800 to 1,200", expect:'800/1200',
+    check:()=>{ const base = { occupancy:'tenant', opt:{ contents:true, electronic:true }, si:{ contents:1000000, electronic:100000 }, discPct:0, s11Rate:2 };
+                const a = shkCompute(Object.assign({}, base, { maint:true })).rows.filter(r=>r.key==='electronic')[0];
+                const b = shkCompute(Object.assign({}, base, { maint:false })).rows.filter(r=>r.key==='electronic')[0];
+                return Math.round(a.prem) + '/' + Math.round(b.prem); } },
+  { label:"Shopkeepers': Section 10B is dropped when Section 10A is not opted, and the form's minimum of three further sections is flagged when only two are taken", expect:'false/true/2/true',
+    check:()=>{ const q = shkCompute({ occupancy:'tenant', opt:{ contents:true, dataProg:true, money:true, neon:true }, si:{ contents:1000000, dataProg:100000, money:100000, neon:100000 }, discPct:0, s11Rate:2, maint:true });
+                return [q.rows.some(r=>r.key==='dataProg'), q.flags.join(' ').indexOf('Section 10B needs Section 10A') >= 0, q.further, q.flags.join(' ').indexOf('at least three sections') >= 0].join('/'); } },
+  { label:"Shopkeepers' section count: 3(a-d) with 3(e), 10A with 10B and 12A with 12B each count as one section on the form's “Total Number of Sections opted”, and 1A + 1B are the compulsory pair for an owner", expect:'5/3',
+    check:()=>{ const q = shkCompute({ occupancy:'owner', opt:{ building:true, contents:true, money:true, turnover:true, electronic:true, dataProg:true, publicLiab:true, wc:true }, si:{ building:1000000, contents:1000000, money:100000, turnover:1000000, electronic:100000, dataProg:100000, publicLiab:500000, wc:500000 }, discPct:0, s11Rate:2, maint:true });
+                return q.sectionCount + '/' + q.further; } }
+];
+})();
+</script>
+  <div class="product-section" id="sectionOffice">
+    <div class="card">
+      <div class="section-label">Policy Details <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; Office Umbrella Policy, rated section by section from the proposal form</span></div>
+      <div class="field"><label class="lbl" for="oumInsured">Insured Name</label><input type="text" id="oumInsured" placeholder="M/s. ..." /></div>
+      <div class="field-row">
+        <div class="field"><label class="lbl" for="oumType">Policy type</label>
+          <select id="oumType"><option value="office">Office</option><option value="medical">Office (Medical Establishment)</option></select>
+          <div class="hint">A medical establishment must take Section 2C, All Risk Medical Equipment.</div>
+        </div>
+        <div class="field"><label class="lbl" for="oumOccupancy">The insured is</label>
+          <select id="oumOccupancy"><option value="owner">Owner of the premises</option><option value="tenant">Tenant</option></select>
+          <div class="hint">Owner: Sections 1 and 2A are compulsory. Tenant: Section 2A is compulsory.</div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label class="lbl" for="oumBusiness">Business or profession</label><input type="text" id="oumBusiness" placeholder="e.g. Chartered Accountants" /></div>
+        <div class="field"><label class="lbl" for="oumDisc">Discount</label>
+          <div class="input-suffix" data-suffix="%"><input type="number" id="oumDisc" placeholder="0" min="0" max="99.99" step="0.5" value="0" inputmode="decimal"></div>
+          <div class="hint">The Office Umbrella form prints no discount. Enter only what the office authorises.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Sections <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)">&mdash; tick a section and enter its sum insured</span></div>
+      <div id="oumSections"></div>
+      <div class="hint" id="oumCount" style="margin-top:4px"></div>
+      <div id="oumFlags" style="display:none;margin-top:12px;padding:12px 14px;border:1.5px solid #e8c56a;background:#fffaef;border-radius:12px;font-size:12.5px;line-height:1.5;color:var(--ink)"></div>
+    </div>
+
+    <div class="sticky-calc-wrap"><button class="btn btn-primary" id="oumCalcBtn" type="button">Calculate Premium</button></div>
+
+    <div class="card" id="oumResultCard" style="display:none">
+      <div class="section-label">Premium <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--mute)" id="oumResDate"></span></div>
+      <div id="oumQuoteDetails"></div>
+      <div id="oumBreakdown" style="margin-top:10px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:2px solid var(--border-strong)"><strong>Total Premium (incl. GST 18%)</strong><strong id="oumGrand" style="font-size:20px;color:var(--accent-dark)">0</strong></div>
+      <div class="quote-actions">
+        <button type="button" class="btn btn-pdf" id="oumPdfBtn">Download PDF</button>
+        <button type="button" class="btn btn-whatsapp" id="oumWaBtn">Share PDF</button>
+        <button type="button" class="btn btn-image" id="oumImgBtn">Share Image</button>
+        <button type="button" class="btn btn-secondary" id="oumNewBtn">New Quote</button>
+      </div>
+    </div>
+  </div>
+<script>
+(function(){
+/* ═══════════════════════════════════════════════════════════════════════
+   OFFICE UMBRELLA POLICY — section-wise rating from the proposal form
+   ("Office Umbrella Proposal FORM", 6 pages). There is no office quote
+   proforma for this product, so every figure here comes off the form.
+     Sum insured of each section x its rate in rupees per mille, added up,
+     less any discount entered, plus GST 18%.
+     Section 1 + Section 2A are compulsory for an owner of the premises, 2A for
+     a tenant, and the form requires at least three further sections.
+   Three figures the form derives rather than asks for:
+     - 2A item (i) Temporary Removal of Documents = 5% of sub total (a to g) or
+       Rs 15,000, whichever is higher - and it is itself rated at 0.75.
+     - 2B Tenant's Liability     = 25% of the Section 2A sum insured.
+     - 7  Rent for Alternative Accommodation = 25% of the Section 2A sum insured.
+   The form does not say whether that 25% runs on Total (a to j) or on Sub total
+   (a to g); the Section 2A sum insured - Total (a to j) - is used here.
+   Every id and class in this module carries the "oum" prefix.
+   ═══════════════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const OUM_SECTIONS = [
+  { key:'building',   no:'1',       count:'1',  name:'Building', rate:0.30, compulsory:'owner',
+    label:'Sum insured &mdash; Total (a to e)',
+    hint:'Building, landlord’s fixtures and fittings, boundary walls, gates and fences, other property, plus a reasonable amount towards architects’ / surveyor’s / engineer’s fees and debris removal. Where more than one building is used for office work each must be specified.' },
+  { key:'contents',   no:'2A',      count:'2A', name:'Office Contents', rate:0.75, compulsory:'always',
+    parts:[
+      { id:'contentsAG', label:'Sub total (a to g)', hint:'Business furniture, furnishings, safes, office machinery, fixtures and fittings not insured under Section 1, and unused stationery; documents; telephone, gas and electric meters; tenant’s improvements and decorations; pedal cycles; electronic instruments not insured under Section 6A; all other contents; and professional equipment for medical purposes where applicable.' },
+      { id:'contentsH',  label:'(h) Clothing &amp; personal effects', hint:'Limited to ₹5,000 per person; jewellery, money and fur are not covered.' },
+      { id:'contentsJ',  label:'(j) Fees and debris removal', hint:'A reasonable amount towards architects’, surveyor’s and engineer’s fees and the cost of removing debris.' } ],
+    derivedNote:'Item (i) Temporary Removal of Documents is added by the form at 5% of the sub total (a to g) or ₹15,000, whichever is higher.' },
+  { key:'tenantLiab', no:'2B',      count:'2B', name:'Tenant’s Liability', rate:0.30, derivedPct:25, derivedOf:'contents',
+    derivedNote:'Aggregate limit for the period is 25% of the Section 2A sum insured; any one occurrence is 10% of it.' },
+  { key:'medEquip',   no:'2C',      count:'2C', name:'All Risk — Medical Equipment', rate:8.00,
+    label:'Sum insured on medical equipment and instruments',
+    hint:'Required for a medical establishment. Any one article, pair or set is limited to 10% of this section’s sum insured.' },
+  { key:'money',      no:'3 (a-d)', count:'3',  name:'Money', rate:2.00,
+    label:'Maximum limit any one loss &mdash; Sub total (a to d)',
+    hint:'Wages and salary in transit to or from the office, other money in direct transit, money in the office during business hours and money in a locked safe outside business hours. These are per-loss limits. The make and model of the safe go on the schedule.' },
+  { key:'turnover',   no:'3 (e)',   count:'3',  name:'Estimated turnover', rate:0.025,
+    label:'Estimated turnover during the policy period' },
+  { key:'glass',      no:'4',       count:'4',  name:'Fixed Glass, Sanitary Fittings &amp; Signs', rate:5.00,
+    label:'Sum insured &mdash; Total (a to d)',
+    hint:'Plate glass and its framework including tinted, embossed, ornamental and painted glass; sanitary fittings; surgery lamps, signs and nameplate where applicable; neon and glow signs. Values are the replacement value as new.' },
+  { key:'fidelity',   no:'5',       count:'5',  name:'Fidelity Guarantee', rate:5.00,
+    label:'Maximum guarantee for any one salaried staff',
+    hint:'The form collects the number of salaried staff and the guarantee for any one of them, and prints no arithmetic between the two. The guarantee for any one staff member is rated here, as the office’s sister product does; the headcount goes on the schedule.',
+    extras:[{ id:'fgStaff', label:'Number of salaried staff', placeholder:'1' }] },
+  { key:'electronic', no:'6A',      count:'6',  name:'Electronic Equipment', rate:8.00,
+    label:'Sum insured &mdash; Total (a + b)',
+    hint:'Replacement value by a new one of the same kind inclusive of freight, custom duty and other charges and cost of erection, plus the value of the data-carrying material where that cover is wanted.',
+    checks:[{ id:'maint', label:'Under an approved maintenance agreement', note:'The form asks the question but prints no loading either way.', checked:true }] },
+  { key:'dataProg',   no:'6B',      count:'6',  name:'Data / Programme reinstatement', rate:8.00, requires:'electronic',
+    label:'Sum insured &mdash; Total (a + b)',
+    hint:'Available only where Section 6A is taken. Only standard programmes that the user can exchange are covered.' },
+  { key:'portable',   no:'6C',      count:'6',  name:'Portable Computer', rate:8.00,
+    label:'Sum insured &mdash; Total (a + b)',
+    hint:'Replacement value by a new one of the same kind inclusive of freight charges, customs duty and cost of erection. This section does not depend on Section 6A.' },
+  { key:'rent',       no:'7',       count:'7',  name:'Rent for Alternative Accommodation', rate:0.30, derivedPct:25, derivedOf:'contents',
+    derivedNote:'Limit of indemnity is 25% of the Section 2A sum insured; the indemnity period is 12 months.' },
+  { key:'pa',         no:'8 (a)',   count:'8',  name:'Personal Accident', rate:0.60,
+    label:'Total capital sum insured of the persons covered',
+    hint:'The rate runs on the total of the persons listed. Age limit 16 to 65 years.',
+    extras:[{ id:'paPersons', label:'Number of persons', placeholder:'1' }] },
+  { key:'paMed',      no:'8 (b)',   count:'8',  name:'PA — Medical Expenses', rate:0.12, requires:'pa',
+    label:'Medical expenses sum insured',
+    hint:'The form caps this at 10% of the capital sum insured under 8(a). Anything higher is brought down to the cap.' },
+  { key:'appliance',  no:'9',       count:'9',  name:'Breakdown of Office Appliances', rate:2.00,
+    label:'Total replacement value of the items',
+    hint:'Replacement value by a new one of the same kind inclusive of custom duties and other charges, freight charges and erection cost.' },
+  { key:'baggage',    no:'10',      count:'10', name:'Baggage', rate:5.00,
+    label:'Sum insured &mdash; any one year for all persons',
+    hint:'Any one event per person is limited to ₹10,000 by the form; that limit is not rated.' },
+  { key:'publicLiab', no:'11 (a)',  count:'11', name:'Public Liability', rate:0.80,
+    label:'Limit of liability',
+    hint:'Any one accident / any one year in the ratio 1:4, as printed on the form.' },
+  { key:'wc',         no:'11 (b)',  count:'11', name:'Workmen Compensation', rate:8.00,
+    label:'Total earnings of the employees covered',
+    hint:'The form lists each employee with their earnings as per the W.C. Act.' },
+  { key:'bi',         no:'12A',     count:'12', name:'Business Interruption — Loss of Profit', rate:0.75,
+    label:'Sum insured &mdash; Total (a + b)', hint:'Gross income plus the accountant’s charges.' },
+  { key:'icow',       no:'12B',     count:'12', name:'Increase in Cost of Working', rate:0.75,
+    label:'Additional expenditure insured',
+    hint:'The extra cost of avoiding or reducing a drop in gross income — rates and taxes, lighting, removing goods, temporary offices, hired equipment or extra staff and other incidentals.' },
+  { key:'biElec',     no:'12 (d)',  count:'12', name:'BI after breakdown of electronic equipment', rate:4.55, requires:'electronic',
+    label:'Sum insured', hint:'Available only where the electronic equipment is covered under Section 6A.' }
+];
+const OUM_GST = 18, OUM_DOC_MIN = 15000, OUM_DOC_PCT = 5, OUM_DERIVED_PCT = 25;
+let lastQuote = null;
+function fmt(n){ return Math.round(n).toLocaleString('en-IN'); }
+function fmt2(n){ return (Math.round(n * 100) / 100).toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 }); }
+function rateTxt(r){ return r < 0.1 ? r.toFixed(3) : r.toFixed(2); }
+function secByKey(k){ return OUM_SECTIONS.filter(s => s.key === k)[0]; }
+
+/* ── pure engine — also used by the self-test ───────────────────────────── */
+function oumCompute(inp){
+  const owner = inp.occupancy !== 'tenant';
+  const medical = inp.policyType === 'medical';
+  const opt = Object.assign({}, inp.opt || {});
+  const si  = Object.assign({}, inp.si  || {});
+  const flags = [];
+  opt.contents = true;
+  if(owner) opt.building = true;
+  if(medical){ opt.medEquip = true; if(!(si.medEquip > 0)) flags.push('A medical establishment must take Section 2C, All Risk Medical Equipment, which has no sum insured yet.'); }
+  /* Section 2A: item (i) is derived by the form, and the 0.75 rate runs on Total (a to j) */
+  const ag = si.contentsAG || 0, hh = si.contentsH || 0, jj = si.contentsJ || 0;
+  const docs = ag > 0 ? Math.max(ag * OUM_DOC_PCT / 100, OUM_DOC_MIN) : 0;
+  si.contents = ag + hh + docs + jj;
+  /* 2B and 7 are 25% of the Section 2A sum insured, not entered */
+  const derived = si.contents * OUM_DERIVED_PCT / 100;
+  const anyOneOccurrence = si.contents * 0.10;
+  /* the medical extension cannot exceed 10% of the capital sum insured */
+  const paMedAsked = si.paMed || 0, paMedCap = (si.pa || 0) * 0.10;
+  if(opt.paMed && opt.pa && paMedAsked > paMedCap){ si.paMed = paMedCap;
+    flags.push('Section 8(b): medical expenses are limited to 10% of the Section 8(a) capital sum insured, so ₹' + fmt(paMedAsked) + ' has been brought down to ₹' + fmt(paMedCap) + '.'); }
+  const rows = [];
+  OUM_SECTIONS.forEach(function(s){
+    if(!opt[s.key]) return;
+    if(s.requires && !opt[s.requires]){
+      flags.push('Section ' + s.no + ' needs Section ' + secByKey(s.requires).no + ', which is not opted, so it has been left out of the premium.');
+      return;
+    }
+    const amount = s.derivedOf ? (si[s.derivedOf] || 0) * s.derivedPct / 100 : (si[s.key] || 0);
+    if(!(amount > 0)) return;
+    rows.push({ key:s.key, no:s.no, count:s.count, name:s.name, si:amount, rate:s.rate, prem:amount * s.rate / 1000, note:'' });
+  });
+  const counts = [];
+  rows.forEach(function(r){ if(counts.indexOf(r.count) < 0) counts.push(r.count); });
+  const compulsory = owner ? ['1','2A'] : ['2A'];
+  const further = counts.filter(function(c){ return compulsory.indexOf(c) < 0; }).length;
+  const sectionCount = counts.length;
+  if(further < 3) flags.push('The form asks for at least three sections besides the compulsory ones — ' + further + ' ' + (further === 1 ? 'is' : 'are') + ' opted.');
+  if(owner && !(si.building > 0)) flags.push('Section 1 (Building) is compulsory for an owner of the premises and has no sum insured yet.');
+  if(!(si.contents > 0)) flags.push('Section 2A (Office Contents) is compulsory and has no sum insured yet.');
+  const subtotal = rows.reduce(function(t, r){ return t + r.prem; }, 0);
+  const discPct = Math.min(99.99, Math.max(0, parseFloat(inp.discPct) || 0));
+  const discAmt = subtotal * discPct / 100;
+  const net = subtotal - discAmt;
+  const gst = net * OUM_GST / 100;
+  const grand = Math.round(net + gst);
+  return { owner, medical, rows, counts, sectionCount, further, flags, contentsSI:si.contents, contentsAG:ag, docsItem:docs, derived, anyOneOccurrence,
+           subtotal, discPct, discAmt, net, gst, gstPct:OUM_GST, grand, paMedAsked, paMedCap };
+}
+
+/* ── the screen ─────────────────────────────────────────────────────────── */
+function renderSections(){
+  $('oumSections').innerHTML = OUM_SECTIONS.map(function(s){
+    let body;
+    if(s.derivedOf){
+      body = '<div class="hint" id="oumDer_' + s.key + '" style="margin-top:0">' + s.derivedNote + '</div>';
+    } else {
+      const fields = (s.parts || [{ id:s.key, label:s.label || 'Sum insured', hint:s.hint }]).map(function(p, i){
+        return '<div class="field" style="margin-bottom:0' + (i ? ';margin-top:10px' : '') + '"><label class="lbl" for="oumSi_' + p.id + '">' + (p.label || 'Sum insured') + '</label>'
+          + '<div class="input-prefix" data-prefix="&#8377;"><input type="number" id="oumSi_' + p.id + '" class="oum-si" data-key="' + p.id + '" min="0" step="1000" inputmode="numeric" placeholder="0"></div>'
+          + (p.hint ? '<div class="hint">' + p.hint + '</div>' : '') + '</div>';
+      }).join('');
+      body = fields
+        + (s.parts ? '<div class="hint" id="oumDer_' + s.key + '" style="margin-top:10px">' + s.derivedNote + '</div>' : '')
+        + (s.extras || []).map(function(e){ return '<div class="field" style="margin-bottom:0;margin-top:10px"><label class="lbl" for="oum_' + e.id + '">' + e.label + '</label><input type="number" id="oum_' + e.id + '" min="0" step="1" inputmode="numeric" placeholder="' + (e.placeholder || '') + '"></div>'; }).join('')
+        + (s.checks || []).map(function(c){ return '<label style="display:flex;align-items:flex-start;gap:9px;margin-top:10px;cursor:pointer"><input type="checkbox" id="oum_' + c.id + '"' + (c.checked ? ' checked' : '') + ' style="-webkit-appearance:checkbox;appearance:checkbox;width:18px;height:18px;min-height:18px;padding:0;margin:2px 0 0;flex:0 0 auto;box-shadow:none;accent-color:var(--accent)"><span style="font-size:12.5px;line-height:1.45;color:var(--ink)">' + c.label + (c.note ? '<span style="display:block;color:var(--mute);font-size:11.5px">' + c.note + '</span>' : '') + '</span></label>'; }).join('');
+    }
+    return '<div class="oum-row" data-key="' + s.key + '" style="border:1.5px solid var(--border-soft);border-radius:12px;padding:11px 12px;margin-bottom:8px;background:#fff">'
+      + '<label for="oumOpt_' + s.key + '" style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0">'
+      + '<input type="checkbox" id="oumOpt_' + s.key + '" class="oum-opt" data-key="' + s.key + '" style="-webkit-appearance:checkbox;appearance:checkbox;width:20px;height:20px;min-height:20px;padding:0;margin:0;flex:0 0 auto;box-shadow:none;accent-color:var(--accent)">'
+      + '<span style="flex:1;min-width:0"><span style="display:block;font-size:13px;font-weight:700;color:var(--ink);line-height:1.3">' + s.no + ' &middot; ' + s.name + '</span></span>'
+      + '<span style="font-size:11.5px;font-weight:700;color:var(--accent-dark);white-space:nowrap">' + rateTxt(s.rate) + '&permil;</span></label>'
+      + '<div class="oum-body" id="oumBody_' + s.key + '" style="display:none;margin-top:11px">' + body + '</div></div>';
+  }).join('');
+  $('oumSections').querySelectorAll('.oum-opt').forEach(function(el){ el.addEventListener('change', syncRows); });
+  $('oumSections').querySelectorAll('.oum-si').forEach(function(el){ el.addEventListener('input', syncDerived); });
+}
+function syncRows(){
+  const owner = $('oumOccupancy').value !== 'tenant', medical = $('oumType').value === 'medical';
+  OUM_SECTIONS.forEach(function(s){
+    const box = $('oumOpt_' + s.key);
+    const locked = s.compulsory === 'always' || (s.compulsory === 'owner' && owner) || (s.key === 'medEquip' && medical);
+    if(locked) box.checked = true;
+    box.disabled = locked;
+    $('oumBody_' + s.key).style.display = box.checked ? '' : 'none';
+  });
+  syncDerived();
+  const counts = []; OUM_SECTIONS.forEach(function(s){ if($('oumOpt_' + s.key).checked && counts.indexOf(s.count) < 0) counts.push(s.count); });
+  const compulsory = owner ? ['1','2A'] : ['2A'];
+  const further = counts.filter(function(c){ return compulsory.indexOf(c) < 0; }).length;
+  $('oumCount').innerHTML = 'Total number of sections opted: <strong>' + counts.length + '</strong> &middot; besides the compulsory ' + compulsory.join(' and ') + ': <strong>' + further + '</strong>'
+    + (further < 3 ? ' &mdash; the form asks for at least three.' : '.');
+}
+function syncDerived(){
+  const ag = parseFloat($('oumSi_contentsAG').value) || 0;
+  const hh = parseFloat($('oumSi_contentsH').value) || 0;
+  const jj = parseFloat($('oumSi_contentsJ').value) || 0;
+  const docs = ag > 0 ? Math.max(ag * OUM_DOC_PCT / 100, OUM_DOC_MIN) : 0;
+  const total = ag + hh + docs + jj;
+  const d = $('oumDer_contents');
+  if(d) d.innerHTML = secByKey('contents').derivedNote + (docs > 0 ? ' Item (i) <strong>₹' + fmt(docs) + '</strong>, so the Section 2A sum insured is <strong>₹' + fmt(total) + '</strong>.' : '');
+  ['tenantLiab','rent'].forEach(function(k){
+    const el = $('oumDer_' + k); if(!el) return;
+    el.innerHTML = secByKey(k).derivedNote + (total > 0 ? ' Sum insured <strong>₹' + fmt(total * OUM_DERIVED_PCT / 100) + '</strong>'
+      + (k === 'tenantLiab' ? ', any one occurrence ₹' + fmt(total * 0.10) : '') + '.' : '');
+  });
+}
+function readInputs(){
+  const opt = {}, si = {};
+  OUM_SECTIONS.forEach(function(s){
+    opt[s.key] = $('oumOpt_' + s.key).checked;
+    (s.parts || [{ id:s.key }]).forEach(function(p){ const f = $('oumSi_' + p.id); if(f) si[p.id] = parseFloat(f.value) || 0; });
+  });
+  return { occupancy:$('oumOccupancy').value, policyType:$('oumType').value, opt, si, discPct:parseFloat($('oumDisc').value) || 0,
+           maint:$('oum_maint').checked, persons:parseFloat($('oum_paPersons').value) || 0, staff:parseFloat($('oum_fgStaff').value) || 0 };
+}
+function line(k, v, cls){ return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:13px' + (cls === 'total' ? ';font-weight:700' : '') + (cls === 'sub' ? ';color:var(--mute);font-size:12px' : '') + '"><span>' + k + '</span><span style="white-space:nowrap">' + v + '</span></div>'; }
+function calculate(){
+  const inp = readInputs();
+  const q = oumCompute(inp);
+  if(!q.rows.length){ const el = $('oumSi_contentsAG'); if(el){ el.style.borderColor = 'var(--danger)'; setTimeout(function(){ el.style.borderColor = ''; }, 2000); el.focus(); } return; }
+  const insured = $('oumInsured').value.trim() || 'Valued Customer';
+  const fl = $('oumFlags'); fl.style.display = q.flags.length ? '' : 'none';
+  fl.innerHTML = q.flags.map(function(f){ return '<div>&#9888; ' + f + '</div>'; }).join('');
+  $('oumQuoteDetails').innerHTML = line('Insured', insured)
+    + line('Policy type', q.medical ? 'Office (Medical Establishment)' : 'Office')
+    + line('Premises', q.owner ? 'Owned by the insured' : 'Tenanted')
+    + line('Sections opted', String(q.sectionCount) + ' (' + q.further + ' besides the compulsory ' + (q.owner ? '1 and 2A' : '2A') + ')')
+    + line('Total sum insured', '&#8377;' + fmt(q.rows.reduce(function(t, r){ return t + r.si; }, 0)));
+  let h = '';
+  q.rows.forEach(function(r){ h += line(r.no + ' &middot; ' + r.name + ' &middot; ' + rateTxt(r.rate) + '&permil; on &#8377;' + fmt(r.si), '&#8377;' + fmt2(r.prem)); });
+  h += line('Sub total', '&#8377;' + fmt2(q.subtotal), 'total');
+  if(q.discAmt) h += line('Discount ' + q.discPct + '%', '&minus; &#8377;' + fmt2(q.discAmt), 'sub');
+  h += line('Net Premium (before GST)', '&#8377;' + fmt2(q.net), 'total');
+  h += line('GST @ 18%', '&#8377;' + fmt2(q.gst));
+  $('oumBreakdown').innerHTML = h;
+  $('oumGrand').textContent = '₹' + fmt(q.grand);
+  const now = new Date();
+  $('oumResDate').textContent = now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+  lastQuote = Object.assign({ insured, business:$('oumBusiness').value.trim(), inp, now,
+    quoteRef:'OUM-' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '-' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') }, q);
+  const card = $('oumResultCard'); card.style.display = ''; setTimeout(function(){ card.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60);
+}
+
+/* ── the quotation PDF ──────────────────────────────────────────────────── */
+function buildPDF(returnBlob){
+  const q = lastQuote; if(!q){ alert('Please calculate the premium first.'); return; }
+  const R = OICPDF.money2, now = q.now;
+  const dateStr = now.toLocaleDateString('en-IN', { day:'2-digit', month:'2-digit', year:'numeric' }).replace(/\//g, '-');
+  let costCode = ''; try{ costCode = (typeof buildCostCode === 'function') ? buildCostCode(q.discPct, 0, 0) : ''; }catch(e){}
+  const AG = (typeof AGENT !== 'undefined') ? AGENT : { name:'Vinod', phone:'7032688497' };
+  const nm = function(t){ return OICPDF.pdfSafe(t).replace(/&amp;/g, '&'); };
+  const optedKeys = q.rows.map(function(r){ return r.key; });
+  const left = [
+    { bar:'Customer Details', rows:[ ['Name', q.insured], ['Mobile No', ''], ['Email', ''] ] },
+    { bar:'Employee/Intermediary Details', rows:[ ['Employee/Intermediary Code', AG.code || ''], ['Name', AG.name || ''], ['Mobile No', AG.phone || ''], ['Email', AG.email || ''] ] },
+    { bar:'Policy Details', rows:[ ['Product', 'Office Umbrella Policy'], ['Policy type', q.medical ? 'Office (Medical Establishment)' : 'Office'],
+      ['Business or profession', q.business || 'As declared'], ['Premises', q.owner ? 'Owned by the insured' : 'Tenanted'], ['Policy Period', '12 months from inception'],
+      ['Sections opted', String(q.sectionCount) + ' (' + q.further + ' besides the compulsory ' + (q.owner ? '1 and 2A)' : '2A)')] ] },
+    { bar:'Sections Insured', rows: q.rows.flatMap(function(r){
+        return [ { label: r.no + '. ' + nm(r.name) }, ['    Sum Insured  |  rate ' + rateTxt(r.rate) + ' per mille', OICPDF.fmtIN(r.si)] ]; }) },
+    { bar:'Limits Set by the Policy', rows:[
+      { label:'Section 2A includes Temporary Removal of Documents at Rs. ' + OICPDF.fmtIN(q.docsItem) + ', being 5% of the sub total (a to g) or Rs. 15,000, whichever is higher.' },
+      { label:"Section 2B Tenant's Liability: any one occurrence Rs. " + OICPDF.fmtIN(q.anyOneOccurrence) + ' (10% of the contents sum insured).' },
+      { label:'Section 7 Rent for Alternative Accommodation: indemnity period 12 months.' },
+      { label:'Section 10 Baggage: any one event per person Rs. 10,000.' },
+      { label:'Section 8: age limit 16 to 65 years; medical expenses limited to 10% of the capital sum insured.' } ] },
+    { bar:'Sections Not Opted', rows:[ { label: OUM_SECTIONS.filter(function(s){ return optedKeys.indexOf(s.key) < 0; })
+        .map(function(s){ return s.no + ' ' + nm(s.name); }).join('  |  ') || 'None - every section of the policy is opted.' } ] },
+    { bar:'Documents Required', rows:[ { label:'1. Filled and signed Proposal Form with the schedule of each section opted' },
+      { label:'2. Valuation or invoices of the contents, equipment and medical instruments declared' },
+      { label:'3. Details of the persons and staff covered under Sections 5, 8 and 11(b)' },
+      { label:'4. Claims experience of the last 3 years (renewals)' } ] }
+  ];
+  const right = [ { bar:'Premium Breakup' } ];
+  const d = q.subtotal > 0 ? q.discAmt / q.subtotal : 0;
+  const netOf = function(v){ return v * (1 - d); };
+  const secRows = q.rows.map(function(r){ return { label:r.no + ' ' + nm(r.name) + ' @ ' + rateTxt(r.rate) + ' per mille', value:R(netOf(r.prem)) }; });
+  secRows.push({ label:'Sections Premium (A)', value:R(netOf(q.subtotal)), total:true });
+  right.push({ sub:'Section A - Sections Opted', rows:secRows });
+  right.push({ sub:'Final Premium Summary', rows:[
+    { label:'Net Premium before GST [A]', value:R(q.net) },
+    { label:'GST @ 18%', value:R(q.gst) },
+    { label:'Total Premium', value:R(q.grand), total:true } ] });
+  const notes = [
+    'Rates are as printed on the Office Umbrella proposal form, applied section by section to the sums insured declared above. This is an indicative quotation - final premium, terms and conditions are subject to underwriting and acceptance of risk.',
+    'Every sum insured must represent the cost of reinstatement of the property as new. If the sum insured is less than that value at the time of a loss, the claim is reduced in the same proportion.',
+    'Section 1 (Building) and Section 2A (Office Contents) are compulsory where the insured owns the premises, and Section 2A where the insured is a tenant. At least three further sections must be taken, and a medical establishment must take Section 2C. The limits under Sections 2A, 2B, 7, 8 and 10 are set by the policy as shown.',
+    'Cover is subject to the premises not being of kutcha construction, being in good repair, and being used solely as offices or a medical establishment and/or residence, not forming part of premises with manufacturing units or hazardous goods. This is a system generated quote and does not require signature; premium and risk period may change at the time of issuance of the policy.'
+  ];
+  const safe = q.insured.replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_').substring(0, 40);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const out = OICPDF.render({
+    subtitle: 'Quotation Worksheet For Miscellaneous Insurance – OFFICE UMBRELLA POLICY',
+    quoteNumber: String(Math.floor(now.getTime() / 1000)).slice(-5), quoteId: q.quoteRef, dateStr, costCode, agent: AG, left, right, notes,
+    totalLabel: 'Total Premium', totalValue: R(q.grand),
+    filename: 'Oriental_OfficeUmbrella_Quote_' + safe + '_' + String(now.getDate()).padStart(2,'0') + months[now.getMonth()] + now.getFullYear() + '.pdf'
+  });
+  try{ OICI18N.pages(out.doc, function(dd){ drawOumCoverPages(dd, q); }); }catch(e){ console.error('Office Umbrella cover pages skipped:', e); }
+  if(returnBlob) return { blob: new Blob([out.doc.output('arraybuffer')], { type:'application/pdf' }), filename: out.filename };
+  out.doc.save(out.filename);
+}
+
+/* Cover pages - summarised from the Office Umbrella proposal-cum-policy schedule. */
+const OUM_COVER_DATA = {
+  intro: 'This schedule summarises what the quoted Office Umbrella policy covers section by section, the basis of the sums insured and the conditions the insured must observe. It is a summary only; the policy wording prevails.',
+  sections: [
+    { heading:'HOW THE POLICY IS BUILT', rows:[
+      { label:'Policy types', lines:['The policy is issued either as an Office policy or as an Office (Medical Establishment) policy; a medical establishment must take Section 2C, All Risk Medical Equipment.'] },
+      { label:'Compulsory sections', lines:['Where the insured owns the premises, Section 1 (Building) and Section 2A (Office Contents) are compulsory. Where the insured is a tenant, Section 2A is compulsory.'] },
+      { label:'Minimum sections', lines:['The insured must opt for at least three sections besides the compulsory ones. The number of sections opted is shown on the quotation.'] },
+      { label:'Basis of sum insured', lines:['Every sum insured must represent the cost of reinstatement of the property as new. Under-insurance reduces a claim in the same proportion.'] },
+      { label:'Premium', lines:['Each section is charged at its own rate per mille on its sum insured. The section premiums are added, any discount allowed is deducted and GST is charged on the net premium.'] } ] },
+    { heading:'WHAT EACH SECTION COVERS', rows:[
+      { label:'1 Building', lines:['The building, the landlord’s fixtures and fittings, boundary walls, gates and fences and other property, together with a reasonable amount for architects’, surveyor’s and engineer’s fees and the cost of removing debris. Where more than one building is used in connection with the office work, each is specified.'] },
+      { label:'2A Office Contents', lines:['Business furniture, furnishings, safes, office machinery, fixtures and fittings and unused stationery; documents; telephone, gas and electric meters; the tenant’s improvements and decorations; pedal cycles; electronic instruments not insured under Section 6A; professional equipment for medical purposes where applicable; and all other contents. Clothing and personal effects are covered up to ₹5,000 per person, and temporary removal of documents is added at 5% of the contents sub total or ₹15,000, whichever is higher.'] },
+      { label:'2B Tenant’s Liability', lines:['The insured’s liability as a tenant, up to 25% of the contents sum insured in the aggregate for the period, and 10% of it for any one occurrence.'] },
+      { label:'2C All Risk Medical Equipment', lines:['Medical equipment and instruments on an all-risk basis. Any one article, pair or set of articles is limited to 10% of this section’s sum insured.'] },
+      { label:'3 Money', lines:['Wages and salary in transit to or from the office, other money in direct transit, money in the office during business hours and money in a locked safe outside business hours, each up to the limit shown for any one loss; and the money risk on the estimated turnover of the period.'] },
+      { label:'4 Fixed Glass, Sanitary Fittings and Signs', lines:['Fixed plate glass and its framework, sanitary fittings, surgery lamps, signs and nameplate, and neon and glow signs.'] },
+      { label:'5 Fidelity Guarantee', lines:['Direct pecuniary loss caused by the dishonesty of a salaried employee, up to the guarantee shown for any one member of staff.'] },
+      { label:'6 Electronic Equipment', lines:['Physical loss or damage to the electronic equipment described and to the data-carrying material; where opted, the cost of reinstating data and standard programmes; and, as a separate section, portable computers.'] },
+      { label:'7 Rent for Alternative Accommodation', lines:['The additional rent of alternative accommodation, up to 25% of the contents sum insured, for an indemnity period of 12 months.'] },
+      { label:'8 Personal Accident', lines:['Death and disablement of the persons named, with medical expenses as an additional cover limited to 10% of the capital sum insured. The age limit for this section is 16 to 65 years.'] },
+      { label:'9 Breakdown of Office Appliances', lines:['Breakdown of the office appliances described, on their replacement value by a new one of the same kind.'] },
+      { label:'10 Baggage', lines:['Baggage of the insured and the staff, up to ₹10,000 for any one person in any one event and up to the sum insured for any one year for all persons.'] },
+      { label:'11 Liabilities', lines:['Public liability up to the limit shown, in the ratio of one to four between any one accident and any one year; and the insured’s liability to the employees listed under the Workmen’s Compensation Act.'] },
+      { label:'12 Business Interruption', lines:['Loss of gross income and the accountant’s charges; the increase in the cost of working incurred to avoid or reduce a drop in gross income - rates and taxes, lighting, removal of goods, temporary offices, hired equipment or extra staff and other incidentals; and, where the electronic equipment is covered under Section 6A, interruption following its breakdown.'] } ] },
+    { heading:'WHAT THE PROPOSER DECLARES', rows:[
+      { label:'The premises', lines:['The building is not of kutcha construction, is in good repair and so maintained, and is occupied by the insured in connection with the business stated, used solely as offices or a medical establishment and/or residence. It does not form part of premises having manufacturing units, shops dealing in hazardous goods or godowns containing hazardous goods.'], numbered:true },
+      { label:'Books of account', lines:['The books of account are regularly entered up.'], numbered:true },
+      { label:'Previous insurance', lines:['No insurer has declined the proposal, cancelled or refused to renew a policy, or required special terms for any of the risks proposed.'], numbered:true },
+      { label:'Sums insured', lines:['The sums insured represent the full value of the property described.'], numbered:true },
+      { label:'Care of the property', lines:['All reasonable steps are taken to safeguard the property insured and to prevent a loss, and all proofs required in support of a claim are provided at the insured’s own cost.'], numbered:true },
+      { label:'Disclosure', lines:['All facts material to the risk have been disclosed, and any exception or variation to the declarations above has been stated on the proposal.'], numbered:true } ] }
+  ]
+};
+function drawOumCoverPages(doc, q){
+  if(typeof makeCoverPainter !== 'function') return;
+  const D = OUM_COVER_DATA;
+  const sub = (q.insured || '') + '   |   ' + q.sectionCount + ' section' + (q.sectionCount > 1 ? 's' : '') + ' opted   |   ' + (q.medical ? 'Medical establishment' : 'Office') + '   |   ' + (q.owner ? 'Premises owner' : 'Tenant');
+  const P = makeCoverPainter(doc, 'OFFICE UMBRELLA - SCOPE OF COVER & CONDITIONS', sub,
+    'The Oriental Insurance Company Limited   ·   Summary from the policy wording; the policy wording prevails', 'Cover Schedule');
+  doc.addPage(); P.header();
+  P.note(D.intro); P.gap(8);
+  D.sections.forEach(function(sec){
+    P.section(sec.heading);
+    (sec.rows || []).forEach(function(r){ P.block(r.label, r.lines, { numbered: !!r.numbered, tint: r.tint }); });
+    P.gap(8);
+  });
+  P.section('SECTIONS OPTED');
+  if(!q.rows.length) P.block('Sections', ['No section carries a sum insured in this quotation.']);
+  q.rows.forEach(function(r){ P.block(r.no + ' ' + String(r.name).replace(/&amp;/g, '&'), ['Sum insured Rs. ' + OICPDF.fmtIN(r.si) + ' at ' + rateTxt(r.rate) + ' per mille.']); });
+  P.footer();
+}
+
+function newQuote(){
+  ['oumInsured','oumBusiness'].forEach(function(id){ $(id).value = ''; });
+  $('oumDisc').value = '0'; $('oumType').value = 'office'; $('oumOccupancy').value = 'owner';
+  OUM_SECTIONS.forEach(function(s){
+    $('oumOpt_' + s.key).checked = false;
+    (s.parts || [{ id:s.key }]).forEach(function(p){ const f = $('oumSi_' + p.id); if(f) f.value = ''; });
+    (s.extras || []).forEach(function(e){ $('oum_' + e.id).value = ''; });
+    (s.checks || []).forEach(function(c){ $('oum_' + c.id).checked = !!c.checked; });
+  });
+  syncRows();
+  $('oumFlags').style.display = 'none';
+  $('oumResultCard').style.display = 'none';
+  lastQuote = null;
+  window.scrollTo({ top: Math.max(0, $('sectionOffice').offsetTop - 8), behavior:'smooth' });
+}
+
+$('oumOccupancy').addEventListener('change', syncRows);
+$('oumType').addEventListener('change', syncRows);
+$('oumCalcBtn').addEventListener('click', calculate);
+$('oumPdfBtn').addEventListener('click', function(){ try{ buildPDF(false); }catch(e){ console.error(e); alert('PDF generation failed: ' + (e.message || e)); } });
+$('oumWaBtn').addEventListener('click', async function(){ try{ const r = buildPDF(true); if(!r) return; const file = new File([r.blob], r.filename, { type:'application/pdf' });
+  if(navigator.canShare && navigator.canShare({ files:[file] })){ try{ await navigator.share({ files:[file], title:'Office Umbrella Quote — ' + lastQuote.insured }); return; }catch(e){ if(e.name === 'AbortError') return; } }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(r.blob); a.download = r.filename; a.click(); }catch(e){ console.error(e); alert('Share failed: ' + (e.message || e)); } });
+$('oumImgBtn').addEventListener('click', function(){ if(!lastQuote){ alert('Please calculate the premium first.'); return; } const q = lastQuote;
+  const safe = q.insured.replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_').substring(0, 40);
+  OICIMG.shareViaBuilder(function(){ buildPDF(true); }, 'Oriental_OfficeUmbrella_Quote_' + safe + '.png', 'Office Umbrella Quote — ' + q.insured,
+    'Oriental Insurance Office Umbrella quote for ' + q.insured + ' — total premium ₹' + fmt(q.grand) + ' (incl. GST).'); });
+$('oumNewBtn').addEventListener('click', newQuote);
+renderSections(); syncRows();
+window.OUM = { compute: oumCompute, calculate, buildPDF, newQuote, SECTIONS: OUM_SECTIONS, COVER: OUM_COVER_DATA };
+window.OUM.VERIFIED = [
+  { label:'Office Umbrella proposal form rates: 1 0.30 / 2A 0.75 / 2B 0.30 / 2C 8.00 / 3 2.00 / 3(e) 0.025 / 4 5.00 / 5 5.00 / 6A 8.00 / 6B 8.00 / 6C 8.00 / 7 0.30 / 8a 0.60 / 8b 0.12 / 9 2.00 / 10 5.00 / 11a 0.80 / 11b 8.00 / 12A 0.75 / 12B 0.75 / 12(d) 4.55 per mille', expect:'0.3/0.75/0.3/8/2/0.025/5/5/8/8/8/0.3/0.6/0.12/2/5/0.8/8/0.75/0.75/4.55',
+    check:()=>OUM_SECTIONS.map(s=>s.rate).join('/') },
+  { label:'Office Umbrella Section 2A: the form adds item (i) Temporary Removal of Documents at 5% of the sub total (a to g) or 15,000, whichever is higher - 2,00,000 gives 15,000 and 5,00,000 gives 25,000, and the 0.75 rate then runs on the whole Total (a to j)', expect:'15000/215000/25000/525000',
+    check:()=>{ const a = oumCompute({ occupancy:'tenant', opt:{}, si:{ contentsAG:200000 }, discPct:0 });
+                const b = oumCompute({ occupancy:'tenant', opt:{}, si:{ contentsAG:500000 }, discPct:0 });
+                return [a.docsItem, a.contentsSI, b.docsItem, b.contentsSI].join('/'); } },
+  { label:"Office Umbrella Sections 2B and 7 are not entered: both are 25% of the Section 2A sum insured and both rate at 0.30, so on contents of 21,00,000 each is 5,25,000 and 157.50, with any one occurrence 2,10,000", expect:'525000/157.5/525000/157.5/210000',
+    check:()=>{ const q = oumCompute({ occupancy:'tenant', opt:{ tenantLiab:true, rent:true }, si:{ contentsAG:2000000 }, discPct:0 });
+                const b = q.rows.filter(r=>r.key==='tenantLiab')[0], r7 = q.rows.filter(r=>r.key==='rent')[0];
+                return [b.si, Math.round(b.prem*100)/100, r7.si, Math.round(r7.prem*100)/100, q.anyOneOccurrence].join('/'); } },
+  { label:'Office Umbrella worked case built from the printed rates and derived limits: tenant, contents (a to g) 20,00,000 so Section 2A is 21,00,000 at 0.75 = 1,575, plus 2B 157.50, Section 7 157.50 and baggage 1,00,000 at 5.00 = 500 - sections 2,390, GST 18% 430.20, total 2,820', expect:'1575/2390/430.2/2820',
+    check:()=>{ const q = oumCompute({ occupancy:'tenant', opt:{ tenantLiab:true, rent:true, baggage:true }, si:{ contentsAG:2000000, baggage:100000 }, discPct:0 });
+                const r2 = v => Math.round(v*100)/100;
+                return [r2(q.rows.filter(r=>r.key==='contents')[0].prem), r2(q.subtotal), r2(q.gst), q.grand].join('/'); } },
+  { label:'Office Umbrella Section 8(b): medical expenses are capped at 10% of the capital sum insured, so 1,00,000 asked on a 1,00,000 PA sum insured is rated as 10,000 (1.20, not 12.00)', expect:'1.2/10000/true',
+    check:()=>{ const q = oumCompute({ occupancy:'tenant', opt:{ pa:true, paMed:true }, si:{ contentsAG:1000000, pa:100000, paMed:100000 }, discPct:0 });
+                const r = q.rows.filter(x=>x.key==='paMed')[0]; return (Math.round(r.prem*100)/100) + '/' + r.si + '/' + (q.flags.join(' ').indexOf('10%') >= 0); } },
+  { label:'Office Umbrella: Sections 6B and 12(d) are dropped when Section 6A is not opted, while 6C Portable Computer stands on its own', expect:'false/false/true/true/true',
+    check:()=>{ const q = oumCompute({ occupancy:'tenant', opt:{ dataProg:true, biElec:true, portable:true }, si:{ contentsAG:1000000, dataProg:100000, biElec:100000, portable:100000 }, discPct:0 });
+                const f = q.flags.join(' ');
+                return [q.rows.some(r=>r.key==='dataProg'), q.rows.some(r=>r.key==='biElec'), q.rows.some(r=>r.key==='portable'),
+                        f.indexOf('Section 6B needs Section 6A') >= 0, f.indexOf('Section 12 (d) needs Section 6A') >= 0].join('/'); } },
+  { label:'Office Umbrella: a medical establishment must take Section 2C, and 6A / 6B / 6C count as one section and 12A / 12B / 12(d) as one on the form’s “Total Number of Sections opted”', expect:'true/true/4/3',
+    check:()=>{ const q = oumCompute({ policyType:'medical', occupancy:'tenant', opt:{ electronic:true, dataProg:true, portable:true, bi:true, icow:true, biElec:true },
+                  si:{ contentsAG:1000000, medEquip:500000, electronic:100000, dataProg:100000, portable:100000, bi:100000, icow:100000, biElec:100000 }, discPct:0 });
+                return [q.rows.some(r=>r.key==='medEquip'), q.medical, q.sectionCount, q.further].join('/'); } },
+  { label:'Office Umbrella: the form’s minimum of three sections besides the compulsory ones is flagged when only two are taken, and an owner must also carry Section 1', expect:'2/true/true',
+    check:()=>{ const q = oumCompute({ occupancy:'owner', opt:{ money:true, glass:true }, si:{ contentsAG:1000000, money:100000, glass:100000 }, discPct:0 });
+                const f = q.flags.join(' ');
+                return [q.further, f.indexOf('at least three sections') >= 0, f.indexOf('Section 1 (Building) is compulsory') >= 0].join('/'); } }
 ];
 })();
 </script>
@@ -21574,6 +22475,8 @@ function runSelfTest(){
       (window.WC && Array.isArray(window.WC.VERIFIED)) ? window.WC.VERIFIED : [],
       (window.CAR && Array.isArray(window.CAR.VERIFIED)) ? window.CAR.VERIFIED : [],
       (window.CPM && Array.isArray(window.CPM.VERIFIED)) ? window.CPM.VERIFIED : [],
+      (window.SHOP && Array.isArray(window.SHOP.VERIFIED)) ? window.SHOP.VERIFIED : [],
+      (window.OUM && Array.isArray(window.OUM.VERIFIED)) ? window.OUM.VERIFIED : [],
     (window.PAPS && Array.isArray(window.PAPS.VERIFIED)) ? window.PAPS.VERIFIED : [],
       Array.isArray(window.FIRE_VERIFIED) ? window.FIRE_VERIFIED : []);
     ALL_VERIFIED.forEach(v=>{
@@ -26468,8 +27371,8 @@ window.FIRE_VERIFIED = [
                   return [host.dataset.mode, hit, miss, host.dataset.mode,
                           FIRE_ADDONS.filter(a => fireAddonInList(a) && !a.free).filter(a => document.getElementById('addon-' + a.key + '-disc')).length].join('/');
                 } finally { filterAddons(''); setAddonMode(keepMode); currentPolicy = keepP; syncAddonSchedule(); } } },
-  { label:'Every product carries its Calculate button in the sticky bar, Health and WC included - Health\'s used to sit five screens down the page', expect:'7',
-    check:()=>['motor','health','fire','wc','car','cpm','paps'].filter(p => {
+  { label:'Every product carries its Calculate button in the sticky bar, Health and WC included - Health\'s used to sit five screens down the page', expect:'9',
+    check:()=>['motor','health','fire','wc','car','cpm','paps','shop','office'].filter(p => {
                  const sec = document.getElementById('section' + p.charAt(0).toUpperCase() + p.slice(1));
                  return sec && sec.querySelector('.sticky-calc-wrap .btn'); }).length + '' },
   { label:'Health: typing an age no longer rebuilds the member list on blur, which on a phone destroyed the box the agent was tapping into and shut the keyboard; the list is rebuilt while they type, only when a badge or the entry-age row actually changes, and the caret is put back', expect:'true/true/true',
@@ -27047,7 +27950,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v149 · the Non-Electrical Accessories option is withdrawn from Motor: no field, nil in every quote, no PDF row, and an older saved quote that carries it still loads · 19-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v150 · two new products: Shopkeepers' Insurance and Office Umbrella, rated section by section from their proposal forms, with the compulsory sections, the derived limits and the caps built in · 20-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
