@@ -1186,6 +1186,12 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 .input-prefix{position:relative}
 .input-prefix::before{content:attr(data-prefix);position:absolute;left:14px;top:50%;transform:translateY(-50%);font-weight:700;color:var(--accent-dark);font-size:15px;pointer-events:none}
 .input-prefix input{padding-left:36px}
+/* v152: the % (or other unit) marker beside a box. This had only ever been written inside the Fire
+   and CAR themes, so the 43 boxes outside them - the Shopkeeper and Office Umbrella discounts and
+   CPM's discount and escalation - left room for a sign that nothing drew. */
+.input-suffix{position:relative}
+.input-suffix::after{content:attr(data-suffix);position:absolute;right:14px;top:50%;transform:translateY(-50%);font-weight:600;color:var(--mute);font-size:13px;pointer-events:none}
+.input-suffix input{padding-right:42px}
 
 .age-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--grad-accent);color:#fff;border-radius:999px;font-size:12px;font-weight:700;margin-top:8px;letter-spacing:.03em;box-shadow:0 2px 8px rgba(37,99,235,.3)}
 .age-badge::before{content:"";width:5px;height:5px;background:#fff;border-radius:50%;opacity:.95}
@@ -8830,7 +8836,7 @@ const SHK_SECTIONS = [
   { key:'dataProg',  no:'10B',     count:'10', name:'Data / Programme reinstatement', short:'Data / Programme', rate:8.00, requires:'electronic',
     label:'Sum insured &mdash; Total (a + b)',
     hint:'Available only where Section 10A is taken. Only standard programmes that the user can exchange are covered.' },
-  { key:'breakdown', no:'11',      count:'11', name:'Breakdown of Electrical Equipment', short:'Breakdown of Electricals', rate:null,
+  { key:'breakdown', no:'11',      count:'11', name:'Breakdown of Electrical Equipment', short:'Electrical Breakdown', rate:null,
     label:'Total replacement value of the items',
     hint:'Rated at the rate chosen in Policy Details — the proposal form prints 2.00 per mille and the office quote sheet used 8.00.' },
   { key:'publicLiab',no:'12A',     count:'12', name:'Public Liability', rate:0.40,
@@ -8849,6 +8855,10 @@ function fmt(n){ return Math.round(n).toLocaleString('en-IN'); }
 function fmt2(n){ return (Math.round(n * 100) / 100).toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 }); }
 function rateTxt(r){ return r < 0.1 ? r.toFixed(3) : r.toFixed(2); }
 function secByKey(k){ return SHK_SECTIONS.filter(s => s.key === k)[0]; }
+/* Section 11 is the one section whose rate is a choice, so its row shows whichever rate is set in
+   Policy Details. It used to be painted once and then patched by hand, and New Quote left the row
+   advertising the rate the last quote had used while the premium was worked out at the other one. */
+function shkRateOf(s){ return s.rate === null ? ((parseFloat(($('shkS11Rate') || {}).value) === 8) ? 8.00 : 2.00) : s.rate; }
 
 /* a section's own discount, or the policy figure when its box is left blank. A 0 typed on
    the section is a real zero - only an empty box follows the policy. */
@@ -8931,9 +8941,9 @@ function renderSections(){
       + '<label for="shkOpt_' + s.key + '" style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;flex:1;min-width:0">'
       + '<input type="checkbox" id="shkOpt_' + s.key + '" class="shk-opt" data-key="' + s.key + '" style="-webkit-appearance:checkbox;appearance:checkbox;width:20px;height:20px;min-height:20px;padding:0;margin:0;flex:0 0 auto;box-shadow:none;accent-color:var(--accent)">'
       + '<span style="flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--ink);line-height:1.3">' + s.no + ' &middot; ' + (s.short || s.name) + '</span>'
-      + '<span style="font-size:11.5px;font-weight:700;color:var(--accent-dark);white-space:nowrap">' + (s.rate === null ? '2.00 / 8.00' : rateTxt(s.rate)) + '&permil;</span></label>'
-      + '<div class="input-suffix" id="shkDscWrap_' + s.key + '" data-suffix="%" style="display:none;flex:none;width:82px;margin:0" title="Discount on this section &mdash; leave blank to follow the policy discount">'
-      + '<input type="number" id="shkDsc_' + s.key + '" class="shk-dsc" data-key="' + s.key + '" min="0" max="99.99" step="0.5" inputmode="decimal" placeholder="0" aria-label="Discount on section ' + s.no + '" style="text-align:right;padding:9px 26px 9px 9px;min-height:38px;font-size:13px"></div>'
+      + '<span class="shk-rate" id="shkRate_' + s.key + '" style="font-size:11.5px;font-weight:700;color:var(--accent-dark);white-space:nowrap">' + rateTxt(shkRateOf(s)) + '&permil;</span></label>'
+      + '<div class="input-suffix" id="shkDscWrap_' + s.key + '" data-suffix="%" style="display:none;flex:none;width:70px;margin:0" title="Discount on this section &mdash; leave blank to follow the policy discount">'
+      + '<input type="number" id="shkDsc_' + s.key + '" class="shk-dsc" data-key="' + s.key + '" min="0" max="99.99" step="0.5" inputmode="decimal" placeholder="0" aria-label="Discount on section ' + s.no + '" style="text-align:right;padding:9px 22px 9px 8px;min-height:38px;font-size:13px"></div>'
       + '</div>'
       + '<div class="shk-body" id="shkBody_' + s.key + '" style="display:none;margin-top:11px">' + body + '</div></div>';
   }).join('');
@@ -8950,6 +8960,7 @@ function syncRows(){
     box.parentNode.style.opacity = locked ? '1' : '';
     $('shkBody_' + s.key).style.display = box.checked ? '' : 'none';
     $('shkDscWrap_' + s.key).style.display = box.checked ? '' : 'none';
+    $('shkRate_' + s.key).innerHTML = rateTxt(shkRateOf(s)) + '&permil;';
     $('shkDsc_' + s.key).placeholder = pctTxt(Math.min(99.99, Math.max(0, parseFloat($('shkDisc').value) || 0)));
   });
   syncDerived();
@@ -9023,7 +9034,7 @@ function buildPDF(returnBlob){
       ['Sections opted', String(q.sectionCount) + ' (' + q.further + ' besides the compulsory ' + (q.owner ? '1A and 1B)' : '1B)')] ] },
     { bar:'Sections Insured', rows: q.rows.flatMap(function(r){
         return [ { label: r.no + '. ' + OICPDF.pdfSafe(r.name).replace(/&amp;/g, '&') + (r.note ? '  (' + r.note + ')' : '') },
-                 ['    Sum Insured  |  rate ' + rateTxt(r.rate) + ' per mille', OICPDF.fmtIN(r.si)] ]; }) },
+                 ['    Sum Insured', OICPDF.fmtIN(r.si)] ]; }) },
     { bar:'Sections Not Opted', rows:[ { label: SHK_SECTIONS.filter(function(s){ return optedKeys.indexOf(s.key) < 0; })
         .map(function(s){ return s.no + ' ' + OICPDF.pdfSafe(s.name).replace(/&amp;/g, '&'); }).join('  |  ') || 'None - every section of the policy is opted.' } ] },
     { bar:'Documents Required', rows:[ { label:'1. Filled and signed Proposal Form with the schedule of each section opted' },
@@ -9032,12 +9043,18 @@ function buildPDF(returnBlob){
       { label:'4. Claims experience of the last 3 years (renewals)' } ] }
   ];
   const right = [ { bar:'Premium Breakup' } ];
-  /* the discount is never itemised for the customer: every section prints net of its own */
-  const secRows = q.rows.map(function(r){ return { label:r.no + ' ' + OICPDF.pdfSafe(r.name).replace(/&amp;/g, '&') + ' @ ' + rateTxt(r.rate) + ' per mille', value:R(r.net) }; });
-  secRows.push({ label:'Sections Premium (A)', value:R(q.net), total:true });
+  /* The discount is never itemised for the customer: every section prints net of its own. The rate
+     does not travel beside it either - with a discount per section it would let the reader work the
+     discount out, and would print two different premiums against two sections showing the same sum
+     insured and the same rate. Each line is rounded once and the total is built from the rounded
+     lines, so the column adds up to the figure printed under it. */
+  const nets = q.rows.map(function(r){ return Math.round(r.net * 100) / 100; });
+  const netSum = nets.reduce(function(a, b){ return a + b; }, 0);
+  const secRows = q.rows.map(function(r, i){ return { label:r.no + ' ' + OICPDF.pdfSafe(r.name).replace(/&amp;/g, '&'), value:R(nets[i]) }; });
+  secRows.push({ label:'Sections Premium (A)', value:R(netSum), total:true });
   right.push({ sub:'Section A - Sections Opted', rows:secRows });
   right.push({ sub:'Final Premium Summary', rows:[
-    { label:'Net Premium before GST [A]', value:R(q.net) },
+    { label:'Net Premium before GST [A]', value:R(netSum) },
     { label:'GST @ 18%', value:R(q.gst) },
     { label:'Total Premium', value:R(q.grand), total:true } ] });
   const notes = [
@@ -9130,8 +9147,7 @@ function newQuote(){
 
 $('shkOccupancy').addEventListener('change', syncRows);
 $('shkDisc').addEventListener('input', syncRows);
-$('shkS11Rate').addEventListener('change', function(){ const r = $('shkS11Rate').value === '8' ? '8.00' : '2.00';
-  const row = document.querySelector('.shk-row[data-key="breakdown"] span[style*="accent-dark"]'); if(row) row.innerHTML = r + '&permil;'; });
+$('shkS11Rate').addEventListener('change', syncRows);
 $('shkCalcBtn').addEventListener('click', calculate);
 $('shkPdfBtn').addEventListener('click', function(){ try{ buildPDF(false); }catch(e){ console.error(e); alert('PDF generation failed: ' + (e.message || e)); } });
 $('shkWaBtn').addEventListener('click', async function(){ try{ const r = buildPDF(true); if(!r) return; const file = new File([r.blob], r.filename, { type:'application/pdf' });
@@ -9171,11 +9187,11 @@ window.SHOP.VERIFIED = [
   { label:"Shopkeepers': Section 10B is dropped when Section 10A is not opted, and the form's minimum of three further sections is flagged when only two are taken", expect:'false/true/2/true',
     check:()=>{ const q = shkCompute({ occupancy:'tenant', opt:{ contents:true, dataProg:true, money:true, neon:true }, si:{ contents:1000000, dataProg:100000, money:100000, neon:100000 }, discPct:0, s11Rate:2, maint:true });
                 return [q.rows.some(r=>r.key==='dataProg'), q.flags.join(' ').indexOf('Section 10B needs Section 10A') >= 0, q.further, q.flags.join(' ').indexOf('at least three sections') >= 0].join('/'); } },
-  { label:"Shopkeepers' flexi discount: a section's own % overrides the policy discount and the others keep it - contents 10,00,000 at the policy 45% and money 1,00,000 at its own 10% give 2,200 of sections, 920 of discount, 1,280 net and 1,510 total", expect:'2200/920/1280/1510/45/10',
+  { label:"Shopkeepers' flexi discount: a section's own % overrides the policy discount and the others keep it - contents 10,00,000 at the policy 45% and money 1,00,000 at its own 10% give 2,200 of sections, 920 of discount, 1,280 net and 1,510 total - the two sections printing 1,100 and 180 net at an effective 41.82%", expect:'2200/920/1280/1510/45/10/1100/180/41.82',
     check:()=>{ const q = shkCompute({ occupancy:'tenant', opt:{ contents:true, money:true }, si:{ contents:1000000, money:100000 }, disc:{ money:'10' }, discPct:45, s11Rate:2, maint:true });
                 const c = q.rows.filter(r=>r.key==='contents')[0], m = q.rows.filter(r=>r.key==='money')[0];
                 const r2 = v => Math.round(v*100)/100;
-                return [r2(q.subtotal), r2(q.discAmt), r2(q.net), q.grand, c.discPct, m.discPct].join('/'); } },
+                return [r2(q.subtotal), r2(q.discAmt), r2(q.net), q.grand, c.discPct, m.discPct, r2(c.net), r2(m.net), r2(q.effDiscPct)].join('/'); } },
   { label:"Shopkeepers' flexi discount: a blank section box follows the policy discount while a 0 typed on a section is a real nil - the policy at 45% with money at 0% discounts 900, not 990", expect:'45/0/900/false/true',
     check:()=>{ const q = shkCompute({ occupancy:'tenant', opt:{ contents:true, money:true }, si:{ contents:1000000, money:100000 }, disc:{ contents:'', money:'0' }, discPct:45, s11Rate:2, maint:true });
                 const c = q.rows.filter(r=>r.key==='contents')[0], m = q.rows.filter(r=>r.key==='money')[0];
@@ -9314,7 +9330,7 @@ const OUM_SECTIONS = [
   { key:'icow',       no:'12B',     count:'12', name:'Increase in Cost of Working', rate:0.75,
     label:'Additional expenditure insured',
     hint:'The extra cost of avoiding or reducing a drop in gross income — rates and taxes, lighting, removing goods, temporary offices, hired equipment or extra staff and other incidentals.' },
-  { key:'biElec',     no:'12 (d)',  count:'12', name:'BI after breakdown of electronic equipment', short:'BI after electronic breakdown', rate:4.55, requires:'electronic',
+  { key:'biElec',     no:'12 (d)',  count:'12', name:'BI after breakdown of electronic equipment', short:'BI after breakdown', rate:4.55, requires:'electronic',
     label:'Sum insured', hint:'Available only where the electronic equipment is covered under Section 6A.' }
 ];
 const OUM_GST = 18, OUM_DOC_MIN = 15000, OUM_DOC_PCT = 5, OUM_DERIVED_PCT = 25;
@@ -9413,9 +9429,9 @@ function renderSections(){
       + '<label for="oumOpt_' + s.key + '" style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;flex:1;min-width:0">'
       + '<input type="checkbox" id="oumOpt_' + s.key + '" class="oum-opt" data-key="' + s.key + '" style="-webkit-appearance:checkbox;appearance:checkbox;width:20px;height:20px;min-height:20px;padding:0;margin:0;flex:0 0 auto;box-shadow:none;accent-color:var(--accent)">'
       + '<span style="flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--ink);line-height:1.3">' + s.no + ' &middot; ' + (s.short || s.name) + '</span>'
-      + '<span style="font-size:11.5px;font-weight:700;color:var(--accent-dark);white-space:nowrap">' + rateTxt(s.rate) + '&permil;</span></label>'
-      + '<div class="input-suffix" id="oumDscWrap_' + s.key + '" data-suffix="%" style="display:none;flex:none;width:82px;margin:0" title="Discount on this section &mdash; leave blank to follow the policy discount">'
-      + '<input type="number" id="oumDsc_' + s.key + '" class="oum-dsc" data-key="' + s.key + '" min="0" max="99.99" step="0.5" inputmode="decimal" placeholder="0" aria-label="Discount on section ' + s.no + '" style="text-align:right;padding:9px 26px 9px 9px;min-height:38px;font-size:13px"></div>'
+      + '<span class="oum-rate" id="oumRate_' + s.key + '" style="font-size:11.5px;font-weight:700;color:var(--accent-dark);white-space:nowrap">' + rateTxt(s.rate) + '&permil;</span></label>'
+      + '<div class="input-suffix" id="oumDscWrap_' + s.key + '" data-suffix="%" style="display:none;flex:none;width:70px;margin:0" title="Discount on this section &mdash; leave blank to follow the policy discount">'
+      + '<input type="number" id="oumDsc_' + s.key + '" class="oum-dsc" data-key="' + s.key + '" min="0" max="99.99" step="0.5" inputmode="decimal" placeholder="0" aria-label="Discount on section ' + s.no + '" style="text-align:right;padding:9px 22px 9px 8px;min-height:38px;font-size:13px"></div>'
       + '</div>'
       + '<div class="oum-body" id="oumBody_' + s.key + '" style="display:none;margin-top:11px">' + body + '</div></div>';
   }).join('');
@@ -9511,7 +9527,7 @@ function buildPDF(returnBlob){
       ['Business or profession', q.business || 'As declared'], ['Premises', q.owner ? 'Owned by the insured' : 'Tenanted'], ['Policy Period', '12 months from inception'],
       ['Sections opted', String(q.sectionCount) + ' (' + q.further + ' besides the compulsory ' + (q.owner ? '1 and 2A)' : '2A)')] ] },
     { bar:'Sections Insured', rows: q.rows.flatMap(function(r){
-        return [ { label: r.no + '. ' + nm(r.name) }, ['    Sum Insured  |  rate ' + rateTxt(r.rate) + ' per mille', OICPDF.fmtIN(r.si)] ]; }) },
+        return [ { label: r.no + '. ' + nm(r.name) }, ['    Sum Insured', OICPDF.fmtIN(r.si)] ]; }) },
     { bar:'Limits Set by the Policy', rows:[
       { label:'Section 2A includes Temporary Removal of Documents at Rs. ' + OICPDF.fmtIN(q.docsItem) + ', being 5% of the sub total (a to g) or Rs. 15,000, whichever is higher.' },
       { label:"Section 2B Tenant's Liability: any one occurrence Rs. " + OICPDF.fmtIN(q.anyOneOccurrence) + ' (10% of the contents sum insured).' },
@@ -9526,12 +9542,18 @@ function buildPDF(returnBlob){
       { label:'4. Claims experience of the last 3 years (renewals)' } ] }
   ];
   const right = [ { bar:'Premium Breakup' } ];
-  /* the discount is never itemised for the customer: every section prints net of its own */
-  const secRows = q.rows.map(function(r){ return { label:r.no + ' ' + nm(r.name) + ' @ ' + rateTxt(r.rate) + ' per mille', value:R(r.net) }; });
-  secRows.push({ label:'Sections Premium (A)', value:R(q.net), total:true });
+  /* The discount is never itemised for the customer: every section prints net of its own. The rate
+     does not travel beside it either - with a discount per section it would let the reader work the
+     discount out, and would print two different premiums against two sections showing the same sum
+     insured and the same rate. Each line is rounded once and the total is built from the rounded
+     lines, so the column adds up to the figure printed under it. */
+  const nets = q.rows.map(function(r){ return Math.round(r.net * 100) / 100; });
+  const netSum = nets.reduce(function(a, b){ return a + b; }, 0);
+  const secRows = q.rows.map(function(r, i){ return { label:r.no + ' ' + nm(r.name), value:R(nets[i]) }; });
+  secRows.push({ label:'Sections Premium (A)', value:R(netSum), total:true });
   right.push({ sub:'Section A - Sections Opted', rows:secRows });
   right.push({ sub:'Final Premium Summary', rows:[
-    { label:'Net Premium before GST [A]', value:R(q.net) },
+    { label:'Net Premium before GST [A]', value:R(netSum) },
     { label:'GST @ 18%', value:R(q.gst) },
     { label:'Total Premium', value:R(q.grand), total:true } ] });
   const notes = [
@@ -9665,11 +9687,11 @@ window.OUM.VERIFIED = [
     check:()=>{ const q = oumCompute({ policyType:'medical', occupancy:'tenant', opt:{ electronic:true, dataProg:true, portable:true, bi:true, icow:true, biElec:true },
                   si:{ contentsAG:1000000, medEquip:500000, electronic:100000, dataProg:100000, portable:100000, bi:100000, icow:100000, biElec:100000 }, discPct:0 });
                 return [q.rows.some(r=>r.key==='medEquip'), q.medical, q.sectionCount, q.further].join('/'); } },
-  { label:"Office Umbrella flexi discount: a section's own % overrides the policy discount and the others keep it - contents (a to g) 20,00,000 at the policy 30% and baggage 1,00,000 at its own 10% give 2,075 of sections, 522.50 of discount and 1,832 total", expect:'2075/522.5/1552.5/1832/30/10',
+  { label:"Office Umbrella flexi discount: a section's own % overrides the policy discount and the others keep it - contents (a to g) 20,00,000 at the policy 30% and baggage 1,00,000 at its own 10% give 2,075 of sections, 522.50 of discount and 1,832 total - the two sections printing 1,102.50 and 450 net at an effective 25.18%", expect:'2075/522.5/1552.5/1832/30/10/1102.5/450/25.18',
     check:()=>{ const q = oumCompute({ occupancy:'tenant', opt:{ baggage:true }, si:{ contentsAG:2000000, baggage:100000 }, disc:{ baggage:'10' }, discPct:30 });
                 const c = q.rows.filter(r=>r.key==='contents')[0], b = q.rows.filter(r=>r.key==='baggage')[0];
                 const r2 = v => Math.round(v*100)/100;
-                return [r2(q.subtotal), r2(q.discAmt), r2(q.net), q.grand, c.discPct, b.discPct].join('/'); } },
+                return [r2(q.subtotal), r2(q.discAmt), r2(q.net), q.grand, c.discPct, b.discPct, r2(c.net), r2(b.net), r2(q.effDiscPct)].join('/'); } },
   { label:"Office Umbrella flexi discount: a blank section box follows the policy discount while a 0 typed on a section is a real nil, and the derived sections 2B and 7 carry their own box too", expect:'30/0/0/true/true',
     check:()=>{ const q = oumCompute({ occupancy:'tenant', opt:{ tenantLiab:true, rent:true }, si:{ contentsAG:2000000 }, disc:{ tenantLiab:'0', rent:'0' }, discPct:30 });
                 const c = q.rows.filter(r=>r.key==='contents')[0], b = q.rows.filter(r=>r.key==='tenantLiab')[0], r7 = q.rows.filter(r=>r.key==='rent')[0];
@@ -28021,7 +28043,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v151 · a flexi discount on every section of the Shopkeeper and Office Umbrella policies: the policy figure still covers them all, and any section can carry its own · 20-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v152 · the review of the flexi discount: the % now shows beside every discount box, Section 11's row follows the rate chosen, the longest names fit a phone, and the customer schedule's section column adds up · 20-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
