@@ -7792,6 +7792,7 @@ function newQuote(){
   $('psProposer').value = ''; $('psMonthlyIncome').value = '';
   $('psTerm').value = '1'; $('psNcd').value = '0';
   $('psStaff').checked = false;
+  psSyncNcd();   /* setting .checked fires no change event, so the NCD box stayed greyed out after a staff quote */
   psPlan = 'P';
   document.querySelectorAll('#psPlanTabs .health-plan-tab').forEach(b => b.classList.toggle('active', b.dataset.plan === 'P'));
   $('psPlanHint').textContent = 'Premium Plan covers the same benefits at lower caps. Air ambulance, prosthetics, imported medicines, Loan Secure and EMI Protection are not available.';
@@ -8127,6 +8128,8 @@ const PAPS_VERIFIED = [
                 const q2 = psCompute({ plan:'P', term:1, members:mk(200000) }), w2 = psChecks({ plan:'P', term:1, monthlyIncome:50000, members:mk(200000) }, q2);
                 const q4 = psCompute({ plan:'P', term:1, members:mk(400000) });
                 return [q2.rows[1].parts.some(p => p.k === 'ttd'), w2.some(x => /needs a Capital Sum Insured of Rs.4 lakh/.test(x)), q4.rows[1].parts.some(p => p.k === 'ttd')].join('/'); } },
+  { label:'PAPS New Quote after a staff quote: the staff tick is cleared and the No Claim Discount box is re-enabled with it (setting the tick in code fires no change event, so the box used to stay greyed out)', expect:'true',
+    check:()=>String(/\$\('psStaff'\)\.checked = false;\s*psSyncNcd\(\);/.test(String(newQuote))) },
   { label:'PAPS Sum Insured in whole lakhs: 50% of a Rs.15 lakh proposer gives a non-earning spouse at most Rs.7 lakh (not 7.5), 25% of Rs.25 lakh gives a child at most Rs.6 lakh (not 6.25), and the dependent ceilings of Rs.50 lakh / Rs.25 lakh hold above that', expect:'700000/600000/5000000/2500000',
     check:()=>[psDepCsiCap({ rel:'spouse', earning:false }, 1500000), psDepCsiCap({ rel:'son' }, 2500000),
                psDepCsiCap({ rel:'spouse', earning:false }, 12000000), psDepCsiCap({ rel:'mother' }, 12000000)].join('/') },
@@ -28087,7 +28090,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v154 · PA Parivaar: a non-earning spouse, child or parent may be insured below Rs.5 lakh - their share of the proposer CSI in whole lakhs, down to Rs.1 lakh; the Rs.5 lakh minimum stays with the proposer and an earning spouse · 21-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v155 · PA Parivaar: New Quote re-enables the No Claim Discount box after a staff quote · 21-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
