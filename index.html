@@ -7184,6 +7184,10 @@ const PS_DISC_CAP = 40;
 const PS_STAFF_PCT = 33;
 const PS_COMM_PCT = 21.5;                           /* CR-8811 table 3.2 sr 14 Individual Personal Accident Policy */
 
+/* One colour per insured person, in card order, so each card and its lines in the premium can be
+   matched at a glance. White text stays at WCAG AA on every one of them. */
+const PS_MEMBER_COLOURS = ['#1d4ed8', '#be185d', '#047857', '#b45309', '#7c3aed', '#0e7490', '#c2410c', '#4d7c0f', '#a21caf', '#475569'];
+function psColour(idx){ return PS_MEMBER_COLOURS[((idx % PS_MEMBER_COLOURS.length) + PS_MEMBER_COLOURS.length) % PS_MEMBER_COLOURS.length]; }
 const PS_REL = [
   { k:'self',    n:'Self (Proposer)',  dep:false, cap:1.00, capAbs:PS_MAX_CSI, minAge:18, maxAge:70 },
   { k:'spouse',  n:'Spouse',           dep:true,  cap:0.50, capAbs:5000000,    minAge:18, maxAge:70 },
@@ -7249,6 +7253,13 @@ function psDepCsiCap(m, proposerCsi){
   if(!proposerCsi) return r.capAbs;                              /* no proposer figure yet */
   return Math.min(floorLakh(proposerCsi * r.cap), r.capAbs);
 }
+/* The smallest proposer CSI that lets this dependent reach the Rs.5 lakh minimum: Rs.10 lakh for a
+   non-earning spouse (50%), Rs.20 lakh for a child, parent or parent-in-law (25%). */
+function psDepNeed(m){ const r = PS_RELBY(m.rel); return (r.dep && r.cap) ? Math.ceil(PS_MIN_CSI / r.cap / 100000) * 100000 : 0; }
+/* Guideline 4.8 puts every insured person at Rs.5 lakh or more; guideline 4.2 caps a dependent at a
+   share of the proposer's CSI. Where that share is under Rs.5 lakh both cannot hold, and the
+   dependent is not covered at all on this proposer figure. */
+function psDepCovered(m, idx, proposerCsi){ return idx === 0 || psDepCsiCap(m, proposerCsi) >= PS_MIN_CSI; }
 function psTtdCap(m, plan){ return nearestTtd(Math.min(floorLakh(m.csi * 0.25), psWeeklyCap(!!m.earning, plan) * 100)); }
 /* A figure that is not on the published ladder must never silently price at zero: fall back to the
    nearest tabulated figure at or below it, and let the caller tell the agent that it did. */
@@ -7269,7 +7280,18 @@ function psCompute(inp){
   const factor = PS_LT_FACTOR[years] || 1;
   const term = v => years === 1 ? v : Math.round(v * years * factor);   /* exactly how the 2Y / 3Y charts were built */
 
-  const rows = (inp.members || []).map(m => {
+  /* A dependent whose share of the proposer CSI is below the Rs.5 lakh minimum is not covered: no
+     row, no premium, and not counted for the family discount. They are listed in `excluded` with
+     the proposer CSI that would bring them in. */
+  const all = inp.members || [];
+  const propCsi = (all[0] && all[0].csi) || 0;
+  const excluded = [];
+  const insured = all.filter((m, idx) => {
+    if(psDepCovered(m, idx, propCsi)) return true;
+    excluded.push({ id:m.id, rel:m.rel, name:m.name || '', cap:psDepCsiCap(m, propCsi), need:psDepNeed(m) });
+    return false;
+  });
+  const rows = insured.map(m => {
     const csiL = ladderIdx(PS_CSI, m.csi), i = csiL.i;
     const snaps = [];
     if(csiL.snapped) snaps.push({ what:'Capital Sum Insured', asked:m.csi, used:csiL.used });
@@ -7320,8 +7342,9 @@ function psCompute(inp){
      the rest keep theirs. A member with no figure of their own takes the policy-level one. The
      40% ceiling is applied to each person's discount. */
   const policyNcd = Number(inp.ncd) || 0;
-  rows.forEach((r, k) => {
-    const mm = (inp.members || [])[k] || {};
+  rows.forEach(r => {
+    /* by person, not by position: a dependent left out would otherwise hand their NCD to the next row */
+    const mm = insured.find(x => x.id === r.id) || {};
     const own = (mm.ncd === undefined || mm.ncd === null || mm.ncd === '') ? policyNcd : Number(mm.ncd);
     r.ncdPct = staff ? 0 : Math.min(20, Math.max(0, own || 0));
     r.rawDisc = familyPct + onlinePct + staffPct + r.ncdPct;
@@ -7353,7 +7376,7 @@ function psCompute(inp){
      because no intermediary is involved, so there is no one to pay in either case */
   const noComm = staff || !!inp.online;
   const commAmt = noComm ? 0 : Math.round(net * PS_COMM_PCT / 100);
-  return { plan, years, lt, rows, subtotal, familyPct, onlinePct, staffPct, ncdPct, ncdUniform, rawDisc, discPct, discAmt,
+  return { plan, years, lt, rows, excluded, subtotal, familyPct, onlinePct, staffPct, ncdPct, ncdUniform, rawDisc, discPct, discAmt,
            capped, discUniform,
            net, minApplied, gst, grand, commAmt, commPct: noComm ? 0 : PS_COMM_PCT, memberCount: n };
 }
@@ -7366,6 +7389,9 @@ function psChecks(inp, q){
   const selves = list.filter(m => m.rel === 'self');
   const self = selves[0];
   const csiSelf = self ? self.csi : 0;
+  /* the persons the premium actually covers - psCompute's own list, so checks and price cannot disagree */
+  const outIds = (q.excluded || []).map(e => e.id);
+  const covered = list.filter(m => outIds.indexOf(m.id) < 0);
   if(list.length > PS_MAX_MEMBERS) w.push('More than ' + PS_MAX_MEMBERS + ' insured persons. A single policy may cover a maximum of ' + PS_MAX_MEMBERS + ' members including the proposer.');
   if(!self) w.push('No insured person is marked as Self (Proposer). Every policy must be proposed by an earning proposer.');
   if(selves.length > 1) w.push(selves.length + ' insured persons are marked Self (Proposer). Only one person on the policy can be the proposer.');
@@ -7375,13 +7401,13 @@ function psChecks(inp, q){
     const r = PS_RELBY(m.rel);
     const sameRel = list.filter(x => x.rel === m.rel).length;
     const who = m.name ? (m.name + ' (' + r.n + ')') : (sameRel > 1 ? r.n + ' ' + (i + 1) : r.n);
-    ((q.rows && q.rows[i] && q.rows[i].snaps) || []).forEach(sn => w.push(who + ': ' + sn.what + ' ' + siLabel(sn.asked) + ' is not a figure in the premium chart, so the quote uses the next lower tabulated figure, ' + siLabel(sn.used) + '.'));
-    if(m.csi < PS_MIN_CSI) w.push(who + ': Capital Sum Insured ' + siLabel(m.csi) + ' is below the minimum of Rs.5,00,000.');
-    /* 25% of a small proposer figure can fall under the per-person minimum; both rules cannot hold */
-    if(i > 0 && csiSelf){
-      const depCap = psDepCsiCap(m, csiSelf);
-      if(depCap < PS_MIN_CSI) w.push(who + ': ' + Math.round(r.cap * 100) + '% of the proposer Capital Sum Insured is only ' + siLabel(depCap) + ', which is below the minimum of Rs.5,00,000 for any insured person. Raise the proposer figure or leave this person off the policy.');
+    if(outIds.indexOf(m.id) >= 0){
+      const depCap = psDepCsiCap(m, (list[0] && list[0].csi) || 0);
+      w.push(who + ': not covered on this quote. A ' + r.n.toLowerCase() + ' can be insured for at most ' + Math.round(r.cap * 100) + '% of the proposer Capital Sum Insured - Rs.' + siLabel(depCap) + ' here - and no one can be insured for less than Rs.5,00,000, so this person carries no Sum Insured and no premium. Raise the proposer CSI to Rs.' + siLabel(psDepNeed(m)) + ' or more to include them.');
+      return;   /* nothing else applies to a person the policy does not cover */
     }
+    ((((q.rows || []).find(x => x.id === m.id)) || {}).snaps || []).forEach(sn => w.push(who + ': ' + sn.what + ' ' + siLabel(sn.asked) + ' is not a figure in the premium chart, so the quote uses the next lower tabulated figure, ' + siLabel(sn.used) + '.'));
+    if(m.csi < PS_MIN_CSI) w.push(who + ': Capital Sum Insured ' + siLabel(m.csi) + ' is below the minimum of Rs.5,00,000.');
     if(m.age > 70) w.push(who + ': entry age ' + m.age + ' exceeds the maximum entry age of 70 years.');
     if(!r.dep && m.age < 18) w.push(who + ': the proposer must be at least 18 years old.');
     if((m.rel === 'son' || m.rel === 'daughter') && m.age > 25) w.push(who + ': a dependent child can be covered only up to 18 years, or 25 years while a full-time student.');
@@ -7475,15 +7501,15 @@ function psChecks(inp, q){
     w.push('The proposer monthly income has not been entered, so the Capital Sum Insured has not been checked against it. The 72 and 100 times limits that decide whether the proposal is escalated cannot be tested without it.');
   }
   if(noOcc.length) w.push('Occupation not entered for ' + noOcc.join(', ') + '. The proposal must declare the occupation of every insured person, and the risk category is taken from it.');
-  if(plan === 'P' && list.some(m => m.cov && (m.cov.loan || m.cov.emi))) w.push('Loan Secure and EMI Protection are available only under the Elite Plan, so the ticks carried over from the Elite quote are left out of this premium and this quotation. They come back if the Elite Plan is chosen again.');
+  if(plan === 'P' && covered.some(m => m.cov && (m.cov.loan || m.cov.emi))) w.push('Loan Secure and EMI Protection are available only under the Elite Plan, so the ticks carried over from the Elite quote are left out of this premium and this quotation. They come back if the Elite Plan is chosen again.');
   /* guideline 20(b) and (c): verified at the proposal stage, because this is where claims are later refused */
-  if(plan === 'E' && list.some(m => m.cov && m.cov.loan)) w.push('Loan Secure: before issue, see the sanction letter or loan statement and keep a copy. It must be a home loan in the insured person\'s own name, from a bank or financial institution licensed in India (not a moneylender or unregistered society), taken before the policy starts or declared and accepted with additional premium, and the loanee must not be over 70 at commencement.');
-  if(plan === 'E' && list.some(m => m.cov && m.cov.emi)) w.push('EMI Protection: before issue, see the sanction letter or loan statement and keep a copy. The loan must finance household items only (not a vehicle, property, education, mobile, jewellery, works of art or a personal loan), stand in the insured person\'s own name with a bank or financial institution licensed in India, and be declared and accepted when the insurance is taken. The loanee must not be over 70 at commencement.');
+  if(plan === 'E' && covered.some(m => m.cov && m.cov.loan)) w.push('Loan Secure: before issue, see the sanction letter or loan statement and keep a copy. It must be a home loan in the insured person\'s own name, from a bank or financial institution licensed in India (not a moneylender or unregistered society), taken before the policy starts or declared and accepted with additional premium, and the loanee must not be over 70 at commencement.');
+  if(plan === 'E' && covered.some(m => m.cov && m.cov.emi)) w.push('EMI Protection: before issue, see the sanction letter or loan statement and keep a copy. The loan must finance household items only (not a vehicle, property, education, mobile, jewellery, works of art or a personal loan), stand in the insured person\'s own name with a bank or financial institution licensed in India, and be declared and accepted when the insurance is taken. The loanee must not be over 70 at commencement.');
 
   /* guideline 20(b), repeated in the wordings and on the section 19 benefit table: "Only one loan
      per policy shall be covered." The chart prices the cover per insured person, so this is raised
      rather than blocked - but a second one is premium the policy can never answer. */
-  const loanCount = list.filter(m => m.cov && m.cov.loan).length;
+  const loanCount = covered.filter(m => m.cov && m.cov.loan).length;
   if(loanCount > 1) w.push('Loan Secure is opted for ' + loanCount + ' insured persons, but only one loan per policy can be covered. Where more than one eligible loan exists, the highest outstanding principal is the one considered - keep the cover on that person.');
 
   /* guideline 2 admits one spouse, one set of natural or adoptive parents and one set of in-laws */
@@ -7493,14 +7519,14 @@ function psChecks(inp, q){
   });
 
   /* guideline 4.10 and 21(c): the ladder is not simply the number of claim-free years */
-  if((Number(inp.ncd) || 0) > 0 || list.some(m => (Number(m.ncd) || 0) > 0)) w.push('No Claim Discount accrues only under the option already in force, and each insured person earns it on their own claims: set it to nil on the card of anyone who reported a claim, and for anyone joining at this renewal. If the insured is switching from Cumulative Bonus at this renewal the ladder starts again at the first slab, and it lapses entirely if the policy is renewed more than 30 days after expiry.');
+  if((Number(inp.ncd) || 0) > 0 || covered.some(m => (Number(m.ncd) || 0) > 0)) w.push('No Claim Discount accrues only under the option already in force, and each insured person earns it on their own claims: set it to nil on the card of anyone who reported a claim, and for anyone joining at this renewal. If the insured is switching from Cumulative Bonus at this renewal the ladder starts again at the first slab, and it lapses entirely if the policy is renewed more than 30 days after expiry.');
   if(q.capped) w.push('Discounts add up to ' + q.rawDisc.toFixed(2).replace(/\.00$/, '') + '%, so the total has been capped at ' + PS_DISC_CAP + '%.');
   if(inp.staff) w.push('Staff discount is applied, so the family discount, the No Claim Discount and agency commission are not allowed.');
   /* both persons on the INLIAS sheet on file (R/433900/48/2027/1158) are Risk I with no loading, so the
      scope of a loading (every cover line, as applied here) and its rounding are not yet reconciled */
   /* guideline 10 note and wordings V.8: loadings belong to fresh underwriting */
-  if(list.some(m => m.preEx)) w.push('The 30% pre-existing loading is applied at fresh underwriting - when the policy begins, or on an increase in Sum Insured at renewal. On a renewal it continues only where it was imposed when the policy began; a condition first declared after inception may be loaded only on the increase in Sum Insured, never on the Sum Insured already in force and never because of claims. This quote loads the whole premium of that person.');
-  if((inp.members || []).some(m => (m.risk && m.risk !== 'I') || m.preEx)) w.push('An occupation or pre-existing loading is applied to every cover of that person. This has not yet been checked against an INLIAS computation sheet - confirm the loaded premium before issuing.');
+  if(covered.some(m => m.preEx)) w.push('The 30% pre-existing loading is applied at fresh underwriting - when the policy begins, or on an increase in Sum Insured at renewal. On a renewal it continues only where it was imposed when the policy began; a condition first declared after inception may be loaded only on the increase in Sum Insured, never on the Sum Insured already in force and never because of claims. This quote loads the whole premium of that person.');
+  if(covered.some(m => (m.risk && m.risk !== 'I') || m.preEx)) w.push('An occupation or pre-existing loading is applied to every cover of that person. This has not yet been checked against an INLIAS computation sheet - confirm the loaded premium before issuing.');
   if(q.minApplied) w.push('The calculated premium is below the minimum of Rs.' + PS_MIN_PREMIUM + ', so the minimum premium has been charged.');
   return w;
 }
@@ -7522,9 +7548,9 @@ function addMember(pre){
   psSyncFamilyRow();
 }
 function byId(id){ return members.find(m => m.id === parseInt(id, 10)); }
-/* Never leave a dependent above the ceiling the proposer's figure allows. The Rs.5 lakh minimum
-   still applies to every insured person, so where 25% of a small proposer figure falls below it
-   the minimum is kept and psChecks reports that the two rules cannot both be met. */
+/* Never leave a dependent above the ceiling the proposer's figure allows. Where the ceiling is below
+   the Rs.5 lakh minimum the person is not covered (psCompute leaves them out); their figure is kept
+   at the minimum only so that it is ready the moment the proposer's CSI brings them in. */
 function psClampDependents(){
   const proposerCsi = (members[0] && members[0].csi) || 0;
   members.forEach((m, i) => {
@@ -7558,6 +7584,8 @@ function renderMembers(){
   host.innerHTML = members.map((m, i) => {
     const r = PS_RELBY(m.rel);
     const csiCap = psDepCsiCap(m, proposerCsi);
+    const col = psColour(i);
+    const notCovered = !psDepCovered(m, i, proposerCsi);
     /* everyone except the proposer and the spouse is a dependent by definition (guideline 3 ii) */
     const depOnly = r.dep && m.rel !== 'spouse';
     if(depOnly && m.earning) m.earning = false;
@@ -7569,9 +7597,12 @@ function renderMembers(){
     /* a cover the person cannot take is neither offered nor kept - e.g. a spouse re-entered as a son */
     PS_OPT.forEach(o => { if(m.cov && m.cov[o.k] && !psCoverAllowed(o, m)) m.cov[o.k] = false; });
     const chips = PS_OPT.filter(o => o.plans.indexOf(psPlan) >= 0 && psCoverAllowed(o, m)).map(o => tick('ps-cov', 'data-cov="' + o.k + '"', m.cov && m.cov[o.k], o.s, o.d)).join('');
-    return '<div class="member-item" data-id="' + m.id + '" style="display:block;padding:12px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span class="member-badge">' + (i === 0 ? 'Proposer' : 'Member ' + (i + 1)) + '</span>' +
+    return '<div class="member-item" data-id="' + m.id + '" style="display:block;padding:12px;border-left:5px solid ' + col + '">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span class="member-badge" style="background:' + col + ';color:#fff">' + (i === 0 ? 'Proposer' : 'Member ' + (i + 1)) + '</span>' +
         '<span style="font-size:11px;color:var(--mute)">Risk Category ' + m.risk + ' &middot; loading ' + (PS_RISK[m.risk] || 0) + '%</span></div>' +
+      (notCovered ? '<div class="ps-notcov" style="margin:0 0 10px;padding:9px 11px;border:1.5px solid #e8c56a;background:#fffaef;border-radius:10px;font-size:12px;line-height:1.45;color:var(--ink)">' +
+        '<b>Not covered on this quote.</b> A ' + r.n.toLowerCase() + ' can be insured for at most ' + Math.round(r.cap * 100) + '% of the proposer&rsquo;s CSI &mdash; &#8377;' + siLabel(csiCap) +
+        ' here &mdash; and no one can be insured for less than &#8377;5 lakh. Raise the proposer&rsquo;s CSI to &#8377;' + siLabel(psDepNeed(m)) + ' or more to include them.</div>' : '') +
       '<div class="field-row">' +
         '<div class="field"><label class="lbl">Relationship</label><select class="ps-rel" data-id="' + m.id + '"' + (i === 0 ? ' disabled' : '') + '>' +
           PS_REL.map(x => '<option value="' + x.k + '"' + (x.k === m.rel ? ' selected' : '') + '>' + x.n + '</option>').join('') + '</select></div>' +
@@ -7591,7 +7622,9 @@ function renderMembers(){
         '<div class="ps-occ-hits" data-for="' + m.id + '"></div>' +
       '</div>' +
       '<div class="field-row">' +
-        '<div class="field"><label class="lbl">Capital Sum Insured' + (csiCap < PS_MAX_CSI ? ' <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; up to ' + siLabel(csiCap) + ' for a ' + r.n.toLowerCase() + '</span>' : '') + '</label><select class="ps-csi" data-id="' + m.id + '">' + csiOptions(m.csi, PS_MIN_CSI, Math.max(csiCap, PS_MIN_CSI)) + '</select></div>' +
+        (notCovered
+          ? '<div class="field"><label class="lbl">Capital Sum Insured <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; none available</span></label><select class="ps-csi" data-id="' + m.id + '" disabled><option>Not covered</option></select></div>'
+          : '<div class="field"><label class="lbl">Capital Sum Insured' + (csiCap < PS_MAX_CSI ? ' <span style="font-weight:400;color:var(--mute);text-transform:none;letter-spacing:0">&mdash; up to ' + siLabel(csiCap) + ' for a ' + r.n.toLowerCase() + '</span>' : '') + '</label><select class="ps-csi" data-id="' + m.id + '">' + csiOptions(m.csi, PS_MIN_CSI, Math.max(csiCap, PS_MIN_CSI)) + '</select></div>') +
         /* Guideline 3 requires children, parents and parents-in-law to be financially dependent on the
            proposer; only the independent spouse of guideline 4.3 may be earning. Marking one of them
            earning lifted the weekly benefit cap from Rs.5,000 to Rs.20,000 on the Premium Plan and so
@@ -7681,6 +7714,7 @@ function renderMembers(){
     renderMembers();
   }));
   host.querySelectorAll('.ps-flag').forEach(b => b.addEventListener('change', () => { const m = byId(b.dataset.id); m[b.dataset.flag] = !!b.checked; renderMembers(); }));
+  scheduleAutoCalcPaps();   /* who is covered can change with any edit that re-draws the cards; a no-op until the first quote */
   host.querySelectorAll('.member-remove').forEach(b => b.addEventListener('click', () => { const i = members.findIndex(m => m.id === parseInt(b.dataset.id, 10)); if(i > 0){ members.splice(i, 1); renderMembers(); psSyncFamilyRow(); } }));
   psSyncFamilyRow();
 }
@@ -7724,7 +7758,9 @@ function calculate(){
   let h = '';
   q.rows.forEach((r, i) => {
     const rel = PS_RELBY(r.rel);
-    h += line((i + 1) + '. ' + (r.name || rel.n) + ' &middot; age ' + r.age + ' &middot; Risk ' + r.risk, '&#8377; ' + fmt(r.premium), 'head');
+    const mi = members.findIndex(x => x.id === r.id), no = mi >= 0 ? mi : i;
+    h += line('<span aria-hidden="true" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + psColour(no) + ';margin-right:7px"></span>' +
+              (no + 1) + '. ' + (r.name || rel.n) + ' &middot; age ' + r.age + ' &middot; Risk ' + r.risk, '&#8377; ' + fmt(r.premium), 'head');
     r.parts.forEach(p => { h += line('&nbsp;&nbsp;' + p.label, '&#8377; ' + fmt(p.amount), 'sub'); });
     if(r.loadPct > 0) h += line('&nbsp;&nbsp;Loading &middot; ' + (r.riskPct ? 'occupation ' + r.riskPct + '%' : '') + (r.riskPct && r.preExPct ? ' + ' : '') + (r.preExPct ? 'pre-existing condition ' + r.preExPct + '%' : ''), '+ &#8377; ' + fmt(r.load), 'sub');
   });
@@ -8029,7 +8065,7 @@ const PAPS_VERIFIED = [
                 return [Math.round(q1.subtotal), Math.round(q2.subtotal)].join('/'); } },
   { label:'PAPS discounts: family 5% for two members and 10% for three or more, online 10%, staff 33% (which bars the family discount and commission), all capped at 40%', expect:'5/10/40/0',
     check:()=>{ const two = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,cov:{}},{id:2,rel:'spouse',age:32,risk:'I',csi:500000,cov:{}}] });
-                const three = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,cov:{}},{id:2,rel:'spouse',age:32,risk:'I',csi:500000,cov:{}},{id:3,rel:'son',age:10,risk:'I',csi:500000,cov:{}}] });
+                const three = psCompute({ plan:'P', term:1, members:[{id:1,rel:'self',age:35,risk:'I',csi:2000000,cov:{}},{id:2,rel:'spouse',age:32,risk:'I',csi:500000,cov:{}},{id:3,rel:'son',age:10,risk:'I',csi:500000,cov:{}}] });
                 const staff = psCompute({ plan:'P', term:1, staff:true, online:true, ncd:20, members:[{id:1,rel:'self',age:35,risk:'I',csi:1000000,cov:{}},{id:2,rel:'spouse',age:32,risk:'I',csi:500000,cov:{}}] });
                 return [two.familyPct, three.familyPct, staff.discPct, staff.commAmt].join('/'); } },
   { label:'PAPS: minimum premium Rs.100, and no GST is charged on this product (the INLIAS computation sheet carries no tax line)', expect:'100/0/100',
@@ -8083,12 +8119,36 @@ const PAPS_VERIFIED = [
                 return [cap('spouse', false, 2000000), cap('son', false, 2000000),
                         cap('spouse', false, 50000000), cap('father', false, 50000000),
                         cap('spouse', true, 2000000)].join('/'); } },
-  { label:'PAPS: where 25% or 50% of a small proposer Sum Insured falls below the Rs.5 lakh per-person minimum the quote says the two rules cannot both be met (proposer Rs.8 lakh, so a non-earning spouse computes to Rs.4 lakh)', expect:'400000/true',
+  { label:'PAPS guideline 4.8 with 4.2: a dependent whose share of the proposer CSI is below the Rs.5 lakh minimum is not covered at all - proposer Rs.8 lakh, so a non-earning spouse can have at most Rs.4 lakh: no row, no premium, no family discount, and the quote says a Rs.10 lakh proposer CSI would bring the spouse in', expect:'400000/1/0/1000000/true',
     check:()=>{ const ms = [{ id:1, rel:'self', age:40, earning:true, risk:'I', csi:800000, cov:{} },
                             { id:2, rel:'spouse', age:38, earning:false, risk:'I', csi:500000, cov:{} }];
-                const warned = psChecks({ plan:'P', term:1, monthlyIncome:50000, members:ms }, psCompute({ plan:'P', term:1, members:ms }))
-                                 .some(x => /below the minimum of Rs.5,00,000 for any insured person/.test(x));
-                return [psDepCsiCap({ rel:'spouse', earning:false }, 800000), warned].join('/'); } },
+                const q = psCompute({ plan:'P', term:1, members:ms });
+                const warned = psChecks({ plan:'P', term:1, monthlyIncome:50000, members:ms }, q).some(x => /not covered on this quote/.test(x));
+                return [psDepCsiCap({ rel:'spouse', earning:false }, 800000), q.rows.length, q.familyPct, q.excluded[0].need, warned].join('/'); } },
+  { label:'PAPS: the proposer CSI a dependent needs to reach Rs.5 lakh is Rs.10 lakh for a non-earning spouse and Rs.20 lakh for a child or parent - at Rs.19 lakh a son is left out, at Rs.20 lakh he is covered at Rs.5 lakh; proposer Rs.5 lakh with a spouse and a son covers the proposer alone', expect:'1000000/2000000/0/1/500000/1/2',
+    check:()=>{ const son = csi => psCompute({ plan:'P', term:1, members:[{ id:1, rel:'self', age:40, earning:true, risk:'I', csi, cov:{} }, { id:2, rel:'son', age:10, earning:false, risk:'I', csi:500000, cov:{} }] });
+                const q19 = son(1900000), q20 = son(2000000);
+                const q5 = psCompute({ plan:'P', term:1, members:[{ id:1, rel:'self', age:40, earning:true, risk:'I', csi:500000, cov:{} },
+                                                                  { id:2, rel:'spouse', age:38, earning:false, risk:'I', csi:500000, cov:{} },
+                                                                  { id:3, rel:'son', age:10, earning:false, risk:'I', csi:500000, cov:{} }] });
+                return [psDepNeed({ rel:'spouse' }), psDepNeed({ rel:'son' }), q19.rows.length - 1, q20.rows.length - 1, q20.rows[1].csi, q5.rows.length, q5.excluded.length].join('/'); } },
+  { label:'PAPS per-person NCD with a dependent left out: policy NCD 20%, proposer Rs.15 lakh at 20%, a son at Nil (left out - 25% of Rs.15 lakh is under Rs.5 lakh), a non-earning spouse at Rs.7 lakh on 20%: the spouse keeps her own 20%, not the son\'s Nil - discount 557, net 1,670, the same as the quote without the son', expect:'20/20/557/1670/1670',
+    check:()=>{ const P = { id:1, rel:'self', age:40, earning:true, risk:'I', csi:1500000, ncd:20, cov:{} }, W = { id:3, rel:'spouse', age:38, earning:false, risk:'I', csi:700000, ncd:20, cov:{} };
+                const q = psCompute({ plan:'P', term:1, ncd:20, members:[P, { id:2, rel:'son', age:10, earning:false, risk:'I', csi:500000, ncd:0, cov:{} }, W] });
+                const q2 = psCompute({ plan:'P', term:1, ncd:20, members:[P, W] });
+                return [q.rows[0].ncdPct, q.rows[1].ncdPct, q.discAmt, q.net, q2.net].join('/'); } },
+  { label:'PAPS: a left-out dependent gets the one "not covered" line and nothing else - no CSI-ceiling line, no loan count, no loading note (proposer Rs.8 lakh with Loan Secure; spouse with Loan Secure, TTD, Risk II and a pre-existing condition)', expect:'1/1/false/false/false',
+    check:()=>{ const ms = [{ id:1, rel:'self', age:40, earning:true, risk:'I', csi:800000, occupation:'Banker or bank employee', loanSi:500000, cov:{ loan:true } },
+                            { id:2, rel:'spouse', age:38, earning:false, risk:'II', preEx:true, csi:500000, ttdSi:100000, loanSi:500000, occupation:'Homemaker', cov:{ loan:true, ttd:true } }];
+                const q = psCompute({ plan:'E', term:1, members:ms }), w = psChecks({ plan:'E', term:1, monthlyIncome:50000, members:ms }, q);
+                const sp = w.filter(x => /^Spouse:/.test(x));
+                return [q.rows.length, sp.length, w.some(x => /only one loan per policy/.test(x)), w.some(x => /pre-existing loading/.test(x)), w.some(x => /limited to 50%/.test(x))].join('/'); } },
+  { label:'PAPS Sum Insured in whole lakhs: 50% of a Rs.15 lakh proposer gives a non-earning spouse at most Rs.7 lakh (not 7.5), 25% of Rs.25 lakh gives a child at most Rs.6 lakh (not 6.25), and the dependent ceilings of Rs.50 lakh / Rs.25 lakh hold above that', expect:'700000/600000/5000000/2500000',
+    check:()=>[psDepCsiCap({ rel:'spouse', earning:false }, 1500000), psDepCsiCap({ rel:'son' }, 2500000),
+               psDepCsiCap({ rel:'spouse', earning:false }, 12000000), psDepCsiCap({ rel:'mother' }, 12000000)].join('/') },
+  { label:'PAPS member colours: ten distinct colours for up to ten insured persons, and white badge text on every one at WCAG AA (4.5:1 or better)', expect:'10/10/true',
+    check:()=>{ const lum = h => { const c = [1,3,5].map(k => parseInt(h.substr(k, 2), 16) / 255).map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)); return 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2]; };
+                return [PS_MEMBER_COLOURS.length, new Set(PS_MEMBER_COLOURS).size, PS_MEMBER_COLOURS.every(h => 1.05 / (lum(h) + 0.05) >= 4.5)].join('/'); } },
   { label:'PAPS occupation lookup (guideline 8(ii)): typing the occupation sets the risk category, and the guideline\'s own distinctions hold - a doctor is I but a veterinary doctor is II, a consulting engineer is I but a superintending engineer is II, a paid lorry driver is II and underground mining is III', expect:'I/II/I/II/II/III',
     check:()=>{ const f = q => { const h = psFindOccupation(q); return h.length ? h[0].risk : 'none'; };
                 return [f('doctor'), f('veterinary doctor'), f('consulting engineer'),
@@ -8233,7 +8293,8 @@ function psSyncNcd(){ const off = $('psStaff').checked; $('psNcd').disabled = of
    so the card has to say what is being applied, otherwise it reads as though it were missing. */
 function psSyncFamilyRow(){
   const el = $('psFamilyRow'); if(!el) return;
-  const n = members.length;
+  const propCsi = (members[0] && members[0].csi) || 0;
+  const n = members.filter((m, i) => psDepCovered(m, i, propCsi)).length;   /* a dependent left out is not a family member for the discount */
   const staff = $('psStaff') && $('psStaff').checked;
   const pct = staff ? 0 : (n >= 3 ? 10 : (n === 2 ? 5 : 0));
   let cls = 'off', txt;
@@ -28043,7 +28104,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v152 · the review of the flexi discount: the % now shows beside every discount box, Section 11's row follows the rate chosen, the longest names fit a phone, and the customer schedule's section column adds up · 20-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v153 · PA Parivaar: a dependent whose share of the proposer CSI is below the Rs.5 lakh minimum is not covered at all, and each insured person has their own colour · 21-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
