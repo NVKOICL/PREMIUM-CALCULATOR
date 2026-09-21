@@ -14277,7 +14277,12 @@ function calculate(silent=false){
             //   = Basic OD + Electrical Accessories + CNG kit + IMT-23.
             // Electrical and CNG were previously omitted, so Nil Dep was
             // under-charged whenever accessories or a kit were declared.
-            base = odBase + odElecAcc + odCNGKit + imt23NetForNilDep;
+            // PCCV with an IN-BUILT kit: INLIAS rates Nil Dep on the basic OD alone and keeps the
+            // in-built bi-fuel cover (GR.42(b), 5% of the net basic OD) outside the base - sheet
+            // R/433703/31/2027/913 (21/09/2026): Nil Dep 20% of 31,376.80 = 6,275, CNG 392.19 not in
+            // it. A declared aftermarket kit (4% of its value) stays in. GCCV unverified - unchanged.
+            const cngForNilDep = (odCNGInbuilt && data.vehicleType === 'pccv') ? 0 : odCNGKit;
+            base = odBase + odElecAcc + cngForNilDep + imt23NetForNilDep;
           } else if(data.vehicleType === 'privateCar' || data.vehicleType === 'twoWheeler'){
             // FIX: ODS 'EJ' column — base = IDV + Electrical Acc + CNG/LPG kit
             // value + Non-Electrical Acc (was IDV + Elec Acc only).
@@ -22318,6 +22323,11 @@ const VERIFIED_CASES = [
     check:()=>[seatingCapacityLabel({data:{vehicleType:'commercial',llGccvCount:3,paxCount:1}}),seatingCapacityLabel({data:{vehicleType:'pccv',paxCount:3}}),seatingCapacityLabel({data:{vehicleType:'privateCar',paxCount:1,switches:{}}})].join('|') },
   { label:'In-built CNG (Pvt Car 1001-1500cc, Zone B, 6-10y, IDV 3L): OD 10,053 − SIP 80% 8,042 → CNG 5% of net = 101; CNG TP load Rs.60 (INLIAS sheet 432702/31/2027/639)', expect:'8042/101/60/10053',
     check:()=>{ const r=cngInbuiltLoading(10053,80); return r.disc+'/'+r.cng+'/'+RATES.fuelConfig.cng.tpAdd+'/'+Math.round(300000*RATES.od.privateCar.s2['6-10'].B/100); } },
+  { label:'PCCV taxi 1001-1500cc, Zone A, IDV 9,10,000, Petrol + in-built CNG, SIP 75%, Nil Dep 20% less 20% (INLIAS R/433703/31/2027/913, 21-09-2026): basic OD 31,377, SIP 23,533, in-built CNG 392 on the net, Nil Dep 6,275 on the basic OD alone less 1,255 = 5,020, basic TP 13,808, total premium 27,444, GST 4,940, total 32,384', expect:'31377/23533/392/6275/5020/13808/27444/4940/32384',
+    check:()=>{ window._stRun(['pccv','taxi1000to1500','A',1.4,910000,'cng','comprehensive',0,6,0,0,0]);
+                state.odDiscount = 75; state.nilDepDiscount = 20; window.calculate(true);
+                const q = state.lastQuote, nd = (q.addons.items || []).find(a => a.key === 'nilDep') || {};
+                return [q.odBase, q.odDiscountAmt, q.odCNGKit, nd.grossAmount, nd.amount, q.tpBase, q.subtotal, q.gst, q.total].join('/'); } },
   { label:'Motor add-on schedule: wordings present for every add-on key (Nil Dep, Engine Protect, RTI, Consumables, Key, Tyre, Battery, EMI, Alt Car, Personal Effects, Towing, IMT-47, IMT-23)', expect:'13/towing/batteryProtect',
     check:()=>Object.keys(MOTOR_ADDON_WORDINGS).length+'/'+motorAddonWordingKey('towing10k')+'/'+motorAddonWordingKey('batteryProtectCoPay') },
   // ── INLIAS worksheet R/161600/31/2027/453 (GCCV KA22D9540, 19/08/2026) ──
@@ -28090,7 +28100,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v155 · PA Parivaar: New Quote re-enables the No Claim Discount box after a staff quote · 21-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v156 · PCCV with an in-built CNG kit: Nil Depreciation is rated on the basic OD alone, as INLIAS does - the in-built CNG loading is no longer charged Nil Dep on top of itself · 21-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
