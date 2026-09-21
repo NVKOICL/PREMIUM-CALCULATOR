@@ -22325,6 +22325,7 @@ const VERIFIED_CASES = [
     check:()=>{ const r=cngInbuiltLoading(10053,80); return r.disc+'/'+r.cng+'/'+RATES.fuelConfig.cng.tpAdd+'/'+Math.round(300000*RATES.od.privateCar.s2['6-10'].B/100); } },
   { label:'PCCV taxi 1001-1500cc, Zone A, IDV 9,10,000, Petrol + in-built CNG, SIP 75%, Nil Dep 20% less 20% (INLIAS R/433703/31/2027/913, 21-09-2026): basic OD 31,377, SIP 23,533, in-built CNG 392 on the net, Nil Dep 6,275 on the basic OD alone less 1,255 = 5,020, basic TP 13,808, total premium 27,444, GST 4,940, total 32,384', expect:'31377/23533/392/6275/5020/13808/27444/4940/32384',
     check:()=>{ window._stRun(['pccv','taxi1000to1500','A',1.4,910000,'cng','comprehensive',0,6,0,0,0]);
+                _sipManualOverride = true;   /* the sheet's SIP, not whatever the discount grid would pick (runSelfTest restores the flag) */
                 state.odDiscount = 75; state.nilDepDiscount = 20; window.calculate(true);
                 const q = state.lastQuote, nd = (q.addons.items || []).find(a => a.key === 'nilDep') || {};
                 return [q.odBase, q.odDiscountAmt, q.odCNGKit, nd.grossAmount, nd.amount, q.tpBase, q.subtotal, q.gst, q.total].join('/'); } },
@@ -28100,7 +28101,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v156 · PCCV with an in-built CNG kit: Nil Depreciation is rated on the basic OD alone, as INLIAS does - the in-built CNG loading is no longer charged Nil Dep on top of itself · 21-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v157 · the PCCV in-built CNG self-test holds its own 75% SIP instead of relying on the discount grid · 21-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
