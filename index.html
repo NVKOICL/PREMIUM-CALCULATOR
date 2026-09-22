@@ -2095,7 +2095,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
         <div class="input-prefix" data-prefix="₹">
           <input type="number" id="invoiceValue" inputmode="numeric" placeholder="600000" min="0" />
         </div>
-        <div class="hint">Required for Tyre &amp; Rim cover (3yr package)</div>
+        <div class="hint" id="invoiceValueHint">Required for Tyre &amp; Rim cover (3yr package)</div>
       </div>
     </div>
 
@@ -12265,11 +12265,11 @@ function renderAddons(){
       }
     } else if(a.type === 'tyreProtect'){
       if(pkg3yr && rates3yr){
-        const invVal = parseFloat(($('tyreInvoiceInput') || {}).value) || parseFloat(($('invoiceValue') || {}).value) || 0;
+        const invVal = tyreInvoiceValue();
         const baseLabel = invVal > 0 ? `on Invoice (₹${fmt(invVal)})` : 'on Est. Invoice';
         note = `${rates3yr.tyreProtect}% ${baseLabel} · 3yr package`;
       } else if((state.vehicleType === 'privateCar' || state.vehicleType === 'pccv') && ageMonths !== null){
-        const manualInv = parseFloat(($('tyreInvoiceInput') || {}).value) || 0;
+        const manualInv = tyreInvoiceValue();
         const tyRate = state.vehicleType === 'pccv' ? a.pccvRate : a.rate, tyPct = (tyRate*100).toFixed(2);
         if(manualInv > 0){
           note = `${tyPct}% on Invoice ₹${fmt(manualInv)} → ₹${fmt(Math.round(manualInv * tyRate))}`;
@@ -12776,7 +12776,7 @@ function updateAutoCcBandField(){
 function updateTyreHint(){
   const hint = $('tyreInvoiceHint');
   if(!hint) return;
-  const manualInv = parseFloat(($('tyreInvoiceInput') || {}).value) || 0;
+  const manualInv = tyreInvoiceValue();
   const tyRateH = state.vehicleType === 'pccv' ? RATES.addons.tyreProtect.pccvRate : RATES.addons.tyreProtect.rate;
   if(manualInv > 0){
     hint.textContent = `Premium = ₹${fmt(Math.round(manualInv * tyRateH))} (${(tyRateH*100).toFixed(2)}% on ₹${fmt(manualInv)})`;
@@ -13219,6 +13219,7 @@ document.querySelectorAll('#sectionMotor .switch').forEach(s=>{
   });
 });
 
+$('invoiceValue') && $('invoiceValue').addEventListener('input', () => { if(typeof updateTyreHint === 'function') updateTyreHint(); });
 ['idv','cngKit','elecAcc','nonElecAcc','invoiceValue'].forEach(id=>{
   $(id).addEventListener('input', ()=>{
     if(id==='idv'){
@@ -13514,12 +13515,30 @@ function is3yrPackage(data){
       && data.policyTerm  === '3yr';
 }
 
+/* The Invoice / Ex-Showroom field: a Private Car on the 3-year package (its Tyre & Rim cover), and -
+   since v162 - GCCV, PCCV and Misc-D whenever the policy carries own damage. */
+function invoiceFieldApplies(vt, policyType, policyTerm){
+  if(policyType === 'thirdParty') return false;
+  if(vt === 'privateCar') return policyType === 'comprehensive' && policyTerm === '3yr';
+  return vt === 'commercial' || vt === 'pccv' || vt === 'misc';
+}
+function motorPolicyTypeNow(){
+  return ($('polComp') && $('polComp').checked) ? 'comprehensive' : (($('polOD') && $('polOD').checked) ? 'odOnly' : 'thirdParty');
+}
+/* The invoice the Tyre & Rim cover is rated on: the tyre card's own box when filled, otherwise the
+   Invoice / Ex-Showroom field while that field applies. The field used to reach only the card's note,
+   so the 3-year package showed the invoice and priced an estimate. */
+function tyreInvoiceValue(){
+  const own = parseFloat(($('tyreInvoiceInput') || {}).value) || 0;
+  if(own > 0) return own;
+  return invoiceFieldApplies(state.vehicleType, motorPolicyTypeNow(), state.policyTerm) ? (parseFloat(($('invoiceValue') || {}).value) || 0) : 0;
+}
 function updateInvoiceValueField(){
-  const polComp = $('polComp');
-  const show = state.vehicleType === 'privateCar'
-            && state.policyTerm  === '3yr'
-            && polComp && polComp.checked;
+  const show = invoiceFieldApplies(state.vehicleType, motorPolicyTypeNow(), state.policyTerm);
   $('invoiceValueField').style.display = show ? '' : 'none';
+  const hint = $('invoiceValueHint');
+  if(hint) hint.textContent = state.vehicleType === 'privateCar' ? 'Required for Tyre & Rim cover (3yr package)'
+    : 'Ex-showroom price: suggests the IDV by the depreciation schedule' + (state.vehicleType === 'pccv' ? ', and is the invoice for Tyre & Rim' : '') + '.';
 }
 
 function getRateAgeBracket(vehicleType, ageYears){
@@ -14391,7 +14410,7 @@ function calculate(silent=false){
         }
         let tyreBase = 0, tyreBaseLabel = '';
         if(data.vehicleType === 'privateCar' || data.vehicleType === 'pccv'){
-          const manualInvoice = parseFloat(($('tyreInvoiceInput') || {}).value) || 0;
+          const manualInvoice = tyreInvoiceValue();
           if(manualInvoice > 0){
             // User entered invoice value — use it directly
             tyreBase = manualInvoice;
@@ -21486,7 +21505,7 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
     $$('cngKit').value = d.cngKit || '';     /* always written, like the non-electrical figure below: a quote */
     $$('elecAcc').value = d.elecAcc || '';   /* saved without it must not inherit the figure on screen      */
     $$('nonElecAcc').value = d.nonElecAcc || '';   /* always written: a quote saved without it must not inherit the figure on screen */
-    if(d.invoiceValue) $$('invoiceValue').value = d.invoiceValue;
+    $$('invoiceValue').value = d.invoiceValue || '';   /* always written: a quote saved without it must not inherit the figure on screen */
 
     // Policy type
     if(d.policyType === 'comprehensive'){ $$('polComp').checked = true; }
@@ -22367,6 +22386,20 @@ const VERIFIED_CASES = [
                 state.odDiscount = 75; state.nilDepDiscount = 20; window.calculate(true);
                 const q = state.lastQuote, nd = (q.addons.items || []).find(a => a.key === 'nilDep') || {};
                 return [q.odBase, q.odDiscountAmt, q.odCNGKit, nd.grossAmount, nd.amount, q.tpBase, q.subtotal, q.gst, q.total].join('/'); } },
+  { label:'Invoice / Ex-Showroom field (v162): shown for GCCV, PCCV and Misc-D on an own-damage policy and for a Private Car only on the 3-year package; never on Liability Only or for a two-wheeler', expect:'false/true/false/true/true/true/false/false',
+    check:()=>[invoiceFieldApplies('privateCar','comprehensive','1yr'), invoiceFieldApplies('privateCar','comprehensive','3yr'), invoiceFieldApplies('privateCar','odOnly','1yr'),
+               invoiceFieldApplies('pccv','comprehensive','1yr'), invoiceFieldApplies('commercial','comprehensive','1yr'), invoiceFieldApplies('misc','comprehensive','1yr'),
+               invoiceFieldApplies('pccv','thirdParty','1yr'), invoiceFieldApplies('twoWheeler','comprehensive','1yr')].join('/') },
+  { label:'Tyre & Rim is rated on the Invoice / Ex-Showroom value when the tyre card\'s own box is blank: PCCV taxi, invoice 10,00,000 at 0.30% = 3,000; Private Car 3-year package, invoice 10,00,000 at 0.20% = 2,000 (it used to price an estimate while the card showed the invoice)', expect:'3000/2000',
+    check:()=>{ const tyre = () => { const b = document.querySelector('#addonsGrid input[data-addon="tyreProtect"]'); if(!b) return 'no card';
+                                     b.checked = true; if($('tyreInvoiceInput')) $('tyreInvoiceInput').value = ''; $('invoiceValue').value = 1000000; window.calculate(true);
+                                     return ((state.lastQuote.addons.items || []).find(a => a.key === 'tyreProtect') || {}).amount; };
+                window._stRun(['pccv','taxi1000to1500','A',1.4,910000,'petrol','comprehensive',0,6,0,0,0]); renderAddons();
+                const p = tyre();
+                window._stRun(['privateCar','s2','A',0.5,500000,'petrol','comprehensive',0,0,0,0,0]); state.policyTerm = '3yr'; renderAddons();
+                const c = tyre();
+                state.policyTerm = '1yr';
+                return [p, c].join('/'); } },
   { label:'Road Side Assistance (office direction 22-Sep-2026): Private Car package Rs.100, stand-alone OD Rs.100, bundled (comprehensive 3-year term in the first year) Rs.283, a 3-year term on an older car reads as package Rs.100; not on Liability Only, and not for PCCV, GCCV, two-wheelers or Misc', expect:'100/100/283/100/0/0/0/0/0',
     check:()=>[rsaPremiumFor({ vehicleType:'privateCar', policyType:'comprehensive', policyTerm:'1yr' }, 6),
                rsaPremiumFor({ vehicleType:'privateCar', policyType:'odOnly', policyTerm:'1yr' }, 30),
@@ -22661,7 +22694,7 @@ function runSelfTest(){
       disc:state.odDiscount, pax:$('paxCount')?$('paxCount').value:'',
       seatCap:$('seatCap')?$('seatCap').value:'',
       elec:$('elecAcc')?$('elecAcc').value:'', cng:$('cngKit')?$('cngKit').value:'',
-      nonElec:$('nonElecAcc')?$('nonElecAcc').value:'',
+      nonElec:$('nonElecAcc')?$('nonElecAcc').value:'', inv:$('invoiceValue')?$('invoiceValue').value:'',
       /* _stBaseline clears all of this for the test run; without it in the snapshot an agent
          who pressed Verify mid-quote silently lost the covers and discounts they had set. */
       switches: Object.assign({}, state.switches),
@@ -22711,6 +22744,7 @@ function runSelfTest(){
     if($('seatCap')) $('seatCap').value=snapshot.seatCap;
     if($('elecAcc')) $('elecAcc').value=snapshot.elec;
     if($('nonElecAcc')) $('nonElecAcc').value=snapshot.nonElec;
+    if($('invoiceValue')) $('invoiceValue').value=snapshot.inv;
     if($('cngKit')) $('cngKit').value=snapshot.cng;
     /* give the agent back everything _stBaseline cleared for the run */
     try{
@@ -28173,7 +28207,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v161 · Road Side Assistance for Private Car: flat Rs.100 on a package or stand-alone OD policy, Rs.283 on a bundled policy · 22-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v162 · Invoice / Ex-Showroom Value for GCCV, PCCV and Misc-D, and Tyre & Rim now rated on the invoice that is typed there · 22-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
