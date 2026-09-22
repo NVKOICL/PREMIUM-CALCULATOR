@@ -10361,7 +10361,8 @@ const RATES = {
     towing1500:   { name:'Towing Charges (≤₹1,500)', type:'towing', towingLimit:1500,  towingPremium:75,  },
     towing10k:    { name:'Towing Charges (≤₹10,000)',type:'towing', towingLimit:10000, towingPremium:500, },
     towing20k:    { name:'Towing Charges (≤₹20,000)',type:'towing', towingLimit:20000, towingPremium:1500, },
-    imt47:        { name:'IMT-47 Overturning Cover (Tool of Trade)', type:'percent', rate:0.005, idvBased:true, vehicleOnly:['misc'] }
+    imt47:        { name:'IMT-47 Overturning Cover (Tool of Trade)', type:'percent', rate:0.005, idvBased:true, vehicleOnly:['misc'] },
+    rsa:          { name:'Road Side Assistance', type:'rsa', vehicleOnly:['privateCar'] }   // flat: Rs.100 package / SAOD, Rs.283 bundled (v161)
   },
 
   // ── RTI RATE TABLE (% of IDV by policy/vehicle age) ──────────────
@@ -12113,6 +12114,7 @@ function renderTerms(){
 
 /* ─── Render add-ons ─────────────────────────────────────────── */
 const ADDON_ICONS = {
+  rsa:           `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>`,
   nilDep:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`,
   engineProtect: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4M12 15v2"/></svg>`,
   rti:           `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 14l-4-4 4-4M5 10h11a4 4 0 0 1 0 8h-1"/></svg>`,
@@ -12165,6 +12167,11 @@ function renderAddons(){
       const tp = towingPremiumFor(state.vehicleType, ($('ccSlab')||{}).value, a.towingLimit);
       const pct = (tp/a.towingLimit*100).toFixed(1).replace('.0','');
       note = `₹${tp} (${pct}% of ₹${(a.towingLimit/1000).toFixed(0)}K limit)`;
+    } else if(a.type === 'rsa'){
+      const polNow = ($('polComp') && $('polComp').checked) ? 'comprehensive' : (($('polOD') && $('polOD').checked) ? 'odOnly' : 'thirdParty');
+      const rsaData = { vehicleType: state.vehicleType, policyType: polNow, policyTerm: state.policyTerm };
+      if(polNow === 'thirdParty'){ disabled = true; note = 'Not available on Liability Only'; }
+      else note = rsaIsBundled(rsaData, ageMonths) ? `₹${RSA_PREMIUM.bundled} flat · bundled policy` : `₹${RSA_PREMIUM.standard} flat · package / stand-alone OD`;
     } else if(a.type === 'towingFlat'){
       const capNow = towingCapFor(state.vehicleType, ($('ccSlab')||{}).value);
       if(capNow >= 1500) return '';       // covered by the ₹1,500 / ₹10K / ₹20K chips
@@ -13488,6 +13495,19 @@ function syncDiscountUIFromState(){
 })();
 
 
+/* Road Side Assistance - Private Car only (office direction, 22-Sep-2026): flat Rs.100 on a Package
+   or Stand-Alone OD policy, flat Rs.283 on a Bundled one; not offered on Liability Only. "Bundled" is
+   read exactly as the discount grid reads it (getDiscountPolicyBucket): comprehensive on a 3- or
+   5-year term while the car is in its first year. */
+const RSA_PREMIUM = { standard:100, bundled:283 };
+function rsaIsBundled(data, ageMonths){
+  return data.policyType === 'comprehensive' && (data.policyTerm === '3yr' || data.policyTerm === '5yr')
+      && (ageMonths === null || ageMonths === undefined || ageMonths <= 12);
+}
+function rsaPremiumFor(data, ageMonths){
+  if(data.vehicleType !== 'privateCar' || data.policyType === 'thirdParty') return 0;
+  return rsaIsBundled(data, ageMonths) ? RSA_PREMIUM.bundled : RSA_PREMIUM.standard;
+}
 function is3yrPackage(data){
   return data.vehicleType === 'privateCar'
       && data.policyType  === 'comprehensive'
@@ -14333,6 +14353,16 @@ function calculate(silent=false){
         else                    krAmt = 500;
         addons.items.push({ key, name:`${a.name} (IDV slab → ₹${krAmt})`, amount:krAmt });
         addons.total += krAmt;
+        continue;
+      }
+
+      // ── Road Side Assistance (Private Car — ₹100 package / SAOD, ₹283 bundled; flat) ──
+      if(a.type === 'rsa'){
+        const rsaAmt = rsaPremiumFor(data, ageMonths);
+        if(rsaAmt > 0){
+          addons.items.push({ key, name:`${a.name} (${rsaIsBundled(data, ageMonths) ? 'bundled policy' : 'package / stand-alone OD'} · flat)`, amount:rsaAmt });
+          addons.total += rsaAmt;
+        }
         continue;
       }
 
@@ -21453,8 +21483,8 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
     if(d.idv && !asDuplicate) $$('idv').value = d.idv;
     if(d.idv && asDuplicate) $$('idv').value = d.idv;  // include in duplicate too — user can adjust
     if(d.paxCount) $$('paxCount').value = d.paxCount;
-    if(d.cngKit) $$('cngKit').value = d.cngKit;
-    if(d.elecAcc) $$('elecAcc').value = d.elecAcc;
+    $$('cngKit').value = d.cngKit || '';     /* always written, like the non-electrical figure below: a quote */
+    $$('elecAcc').value = d.elecAcc || '';   /* saved without it must not inherit the figure on screen      */
     $$('nonElecAcc').value = d.nonElecAcc || '';   /* always written: a quote saved without it must not inherit the figure on screen */
     if(d.invoiceValue) $$('invoiceValue').value = d.invoiceValue;
 
@@ -22337,6 +22367,26 @@ const VERIFIED_CASES = [
                 state.odDiscount = 75; state.nilDepDiscount = 20; window.calculate(true);
                 const q = state.lastQuote, nd = (q.addons.items || []).find(a => a.key === 'nilDep') || {};
                 return [q.odBase, q.odDiscountAmt, q.odCNGKit, nd.grossAmount, nd.amount, q.tpBase, q.subtotal, q.gst, q.total].join('/'); } },
+  { label:'Road Side Assistance (office direction 22-Sep-2026): Private Car package Rs.100, stand-alone OD Rs.100, bundled (comprehensive 3-year term in the first year) Rs.283, a 3-year term on an older car reads as package Rs.100; not on Liability Only, and not for PCCV, GCCV, two-wheelers or Misc', expect:'100/100/283/100/0/0/0/0/0',
+    check:()=>[rsaPremiumFor({ vehicleType:'privateCar', policyType:'comprehensive', policyTerm:'1yr' }, 6),
+               rsaPremiumFor({ vehicleType:'privateCar', policyType:'odOnly', policyTerm:'1yr' }, 30),
+               rsaPremiumFor({ vehicleType:'privateCar', policyType:'comprehensive', policyTerm:'3yr' }, 3),
+               rsaPremiumFor({ vehicleType:'privateCar', policyType:'comprehensive', policyTerm:'3yr' }, 30),
+               rsaPremiumFor({ vehicleType:'privateCar', policyType:'thirdParty', policyTerm:'1yr' }, 6),
+               rsaPremiumFor({ vehicleType:'pccv', policyType:'comprehensive', policyTerm:'1yr' }, 6),
+               rsaPremiumFor({ vehicleType:'commercial', policyType:'comprehensive', policyTerm:'1yr' }, 6),
+               rsaPremiumFor({ vehicleType:'twoWheeler', policyType:'comprehensive', policyTerm:'1yr' }, 6),
+               rsaPremiumFor({ vehicleType:'misc', policyType:'comprehensive', policyTerm:'1yr' }, 6)].join('/') },
+  { label:'Road Side Assistance through the Motor engine: a private car package quote with the cover ticked carries a flat Rs.100 add-on, untouched by the OD discount, and the card is offered only for Private Car', expect:'100/false',
+    check:()=>{ window._stRun(['privateCar','s2','A',0.5,500000,'petrol','comprehensive',0,0,0,0,0]);
+                const box = document.querySelector('#addonsGrid input[data-addon="rsa"]');
+                if(!box) return 'no card';
+                box.checked = true; state.odDiscount = 50; window.calculate(true);
+                const it = (state.lastQuote.addons.items || []).find(a => a.key === 'rsa') || {};
+                window._stRun(['pccv','taxi1000to1500','A',1.4,910000,'petrol','comprehensive',0,6,0,0,0]);
+                renderAddons();   /* the harness switches class without redrawing the grid; the screen redraws on a tab click */
+                const onPccv = !!document.querySelector('#addonsGrid input[data-addon="rsa"]');
+                return [it.amount, onPccv].join('/'); } },
   { label:'Motor add-on schedule: wordings present for every add-on key (Nil Dep, Engine Protect, RTI, Consumables, Key, Tyre, Battery, EMI, Alt Car, Personal Effects, Towing, IMT-47, IMT-23)', expect:'13/towing/batteryProtect',
     check:()=>Object.keys(MOTOR_ADDON_WORDINGS).length+'/'+motorAddonWordingKey('towing10k')+'/'+motorAddonWordingKey('batteryProtectCoPay') },
   // ── INLIAS worksheet R/161600/31/2027/453 (GCCV KA22D9540, 19/08/2026) ──
@@ -27572,9 +27622,11 @@ window.FIRE_VERIFIED = [
   { label:'The Nil Dep renewal switch is shown for PCCV and GCCV and follows Nil Dep when a date change refuses the cover (it used to stay on screen)', expect:'true/true/false/true',
     check:()=>[nilDepRenewalClass('pccv'), nilDepRenewalClass('commercial'), nilDepRenewalClass('privateCar'),
                /syncNilDepRenewalRow\(\)/.test(String(renderAddons))].join('/') },
-  { label:'Motor Non-Electrical Accessories: a saved quote always writes the field on reload (a quote saved with nil no longer inherits the figure on screen), a negative entry is floored at nil, and the WhatsApp text says the premium is already inside Basic OD', expect:'true/true/true',
+  { label:'Motor accessories on a saved quote: Non-Electrical, Electrical and the CNG kit are always written on reload (a quote saved with nil no longer inherits the figure on screen); a negative Non-Electrical entry is floored at nil, and the WhatsApp text says that premium is already inside Basic OD', expect:'true/true/true/true/true',
     check:()=>{ const all = Array.from(document.scripts).map(x => x.textContent).join('\n');
                 return [/\$\$\('nonElecAcc'\)\.value = d\.nonElecAcc \|\| '';/.test(all),
+                        /\$\$\('elecAcc'\)\.value = d\.elecAcc \|\| '';/.test(all),
+                        /\$\$\('cngKit'\)\.value = d\.cngKit \|\| '';/.test(all),
                         /nonElecAcc:\s+Math\.max\(0, parseFloat\(\$\('nonElecAcc'\)\.value\)/.test(String(window.calculate)),
                         /already in Basic OD a[b]ove/.test(all)   /* a[b] so this pattern cannot match its own source */].join('/'); } },
   { label:'Motor: Non-Electrical Accessories is on the screen below Electrical Accessories (v158) and rated at the vehicle\'s own OD rate - private car 1000-1500cc Zone A up to 5 yrs (3.283%), IDV 5,00,000 + non-electrical 20,000: that line is 657 and the basic OD is 17,072 on 5,20,000; the PDF prints its IDV row', expect:'true/657/17072/true',
@@ -28121,7 +28173,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v159 · Non-Electrical Accessories: a reloaded saved quote no longer inherits the figure on screen, a negative entry is floored at nil, and the WhatsApp text shows it inside Basic OD · 22-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v161 · Road Side Assistance for Private Car: flat Rs.100 on a package or stand-alone OD policy, Rs.283 on a bundled policy · 22-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
