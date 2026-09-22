@@ -13796,7 +13796,7 @@ function calculate(silent=false){
     paxCount:     parseInt($('paxCount').value, 10) || 0,
     cngKit:       parseFloat($('cngKit').value) || 0,
     elecAcc:      parseFloat($('elecAcc').value) || 0,
-    nonElecAcc:   parseFloat($('nonElecAcc').value) || 0,   /* reinstated in v158: rated at the vehicle's OD rate */
+    nonElecAcc:   Math.max(0, parseFloat($('nonElecAcc').value) || 0),   /* reinstated in v158: rated at the vehicle's OD rate; never below nil */
     vehicleType:  state.vehicleType,
     zone:         state.zone,
     fuel:         state.fuel,
@@ -15118,7 +15118,7 @@ function buildWhatsAppText(q){
     if(q.imt47Amt > 0) t += `• Add: Overturning Cover — IMT-47 (0.50% on IDV): ₹${fmt(q.imt47Amt)}\n`;
     if(q.odCNGKit>0)     t += `• CNG/LPG OD ${q.odCNGInbuilt?'(in-built, 5% of Basic OD)':'(declared kit, 4%)'}: ₹${fmt(q.odCNGKit)}\n`;
     if(q.odElecAcc>0)    t += `• Elec. Acc: ₹${fmt(q.odElecAcc)}\n`;
-    if(q.odNonElecAccPrem>0) t += `• Non-Elec. Acc (in IDV): ₹${fmt(q.odNonElecAccPrem)}\n`;
+    if(q.odNonElecAccPrem>0) t += `• incl. Non-Elec. Acc (already in Basic OD above): ₹${fmt(q.odNonElecAccPrem)}\n`;
     t += `• Basic OD Before Discount: ₹${fmt(q.basicODBeforeDiscount)}\n`;
     if(q.odDiscountAmt>0){
       const waHasImt23 = q.extras && q.extras.items && q.extras.items.some(e => e.name && e.name.includes('IMT'));
@@ -20943,7 +20943,7 @@ function _trendComputeAt(idv){
     paxCount:     parseInt($$('paxCount').value, 10) || 0,
     cngKit:       parseFloat($$('cngKit').value) || 0,
     elecAcc:      parseFloat($$('elecAcc').value) || 0,
-    nonElecAcc:   parseFloat($$('nonElecAcc').value) || 0,
+    nonElecAcc:   Math.max(0, parseFloat($$('nonElecAcc').value) || 0),
     vehicleType:  state.vehicleType,
     zone:         state.zone,
     fuel:         state.fuel,
@@ -21455,7 +21455,7 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
     if(d.paxCount) $$('paxCount').value = d.paxCount;
     if(d.cngKit) $$('cngKit').value = d.cngKit;
     if(d.elecAcc) $$('elecAcc').value = d.elecAcc;
-    if(d.nonElecAcc) $$('nonElecAcc').value = d.nonElecAcc;
+    $$('nonElecAcc').value = d.nonElecAcc || '';   /* always written: a quote saved without it must not inherit the figure on screen */
     if(d.invoiceValue) $$('invoiceValue').value = d.invoiceValue;
 
     // Policy type
@@ -27572,6 +27572,11 @@ window.FIRE_VERIFIED = [
   { label:'The Nil Dep renewal switch is shown for PCCV and GCCV and follows Nil Dep when a date change refuses the cover (it used to stay on screen)', expect:'true/true/false/true',
     check:()=>[nilDepRenewalClass('pccv'), nilDepRenewalClass('commercial'), nilDepRenewalClass('privateCar'),
                /syncNilDepRenewalRow\(\)/.test(String(renderAddons))].join('/') },
+  { label:'Motor Non-Electrical Accessories: a saved quote always writes the field on reload (a quote saved with nil no longer inherits the figure on screen), a negative entry is floored at nil, and the WhatsApp text says the premium is already inside Basic OD', expect:'true/true/true',
+    check:()=>{ const all = Array.from(document.scripts).map(x => x.textContent).join('\n');
+                return [/\$\$\('nonElecAcc'\)\.value = d\.nonElecAcc \|\| '';/.test(all),
+                        /nonElecAcc:\s+Math\.max\(0, parseFloat\(\$\('nonElecAcc'\)\.value\)/.test(String(window.calculate)),
+                        /already in Basic OD a[b]ove/.test(all)   /* a[b] so this pattern cannot match its own source */].join('/'); } },
   { label:'Motor: Non-Electrical Accessories is on the screen below Electrical Accessories (v158) and rated at the vehicle\'s own OD rate - private car 1000-1500cc Zone A up to 5 yrs (3.283%), IDV 5,00,000 + non-electrical 20,000: that line is 657 and the basic OD is 17,072 on 5,20,000; the PDF prints its IDV row', expect:'true/657/17072/true',
     /* these checks sit inside the Fire module, where calculate and generatePDF are Fire's own - the
        Motor ones are reached through window, and each is proved to be Motor's before it is read */
@@ -28116,7 +28121,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v158 · Non-Electrical Accessories is back on the Motor screen below Electrical Accessories, added to the IDV and rated at the vehicle's own OD rate · 22-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v159 · Non-Electrical Accessories: a reloaded saved quote no longer inherits the figure on screen, a negative entry is floored at nil, and the WhatsApp text shows it inside Basic OD · 22-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
