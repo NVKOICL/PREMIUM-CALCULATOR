@@ -478,7 +478,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
        quoteId  : 'FIQ-20260725-1722',
        dateStr  : '25-07-2026',
        costCode : '',                       // faint agent-only code (optional)
-       agent    : { name:'Vinod', phone:'70326 88497', code:'', email:'' },
+       agent    : { name:'Agent name', phone:'Mobile', code:'', email:'' },
        left     : [ { bar:'Customer Details', rows:[ ['Name','...'] ] } ],
        right    : [ { bar:'Premium Breakup' },
                     { sub:'Section I - Fire', rows:[ {label:'..',value:'..'} ] } ],
@@ -841,7 +841,8 @@ var OIC_WORD_AR  = 640/103;
 
       text('https://www.orientalinsurance.org.in', W / 2, by + 10,
            { bold: true, size: 10, color: C.blue, align: 'center' });
-      text((agent.name ? agent.name + '  \u00B7  ' + (agent.phone || '') + '  \u00B7  ' : '') +
+      var agentBits = [agent.name, agent.phone].filter(function(x){ return x && String(x).trim(); }).join('  \u00B7  ');
+      text((agentBits ? agentBits + '  \u00B7  ' : '') +
            'Built by NeelamVinod Krishna  \u00B7  Quote ' + (spec.quoteId || ''),
            W / 2, by + 20, { size: 7.2, color: C.mute, align: 'center' });
     }
@@ -3195,7 +3196,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
   </section>
 
   <footer class="footer" style="margin-top:20px">
-    <strong>Vinod · The Oriental Insurance Company Ltd</strong><br>
+    <strong>The Oriental Insurance Company Ltd</strong><br>
     <span>Oriental Sampoorna Swasthya Suraksha · UIN: OICHLIP26035V012526</span><br>
     <span style="font-size:10px;opacity:.7">Rates per OSSSP Premium Chart. Subject to insurer underwriting.</span>
   </footer>
@@ -5656,7 +5657,7 @@ Indicative premium &middot; TAC All India CAR Tariff &middot; subject to underwr
 (function(){
 const ROOT=document.getElementById('sectionCar');
 const $=id=>document.getElementById('ce-'+id);
-const AG=()=>(typeof AGENT!=='undefined'&&AGENT)?AGENT:{name:'Vinod',phone:'7032688497'};
+const AG=()=>(typeof AGENT!=='undefined'&&AGENT)?AGENT:{name:'', phone:''};
 const CAR_DATA={"011011":{n:"Residential/Commercial – Other than RCC, ≤2 storeys",r:1.00,a:0.020,nEx:3000,aEx:10000},"012032":{n:"Residential/Commercial – Other than RCC, >2 to 5 storeys",r:1.75,a:0.025,nEx:5000,aEx:20000},"013022":{n:"Residential/Commercial – RCC framed, ≤5 storeys",r:1.50,a:0.025,nEx:5000,aEx:20000},"014043":{n:"Residential/Commercial – RCC framed, >5 to 10 storeys",r:2.00,a:0.030,nEx:5000,aEx:20000},"015_":{n:"Residential/Commercial – RCC framed, >10 to 15 storeys",r:2.25,a:0.035,nEx:5000,aEx:20000},"016096":{n:"Residential/Commercial – RCC framed, >15 to 25 storeys",r:3.00,a:0.050,nEx:50000,aEx:200000},"017106":{n:"Residential/Commercial – RCC framed, >25 to 30 storeys",r:3.25,a:0.050,nEx:50000,aEx:200000},"018_":{n:"Residential/Commercial – RCC framed, >30 to 40 storeys",r:3.50,a:0.050,nEx:50000,aEx:200000},"019_":{n:"Residential/Commercial – RCC framed, >40 to 50 storeys",r:3.75,a:0.050,nEx:50000,aEx:200000},"020_":{n:"Residential/Commercial – RCC framed, >50 to 60 storeys",r:4.00,a:0.050,nEx:50000,aEx:200000},"021041":{n:"Theatres/Auditoriums – Height ≤22m, Span ≤10m",r:2.00,a:0.020,nEx:3000,aEx:10000},"022043":{n:"Theatres/Auditoriums – Height ≤22m, Span >10m",r:2.00,a:0.030,nEx:5000,aEx:20000},"023063":{n:"Theatres/Auditoriums – Height >22m, Span ≤10m",r:2.25,a:0.030,nEx:10000,aEx:40000},"024073":{n:"Theatres/Auditoriums – Height >22m, Span >10m",r:2.50,a:0.030,nEx:10000,aEx:40000},"031061":{n:"Factory Sheds/Warehouses/Cold Storages – Non-RCC",r:2.25,a:0.020,nEx:10000,aEx:40000},"032041":{n:"Factory Sheds/Warehouses/Cold Storages – RCC",r:2.00,a:0.020,nEx:5000,aEx:20000},"033051":{n:"Hangars (RCC/Steel composite)",r:2.125,a:0.020,nEx:10000,aEx:40000},"041072":{n:"Chimneys/Silos/TV Towers – Ht ≤15m, Dia ≤10m",r:2.50,a:0.025,nEx:10000,aEx:40000},"042115":{n:"Chimneys/Silos/TV Towers – Ht >15m, Dia >10m",r:3.50,a:0.040,nEx:10000,aEx:40000},"043128":{n:"Hyperbolic / Natural Draught Cooling Tower",r:4.00,a:0.105,nEx:100000,aEx:200000},"051042":{n:"Roads – In townships only",r:0.60,a:0.0075,nEx:500000,aEx:2500000,road:true},"052073":{n:"Roads – In plain areas",r:0.75,a:0.009,nEx:500000,aEx:2500000,road:true},"053095":{n:"Roads – In hilly / ghat areas",r:0.90,a:0.012,nEx:500000,aEx:2500000,road:true},"061097":{n:"Interior Decoration Works",r:3.00,a:0.100,nEx:10000,aEx:40000},"071042":{n:"Runways, Aprons and Air Taxiways at Airports",r:2.00,a:0.025,nEx:5000,aEx:20000},"081073":{n:"Bridges/Flyovers on land – Span ≤15m",r:2.50,a:0.030,nEx:5000,aEx:20000},"082095":{n:"Bridges/Flyovers on land – Span >15m",r:3.00,a:0.040,nEx:10000,aEx:40000},"091073":{n:"Subways on land – Width ≤15m",r:2.50,a:0.300,nEx:5000,aEx:20000},"092095":{n:"Subways on land – Width >15m",r:3.00,a:0.400,nEx:10000,aEx:40000},"101096":{n:"Road bridges on land – Steel",r:3.00,a:0.050,nEx:5000,aEx:20000},"102116":{n:"Road bridges on land – RCC / Prestressed Concrete",r:3.50,a:0.050,nEx:10000,aEx:40000},"103136":{n:"Road bridges on land – Other materials (Provisional)",r:5.00,a:0.100,nEx:20000,aEx:80000},"111127":{n:"Bridges on rivers/creeks, Dams, Coffer dams, Barrages, Works in water",r:6.00,a:0.100,nEx:150000,aEx:500000},"121093":{n:"Reservoir/Tank (non-steel) – Surface & underground",r:3.00,a:0.300,nEx:5000,aEx:20000},"122115":{n:"Reservoir/Tank (non-steel) – Overhead",r:3.50,a:0.400,nEx:5000,aEx:20000},"123062":{n:"Reservoir/Tank (steel) – Surface & underground",r:2.25,a:0.025,nEx:5000,aEx:20000},"124073":{n:"Reservoir/Tank (steel) – Overhead",r:2.50,a:0.030,nEx:5000,aEx:20000},"131157":{n:"Tunnels – Above sea level",r:7.00,a:0.100,nEx:200000,aEx:500000},"132167":{n:"Tunnels – Below sea level",r:10.00,a:0.100,nEx:400000,aEx:800000},"151043":{n:"Water Supply Installations for housing colonies",r:2.00,a:0.030,nEx:3000,aEx:10000},"161043":{n:"Sewage Disposal System for housing colonies",r:2.00,a:0.030,nEx:3000,aEx:10000},"161B":{n:"Refurbishment of existing Sewage Systems",r:2.50,a:0.050,nEx:100000,aEx:200000},"171073":{n:"Underground & overhead water storage tanks",r:2.50,a:0.030,nEx:3000,aEx:10000},"181013":{n:"Ground leveling and area reclamation work",r:1.00,a:0.030,nEx:3000,aEx:10000},"191011":{n:"Fixing pre-cast RCC parts / compound walls / weather sheds",r:1.00,a:0.020,nEx:3000,aEx:10000},"201011":{n:"Other sundry works – waterproofing, plastering of walls",r:1.00,a:0.020,nEx:3000,aEx:10000},"221089":{n:"Underground cable ducting",r:2.75,a:0.500,nEx:20000,aEx:80000},"231128":{n:"Natural Draught Cooling Towers",r:4.00,a:0.105,nEx:100000,aEx:200000},"241116":{n:"Pile foundations alone (buildings & other structures)",r:3.50,a:0.050,nEx:100000,aEx:200000},"251087":{n:"Canals / Culverts (not involving works under water)",r:2.75,a:0.100,nEx:20000,aEx:80000},"260000":{n:"Railway gauge conversion / laying of railway track",r:3.00,a:0.030,nEx:10000,aEx:40000},"211137":{n:"All other risks not covered above (Provisional – refer TAC)",r:5.00,a:0.100,nEx:20000,aEx:80000},};let currentMode='car';let selectedCode=null;let lastQuote=null;function setMode(m){currentMode=m;$('type-car').checked=(m==='car');$('type-ear').checked=(m==='ear');$('car-risk-card').style.display=(m==='car')?'block':'none';$('ear-risk-card').style.display=(m==='ear')?'block':'none';const badge=$('mode-badge');if(m==='car'){badge.textContent='● CAR Mode Active';badge.style.background='linear-gradient(135deg,#dbeafe,#bfdbfe)';badge.style.color='var(--accent-dark)';}else{badge.textContent='● EAR / SCE Mode Active';badge.style.background='linear-gradient(135deg,#d1fae5,#a7f3d0)';badge.style.color='#065f46';}
 const calcBtn=ROOT.querySelector('.btn-primary');if(calcBtn){const labelSpan=calcBtn.querySelector('.btn-label');if(labelSpan)labelSpan.textContent=m==='car'?'Calculate CAR Premium':'Calculate EAR Premium';}
 $('result-card').classList.remove('visible');$('install-card').style.display='none';$('ear-split-card').style.display=(m==='ear')?'block':'none';updateALOPVisibility(m);}
@@ -5875,11 +5876,11 @@ const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/aja
 function generatePDF(){const card=$('result-card');if(!card.classList.contains('visible')){alert('Please calculate the premium first.');return;}
 const btn=$('pdf-btn');const lbl=$('pdf-btn-label');btn.disabled=true;lbl.innerHTML='<span class="pdf-spin">&#x21BB;</span>&nbsp; Generating PDF…';const finish=(err)=>{btn.disabled=false;lbl.textContent='Download PDF Quote';if(err)alert(err);};loadJsPDF(()=>{try{buildPDF(false);finish();}catch(e){finish('PDF error: '+(e.message||e));}},()=>finish('Could not load PDF library. Check internet connection.'));}
 function newQuote(){try{['sum-insured','insured-name'].forEach(id=>{const e=$(id);if(e)e.value='';});const card=$('result-card');if(card)card.classList.remove('visible');lastQuote=null;const sec=document.getElementById('sectionCar');if(sec)window.scrollTo({top:Math.max(0,sec.offsetTop-8),behavior:'smooth'});}catch(e){console.error(e);}}
-function shareImage(){if(!lastQuote){alert('Please calculate the premium first.');return;}const q=lastQuote;const safe=(q.insuredName||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);OICIMG.shareViaBuilder(function(){buildPDF(true);},'Oriental_'+(q.mode==='ear'?'EAR':'CAR')+'_Quote_'+safe+'.png',(q.mode==='ear'?'EAR':'CAR')+' Premium Quote \u2014 '+q.insuredName,'Oriental Insurance '+(q.mode==='ear'?'EAR':'CAR')+' quote for '+q.insuredName+' \u2014 grand total '+fmtR(q.grand)+' (incl. GST). '+AG().name+' \u00b7 '+AG().phone);}
+function shareImage(){if(!lastQuote){alert('Please calculate the premium first.');return;}const q=lastQuote;const safe=(q.insuredName||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);OICIMG.shareViaBuilder(function(){buildPDF(true);},'Oriental_'+(q.mode==='ear'?'EAR':'CAR')+'_Quote_'+safe+'.png',(q.mode==='ear'?'EAR':'CAR')+' Premium Quote \u2014 '+q.insuredName,'Oriental Insurance '+(q.mode==='ear'?'EAR':'CAR')+' quote for '+q.insuredName+' \u2014 grand total '+fmtR(q.grand)+' (incl. GST). '+agentSig());}
 function shareWA(){const card=$('result-card');if(!card.classList.contains('visible')){alert('Please calculate the premium first.');return;}
 if(!lastQuote){alert('Please calculate the premium first.');return;}
 const btn=$('wa-btn');const lbl=$('wa-btn-label');btn.disabled=true;lbl.innerHTML='<span class="pdf-spin">&#x21BB;</span>&nbsp; Preparing PDF…';const finish=(err)=>{btn.disabled=false;lbl.textContent='Share PDF on WhatsApp';if(err)alert(err);};loadJsPDF(()=>{try{const blob=buildPDF(true);if(!blob){finish('Could not generate PDF.');return;}
-const q=lastQuote;const safe=(q.insuredName||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);const fname=q.pdfFilename||('Oriental_'+(q.mode||'ENG').toUpperCase()+'_Quote_'+safe+'.pdf');const file=new File([blob],fname,{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({title:(q.mode==='ear'?'EAR':'CAR')+' Premium Quote — '+q.insuredName,files:[file]}).then(()=>finish()).catch(e=>{if(e.name!=='AbortError')finish('Share failed: '+e.message);else finish();});}else{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fname;a.click();setTimeout(()=>URL.revokeObjectURL(url),8000);const f2=n=>'₹'+n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});const msg=`🏗️ *${q.mode === 'ear' ? 'EAR/SCE' : 'CAR'} Premium Quote*\nRef: ${q.quoteRef} | ${q.dateStr}\nProject: *${q.insuredName}*\nGrand Total: *${f2(q.grand)}* (incl. GST 18%)\n\n_PDF downloaded — please attach to this chat._\n\n_Oriental Insurance Co. Ltd. · ${AG().name} ${AG().phone}_`;setTimeout(()=>window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank'),600);finish();}}catch(e){finish('Error: '+(e.message||e));}},()=>finish('Could not load PDF library.'));}
+const q=lastQuote;const safe=(q.insuredName||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);const fname=q.pdfFilename||('Oriental_'+(q.mode||'ENG').toUpperCase()+'_Quote_'+safe+'.pdf');const file=new File([blob],fname,{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({title:(q.mode==='ear'?'EAR':'CAR')+' Premium Quote — '+q.insuredName,files:[file]}).then(()=>finish()).catch(e=>{if(e.name!=='AbortError')finish('Share failed: '+e.message);else finish();});}else{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fname;a.click();setTimeout(()=>URL.revokeObjectURL(url),8000);const f2=n=>'₹'+n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});const msg=`🏗️ *${q.mode === 'ear' ? 'EAR/SCE' : 'CAR'} Premium Quote*\nRef: ${q.quoteRef} | ${q.dateStr}\nProject: *${q.insuredName}*\nGrand Total: *${f2(q.grand)}* (incl. GST 18%)\n\n_PDF downloaded — please attach to this chat._\n\n_Oriental Insurance Co. Ltd.${agentSig(' ') ? ' · ' + agentSig(' ') : ''}_`;setTimeout(()=>window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank'),600);finish();}}catch(e){finish('Error: '+(e.message||e));}},()=>finish('Could not load PDF library.'));}
 function wrapText(s,n){s=String(s||'');const out=[];while(s.length>n){let cut=s.lastIndexOf(' ',n);if(cut<n*0.5)cut=n;out.push(s.slice(0,cut));s=s.slice(cut).trim();}if(s)out.push(s);return out;}
 function alopSnapshot(){if(!alopActive)return null;const si=parseFloat($('alop-si').value)||0;const rate=parseFloat($('alop-rate').value)||0.20;if(si<=0)return null;return{si,rate,mip:$('alop-mip').value,prem:(si/1000)*rate};}
 function buildPDF(returnBlob){if(!lastQuote)return null;const q=lastQuote;const R=OICPDF.money2;const now=q.pdfNow||(q.pdfNow=new Date());const dateStr=now.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');const A=AG();const isEAR=q.mode==='ear';const isSplit=isEAR&&q.splitSegments&&q.splitSegments.length>0;const months=q.totalMonths||q.months;const pm=' per mille';
@@ -6517,7 +6518,7 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
     const dateStr = now.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
     if(!q.quoteRef) q.quoteRef = wcQuoteRef(now);
 
-    const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'Vinod', phone:'7032688497'};
+    const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'', phone:''};
 
     // Commission cost-code: CR-8811 §3.2 Employer's Liability 21.5% of the net premium
     let costCode='';
@@ -6669,7 +6670,7 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
     if(!q){ alert('Please calculate the premium first.'); return; }
     const safeName=(q.insured||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);
     OICIMG.shareViaBuilder(function(){ buildWcPDF(true); }, 'Oriental_WC_Quote_'+safeName+'.png', "Employees' Compensation Quote \u2014 "+(q.insured||''),
-      "Oriental Insurance Employees' Compensation quote for "+(q.insured||'')+' \u2014 total \u20b9'+Number(q.grand).toLocaleString('en-IN')+' (incl. GST). '+((typeof AGENT!=='undefined'&&AGENT.name)||'')+' \u00b7 '+((typeof AGENT!=='undefined'&&AGENT.phone)||''));
+      "Oriental Insurance Employees' Compensation quote for "+(q.insured||'')+' \u2014 total \u20b9'+Number(q.grand).toLocaleString('en-IN')+' (incl. GST). '+agentSig());
   }
   function wcShare(){
     const q=window.wcLastQuote;
@@ -6699,8 +6700,7 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
             +'\nEmployees: '+q.headcount
             +'\nGrand Total: *'+f2(q.grand)+'* (incl. GST 18%)'
             +'\n\n_PDF quote downloaded \u2014 please attach it to this chat._'
-            +'\n\n_Oriental Insurance Co. Ltd. \u00b7 '+((typeof AGENT!=='undefined'&&AGENT.name)||'Vinod')
-            +' '+((typeof AGENT!=='undefined'&&AGENT.phone)||'')+'_';
+            +'\n\n_Oriental Insurance Co. Ltd.'+(agentSig(' ') ? ' \u00b7 '+agentSig(' ') : '')+'_';
           setTimeout(()=>window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank'), 600);
           busy(btn,false);
         }
@@ -8582,7 +8582,7 @@ function buildPDF(returnBlob){
   const R = OICPDF.money2, inp = q.inp, now = q.now;
   const dateStr = now.toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'}).replace(/\//g, '-');
   let costCode = ''; try{ costCode = (typeof buildCostCode === 'function') ? buildCostCode(q.discPct, 0, q.commAmt || 0) : ''; }catch(e){}
-  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'Vinod', phone:'7032688497'};
+  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'', phone:''};
   const eqName = 'Zone ' + ['','I','II','III','IV'][inp.zone];
   const left = [
     { bar:'Customer Details', rows:[ ['Name', q.insured], ['Mobile No', ''], ['Email', ''] ] },
@@ -9078,7 +9078,7 @@ function buildPDF(returnBlob){
   const R = OICPDF.money2, inp = q.inp, now = q.now;
   const dateStr = now.toLocaleDateString('en-IN', { day:'2-digit', month:'2-digit', year:'numeric' }).replace(/\//g, '-');
   let costCode = ''; try{ costCode = (typeof buildCostCode === 'function') ? buildCostCode(q.effDiscPct, 0, 0) : ''; }catch(e){}
-  const AG = (typeof AGENT !== 'undefined') ? AGENT : { name:'Vinod', phone:'7032688497' };
+  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'', phone:''};
   const optedKeys = q.rows.map(function(r){ return r.key; });
   const left = [
     { bar:'Customer Details', rows:[ ['Name', q.insured], ['Mobile No', ''], ['Email', ''] ] },
@@ -9571,7 +9571,7 @@ function buildPDF(returnBlob){
   const R = OICPDF.money2, now = q.now;
   const dateStr = now.toLocaleDateString('en-IN', { day:'2-digit', month:'2-digit', year:'numeric' }).replace(/\//g, '-');
   let costCode = ''; try{ costCode = (typeof buildCostCode === 'function') ? buildCostCode(q.effDiscPct, 0, 0) : ''; }catch(e){}
-  const AG = (typeof AGENT !== 'undefined') ? AGENT : { name:'Vinod', phone:'7032688497' };
+  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'', phone:''};
   const nm = function(t){ return OICPDF.pdfSafe(t).replace(/&amp;/g, '&'); };
   const optedKeys = q.rows.map(function(r){ return r.key; });
   const left = [
@@ -9913,7 +9913,7 @@ window.OUM.VERIFIED = [
   </section>
 
   <footer class="footer" style="margin-top:20px">
-    <strong>Vinod · The Oriental Insurance Company Ltd</strong><br>
+    <strong>The Oriental Insurance Company Ltd</strong><br>
     <span>Oriental Youth Eco Care Policy · UIN: OICHLIP24034V012324</span><br>
     <span style="font-size:10px;opacity:.7">Rates per YEC Premium Chart. Subject to insurer underwriting.</span>
   </footer>
@@ -9933,10 +9933,15 @@ window.OUM.VERIFIED = [
    ⚙ï¸ CONFIG — EDIT HERE
    ================================================================ */
 const AGENT = {
-  name:'Vinod', agency:'The Oriental Insurance Company Ltd',
-  phone:'7032688497', email:'',
+  name:'', agency:'The Oriental Insurance Company Ltd',   /* no built-in name or mobile (v163): each agent types their own */
+  phone:'', email:'',
   location:'Andhra Pradesh'
 };
+/* "Name · Mobile" with only the parts that are filled - blank details print nothing, not a stray " · ". */
+function agentSig(sep, a){
+  a = a || ((typeof AGENT !== 'undefined' && AGENT) || {});
+  return [a.name, a.phone].map(x => String(x || '').trim()).filter(Boolean).join(sep === undefined ? ' \u00b7 ' : sep);
+}
 
 const RATES = {
 
@@ -10852,23 +10857,35 @@ const state = {
    Note: this only edits the agent's own name/phone. The "Designed & built by
    NeelamVinod Krishna" credit is separate and is never touched. */
 const AGENT_LS_KEY = 'orientalCalc.agentDetails';
+/* Details saved before v163 (no v:2) may hold the old built-in name or mobile in a field the agent
+   never typed - the inputs were prefilled with it. Those values are dropped once; a blank saved value
+   now stays blank (it used to bring the default back). */
+function agentFromStored(d){
+  const out = { name:'', phone:'' };
+  if(!d || typeof d !== 'object') return out;
+  const legacy = d.v !== 2;
+  const name = typeof d.name === 'string' ? d.name.trim() : '';
+  const phone = typeof d.phone === 'string' ? d.phone.trim() : '';
+  out.name = (legacy && name.toLowerCase() === 'vinod') ? '' : name;
+  out.phone = (legacy && phone.replace(/\D/g, '') === '7032688497') ? '' : phone;
+  return out;
+}
 function loadAgentDetails(){
   try{
     const raw = safeLS.getItem(AGENT_LS_KEY);
     if(raw){
-      const d = JSON.parse(raw);
-      if(d && typeof d.name === 'string' && d.name.trim()) AGENT.name = d.name.trim();
-      if(d && typeof d.phone === 'string' && d.phone.trim()) AGENT.phone = d.phone.trim();
+      const d = agentFromStored(JSON.parse(raw));
+      AGENT.name = d.name; AGENT.phone = d.phone;
     }
-  }catch(e){ /* localStorage unavailable — fall back to defaults */ }
+  }catch(e){ /* localStorage unavailable — details stay blank */ }
 }
 function saveAgentDetails(){
-  try{ safeLS.setItem(AGENT_LS_KEY, JSON.stringify({ name:AGENT.name, phone:AGENT.phone })); }
+  try{ safeLS.setItem(AGENT_LS_KEY, JSON.stringify({ name:AGENT.name, phone:AGENT.phone, v:2 })); }
   catch(e){ /* ignore storage errors */ }
 }
 function applyAgentDetails(){
   $('agentNameFooter').textContent = AGENT.agency;
-  $('agentContactFooter').textContent = `${AGENT.name} · ${AGENT.phone}`;
+  $('agentContactFooter').textContent = agentSig();
   const prev = $('agentEditPreview');
   if(prev) prev.textContent = (AGENT.name || AGENT.phone) ? `· ${AGENT.name}${AGENT.phone?' · '+AGENT.phone:''}` : '';
 }
@@ -15221,7 +15238,7 @@ function buildWhatsAppText(q){
     t += `• GST @ 18%: ₹${fmt(q.gstOther)}\n\n`;
   }
   t += `🟢 *FINAL PREMIUM: ₹${fmt(q.total)}*\n\n━━━━━━━━━━━━━━━━━\n📅 ${d}\n`;
-  t += `${AGENT.name}\n📞 ${AGENT.phone}\n\n_Rates per IRDAI tariff. Subject to insurer underwriting._`;
+  t += `${AGENT.name ? AGENT.name + '\n' : ''}${AGENT.phone ? '📞 ' + AGENT.phone + '\n' : ''}\n_Rates per IRDAI tariff. Subject to insurer underwriting._`;
   return t;
 }
 
@@ -16451,7 +16468,7 @@ $('imgBtn').addEventListener('click', async ()=>{
     const cd = new OICIMG.CanvasDoc();
     const { filename } = generatePDF(q, cd);
     await OICIMG.share(cd.canvas, filename.replace(/\.pdf$/i, '.png'), 'Motor Insurance Quote \u2014 ' + (q.data.customerName || 'Customer'),
-      'Oriental Insurance motor quote for ' + (q.data.customerName || 'Customer') + ' \u2014 total premium \u20b9' + fmt(q.total) + ' (incl. GST). ' + AGENT.name + ' \u00b7 ' + AGENT.phone);
+      'Oriental Insurance motor quote for ' + (q.data.customerName || 'Customer') + ' \u2014 total premium \u20b9' + fmt(q.total) + ' (incl. GST). ' + agentSig());
     toast('Quote image ready');
   }catch(err){ console.error(err); toast('Image error'); }
 });
@@ -17187,7 +17204,7 @@ function buildSingleQuoteWA(q, key){
   t += `   Basic TP: ₹${fmt(q.tpBase)}\n`;
   q.extras.items.forEach(e=>{ t += `   ${e.name}: ₹${fmt(e.amount)}\n`; });
   t += `   GST: ₹${fmt(q.gst)}\n   *Total: ₹${fmt(q.total)}*\n\n`;
-  t += `━━━━━━━━━━━━━━━━━\n📅 ${d}\n${AGENT.name} · 📞 ${AGENT.phone}`;
+  t += `━━━━━━━━━━━━━━━━━\n📅 ${d}${agentSig() ? '\n' + [AGENT.name, AGENT.phone ? '📞 ' + AGENT.phone : ''].filter(Boolean).join(' · ') : ''}`;
   return t;
 }
 
@@ -17218,7 +17235,7 @@ $('dqBothWa').addEventListener('click', () => {
     t += `   *Total: ₹${fmt(q.total)}* (incl. GST)\n\n`;
   }
 
-  t += `━━━━━━━━━━━━━━━━━\n📅 ${d}\n${AGENT.name} · 📞 ${AGENT.phone}\n_Rates per IRDAI tariff._`;
+  t += `━━━━━━━━━━━━━━━━━\n📅 ${d}${agentSig() ? '\n' + [AGENT.name, AGENT.phone ? '📞 ' + AGENT.phone : ''].filter(Boolean).join(' · ') : ''}\n_Rates per IRDAI tariff._`;
   window.open(`https://wa.me/?text=${encodeURIComponent(t)}`, '_blank');
 });
 
@@ -19869,7 +19886,7 @@ function generateHealthPDF(r, hStateSnap){
     costCode = buildCostCode(0, 0, cm || 0);
   }catch(e){ costCode = ''; }
 
-  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'Vinod', phone:'7032688497'};
+  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'', phone:''};
   const d = new Date();
   const dateStr = d.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
   const quoteId = 'HIQ-' + d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0')
@@ -20540,7 +20557,7 @@ function drawYECBenefitPages(doc, selectedPlan, si, isFamily){
 
 function generateYecPDF(r, yStateSnap){
   const R = OICPDF.money;
-  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'Vinod', phone:'7032688497'};
+  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'', phone:''};
   const d = new Date();
   const dateStr = d.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
   const quoteId = 'YEQ-' + d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0')
@@ -20661,7 +20678,7 @@ document.getElementById('hImgBtn').addEventListener('click', async ()=>{
     const snap = { plan: hState.plan, si: hState.si, basis: hState.basis, zone: hState.zone, freq: hState.freq, members: [...hState.members] };
     let fname = 'Oriental_Health_Quote.png';
     await OICIMG.shareViaBuilder(()=>{ const out = generateHealthPDF(r, snap); fname = String(out.filename||fname).replace(/\.pdf$/i,'.png'); },
-      fname, 'Health Insurance Quote', 'Oriental Insurance health quote \u2014 ' + AGENT.name + ' \u00b7 ' + AGENT.phone);
+      fname, 'Health Insurance Quote', 'Oriental Insurance health quote' + (agentSig() ? ' \u2014 ' + agentSig() : ''));
     toast('Quote image ready');
   } catch(err){ console.error(err); toast('Image error'); }
 });
@@ -20671,7 +20688,7 @@ document.getElementById('yecImgBtn').addEventListener('click', async ()=>{
     const snap = { plan: yState.plan, si: yState.si, basis: yState.basis, members: yState.basis==='floater_floater' ? [...yState.group1,...yState.group2] : [...yState.members] };
     let fname = 'Oriental_YEC_Quote.png';
     await OICIMG.shareViaBuilder(()=>{ const out = generateYecPDF(r, snap); fname = String(out.filename||fname).replace(/\.pdf$/i,'.png'); },
-      fname, 'Youth Eco Care Quote', 'Oriental Insurance Youth Eco Care quote \u2014 ' + AGENT.name + ' \u00b7 ' + AGENT.phone);
+      fname, 'Youth Eco Care Quote', 'Oriental Insurance Youth Eco Care quote' + (agentSig() ? ' \u2014 ' + agentSig() : ''));
     toast('Quote image ready');
   } catch(err){ console.error(err); toast('Image error'); }
 });
@@ -22386,6 +22403,15 @@ const VERIFIED_CASES = [
                 state.odDiscount = 75; state.nilDepDiscount = 20; window.calculate(true);
                 const q = state.lastQuote, nd = (q.addons.items || []).find(a => a.key === 'nilDep') || {};
                 return [q.odBase, q.odDiscountAmt, q.odCNGKit, nd.grossAmount, nd.amount, q.tpBase, q.subtotal, q.gst, q.total].join('/'); } },
+  { label:'Agent details (v163): no built-in name or mobile; "Name · Mobile" prints only what is filled; details saved before v163 drop the old default once, a cleared field stays cleared, and v163 saves are taken as typed', expect:"true||Ravi|98480 12345|Ravi · 98480 12345|/|Ravi/|/98480|Vinod/7032688497|/",
+    check:()=>{ const src = Array.from(document.scripts).map(x => x.textContent).join('\n');
+                const oldN = 'Vin' + 'od', oldP = '70326' + '88497';   /* built, so this check's own source never matches the scan below */
+                const blank = /const AGENT = \{\s*name:'',[^}]*phone:'',/.test(src) && !new RegExp("name: ?'" + oldN + "', ?phone: ?'" + oldP + "'").test(src);
+                const f = d => { const r = agentFromStored(d); return r.name + '/' + r.phone; };
+                return [blank, agentSig(' · ', { name:'', phone:'' }), agentSig(' · ', { name:'Ravi', phone:'' }), agentSig(' · ', { name:'', phone:'98480 12345' }),
+                        agentSig(' · ', { name:'Ravi', phone:'98480 12345' }),
+                        f({ name:oldN, phone:oldP }), f({ name:'Ravi', phone:oldP }), f({ name:oldN, phone:'98480' }),
+                        f({ name:oldN, phone:oldP, v:2 }), f({ name:'', phone:'', v:2 })].join('|'); } },
   { label:'Invoice / Ex-Showroom field (v162): shown for GCCV, PCCV and Misc-D on an own-damage policy and for a Private Car only on the 3-year package; never on Liability Only or for a two-wheeler', expect:'false/true/false/true/true/true/false/false',
     check:()=>[invoiceFieldApplies('privateCar','comprehensive','1yr'), invoiceFieldApplies('privateCar','comprehensive','3yr'), invoiceFieldApplies('privateCar','odOnly','1yr'),
                invoiceFieldApplies('pccv','comprehensive','1yr'), invoiceFieldApplies('commercial','comprehensive','1yr'), invoiceFieldApplies('misc','comprehensive','1yr'),
@@ -23148,7 +23174,7 @@ function ohSharePDF(){
   proto.save = function(n){ fname = n || fname; blob = new Blob([this.output('arraybuffer')], { type:'application/pdf' }); };
   try{ ohGeneratePDF(); } finally { proto.save = orig; }
   if(!blob) return;
-  OICIMG.shareFile(blob, fname, 'Health Insurance Quote', 'Oriental Insurance health quote \u2014 ' + AGENT.name + ' \u00b7 ' + AGENT.phone);
+  OICIMG.shareFile(blob, fname, 'Health Insurance Quote', 'Oriental Insurance health quote' + (agentSig() ? ' \u2014 ' + agentSig() : ''));
 }
 function ohNewQuote(){
   ohPersonAges = [42]; const ag = document.getElementById('ohAges'); if(ag) ag.value = '42';
@@ -23160,7 +23186,7 @@ function ohNewQuote(){
 }
 function ohShareImage(){
   OICIMG.shareViaBuilder(function(){ ohGeneratePDF(); }, 'Oriental_Health_Quote.png', 'Health Insurance Quote',
-    'Oriental Insurance health quote \u2014 ' + AGENT.name + ' \u00b7 ' + AGENT.phone).then(function(){ if(typeof toast==='function') toast('Quote image ready'); });
+    'Oriental Insurance health quote' + (agentSig() ? ' \u2014 ' + agentSig() : '')).then(function(){ if(typeof toast==='function') toast('Quote image ready'); });
 }
 
 /* ══════════ HEALTH — SCOPE OF COVER PAGES + NON-PAYABLE ITEMS ANNEXURE ══════════
@@ -23327,7 +23353,7 @@ function ohGeneratePDF(){
   if(!out || !out.querySelector('table')){ alert('Please calculate the premium first.'); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ alert('PDF library not available.'); return; }
 
-  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'Vinod', phone:'7032688497'};
+  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'', phone:''};
   const PRODUCT = { OMP:'Oriental Mediclaim Insurance Policy (Individual) 2024',
                     GRP:'Mediclaim Insurance Policy (Group) 2024',
                     HFF:'OICL Happy Family Floater Policy 2024',
@@ -26575,7 +26601,7 @@ function shareImage(){
   const q = lastQuote;
   const safeName = (q.insured||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);
   OICIMG.shareViaBuilder(function(){ buildFirePDF(true); }, 'Oriental_Fire_Quote_' + safeName + '.png', 'Fire Premium Quote \u2014 ' + q.insured,
-    'Oriental Insurance fire quote for ' + q.insured + ' \u2014 total premium \u20b9' + fmt(q.grand) + ' (incl. GST). ' + ((typeof AGENT!=='undefined'&&AGENT.name)||'') + ' \u00b7 ' + ((typeof AGENT!=='undefined'&&AGENT.phone)||''));
+    'Oriental Insurance fire quote for ' + q.insured + ' \u2014 total premium \u20b9' + fmt(q.grand) + ' (incl. GST). ' + agentSig());
 }
 function shareOnWhatsApp(){
   const card = document.getElementById('result-card');
@@ -26626,7 +26652,7 @@ function shareOnWhatsApp(){
         a.href = url; a.download = filename; a.click();
         setTimeout(() => URL.revokeObjectURL(url), 8000);
         const fmt2 = n => '₹' + n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
-        const msg = `🔥 *Fire Premium Quote*\nRef: ${q.quoteRef} | ${q.dateStr}\nInsured: *${q.insured}*\nGrand Total: *${fmt2(q.grand)}* (incl. GST 18%)\n\n_PDF quote downloaded — please attach it to this chat._\n\n_Oriental Insurance Co. Ltd. · ${(typeof AGENT!=='undefined'&&AGENT.name)||'Vinod'} ${(typeof AGENT!=='undefined'&&AGENT.phone)||''}_`;
+        const msg = `🔥 *Fire Premium Quote*\nRef: ${q.quoteRef} | ${q.dateStr}\nInsured: *${q.insured}*\nGrand Total: *${fmt2(q.grand)}* (incl. GST 18%)\n\n_PDF quote downloaded — please attach it to this chat._\n\n_Oriental Insurance Co. Ltd.${agentSig(' ') ? ' · ' + agentSig(' ') : ''}_`;
         setTimeout(() => window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank'), 600);
         finish();
       }
@@ -27258,7 +27284,7 @@ function buildBgrPDF(returnBlob){
   const dateStr = now.toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'}).replace(/\//g, '-');
   let costCode = '';
   try{ costCode = (typeof buildCostCode === 'function') ? buildCostCode((q.inp && q.inp.discPct) || 0, 0, Math.round(q.net * (typeof CR8811_BGR_PCT === 'number' ? CR8811_BGR_PCT : 42.5) / 100)) : ''; }catch(e){ costCode = ''; }
-  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'Vinod', phone:'7032688497'};
+  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'', phone:''};
   const inp = q.inp || {};
   const zoneName = ['', 'I', 'II', 'III', 'IV'][q.zone] || 'IV';
   const left = [
@@ -27348,7 +27374,7 @@ function buildFirePDF(returnBlob){
       ? buildCostCode(0, 0, (typeof window.__FIRE_COMM === 'number' ? window.__FIRE_COMM : 0)) : '';
   }catch(e){ costCode = ''; }
 
-  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'Vinod', phone:'7032688497'};
+  const AG = (typeof AGENT !== 'undefined') ? AGENT : {name:'', phone:''};
 
   // ── policy excess / deductible slab (SFSP clause 1.1) ──
   const siCr = q.si / 1e7;
@@ -28207,7 +28233,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v162 · Invoice / Ex-Showroom Value for GCCV, PCCV and Misc-D, and Tyre & Rim now rated on the invoice that is typed there · 22-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v163 · no built-in agent name or mobile: each agent's own details, blank until typed · 23-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
