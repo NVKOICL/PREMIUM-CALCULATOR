@@ -2056,7 +2056,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
           <input type="text" id="incDateText" inputmode="numeric" placeholder="DD/MM/YYYY" maxlength="10" style="flex:1" />
           <input type="date" id="incDate" style="width:42px;padding:11px 8px" title="Pick from calendar" />
         </div>
-        <div class="hint">Commencement date of the policy being quoted — NOT the original/first policy date. Vehicle age for all slabs (RTI, Nil Dep, EP, EMI…) = Registration Date → this date. Defaults to today.</div>
+        <div class="hint">Commencement date of the policy being quoted — NOT the original/first policy date. Vehicle age for all slabs (RTI, Nil Dep, EP, EMI…) = Registration Date → this date. Defaults to today — enter the renewal start date when quoting ahead of expiry.</div>
         <div id="ageBadgeWrap"></div>
       </div>
       <div class="field comp-only visible" id="idvFieldWrap">
@@ -6454,8 +6454,9 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
     if(!$('wcGroups')) return;
     const today=new Date(), next=new Date(today);
     next.setFullYear(next.getFullYear()+1); next.setDate(next.getDate()-1);
-    if($('wcFrom') && !$('wcFrom').value) $('wcFrom').value=today.toISOString().split('T')[0];
-    if($('wcTo')   && !$('wcTo').value)   $('wcTo').value=next.toISOString().split('T')[0];
+    const _loc = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');   /* local, not UTC */
+    if($('wcFrom') && !$('wcFrom').value) $('wcFrom').value=_loc(today);
+    if($('wcTo')   && !$('wcTo').value)   $('wcTo').value=_loc(next);
     addGroup();
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot);
@@ -10899,10 +10900,16 @@ applyAgentDetails();
   if(ni) ni.addEventListener('input', () => { AGENT.name = ni.value.trim(); saveAgentDetails(); applyAgentDetails(); });
   if(pi) pi.addEventListener('input', () => { AGENT.phone = pi.value.trim(); saveAgentDetails(); applyAgentDetails(); });
 })();
-$('regDate').max = new Date().toISOString().split('T')[0];
-$('regDate').value = new Date().toISOString().split('T')[0];
+/* Today (or d) as YYYY-MM-DD in LOCAL time. toISOString() is UTC, so before 05:30 IST it gave
+   yesterday and both dates opened a day early (v164). */
+function localISO(d){
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+$('regDate').max = localISO();
+$('regDate').value = localISO();
 // Policy Inception Date — defaults to today; future dates ARE allowed (advance renewals)
-if($('incDate')) $('incDate').value = new Date().toISOString().split('T')[0];
+if($('incDate')) $('incDate').value = localISO();
 
 // Helper: sync between text DD/MM/YYYY and date input YYYY-MM-DD
 function isoToDDMMYYYY(iso){
@@ -10938,6 +10945,11 @@ function autoFormatDateText(input){
 // Brand-New / 1-5 / 5-10 / 10-15 thresholds per vehicle type & IDV
 // Only auto-applies for Pvt Car & Two-Wheeler. User can still override.
 let _sipManualOverride = false;
+let _sipClamp = null;   /* {from, to}: a manual OD discount held down at the maximum (v164) */
+/* v164: whether the agent has entered each date (a date left at its default of today is flagged),
+   and the message for a typed date that is not a valid date. */
+let _regDateTouched = false, _incDateTouched = false;
+const _dateTextErr = { reg:'', inc:'' };
 let _imt23ManualOff = false;   /* user switched IMT 23 off on an auto-applying class (GCCV / PCCV > 6 / Misc) */
 /* covers the agent had ticked that the last redraw could not keep, because they are still
    offered for the class but are no longer eligible (age, IMT-23 switched off, policy type).
@@ -10947,12 +10959,27 @@ let _addonsDropped = [];
    This forward-declaration ensures earlier callers don't crash; the real
    implementation is hoisted via function-declaration semantics. */
 function autoApplySipDiscount(){
-  if(_sipManualOverride) return;
   if(typeof lookupMaxDiscount2026 !== 'function') return;
   const lookup = lookupMaxDiscount2026();
   if(!lookup || typeof lookup.max !== 'number') return;
-  const suggested = lookup.max;
-  state.odDiscount = suggested;
+  /* The circular's maximum is a ceiling, not only a default (v164). A discount the agent chose stays
+     while it is within the maximum; when the vehicle, NCB, dates or policy type change and the maximum
+     falls below it, it is held at the maximum (still the agent's choice), and it goes back to the
+     agent's value if the maximum rises again - never above what the agent chose. */
+  if(_sipManualOverride){
+    const cur = parseFloat(state.odDiscount) || 0;
+    if(_sipClamp && cur !== _sipClamp.to) _sipClamp = null;       // chosen again since it was held down
+    const want = _sipClamp ? _sipClamp.from : cur;
+    const next = Math.min(want, lookup.max);
+    if(next === cur) return;
+    if(next < cur && typeof toast === 'function') toast('OD discount ' + cur + '% is above the maximum ' + lookup.max + '% for this vehicle - set to ' + lookup.max + '%');
+    _sipClamp = next < want ? { from:want, to:next } : null;
+    state.odDiscount = next;
+  } else {
+    _sipClamp = null;
+    state.odDiscount = lookup.max;
+  }
+  const suggested = state.odDiscount;
   const container = $('odDiscChips');
   if(!container) return;
   container.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
@@ -10969,35 +10996,54 @@ function autoApplySipDiscount(){
 // Initialize text input from current date
 $('regDateText').value = isoToDDMMYYYY($('regDate').value);
 
-// Helper — registration date changed: snap Policy Start Date back to today so a
-// stale value never silently drags the quote into the wrong age slab.
-function resetIncDateToToday(){
-  if(!$('incDate')) return;
-  const t = new Date();
-  const iso = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
-  $('incDate').value = iso;
-  if($('incDateText')) $('incDateText').value = isoToDDMMYYYY(iso);
+/* v164: a typed date is taken only once it is complete (DD/MM/YYYY). "01/10/20" on the way to
+   "01/10/2021" used to be read as 2020 and refresh the whole quote, and a date that is not a date
+   left the previous one in place. A two-digit year is expanded when the field is left. Changing the
+   registration date no longer resets the Policy Start Date to today: an advance renewal date the
+   agent entered stays (the soft checks under the dates flag a start date left at today). */
+const DATE_TEXT_FULL = /^\d{2}\/\d{2}\/\d{4}$/;
+function expandShortYear(text){
+  const t = String(text || '').trim();
+  const m = t.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2})$/);
+  if(!m) return t;
+  const yy = parseInt(m[3], 10);
+  return m[1].padStart(2,'0') + '/' + m[2].padStart(2,'0') + '/' + (yy < 50 ? 2000 + yy : 1900 + yy);
 }
-
-// Text → Date sync
-$('regDateText').addEventListener('input', e=>{
-  autoFormatDateText(e.target);
-  const iso = ddmmyyyyToISO(e.target.value);
+function regDateTextApply(text, final){
+  const iso = DATE_TEXT_FULL.test(text) ? ddmmyyyyToISO(text) : '';
   if(iso){
+    _regDateTouched = true; _dateTextErr.reg = '';
     $('regDate').value = iso;
-    resetIncDateToToday();
     autoBundleForNewVehicle();
     updateAgeBadge();
     renderAddons();
     autoApplySipDiscount();
     updateDiscountHint();
     scheduleAutoCalc();
+    return;
   }
+  if(!final && !DATE_TEXT_FULL.test(text)) return;   // still typing
+  _dateTextErr.reg = text ? 'Registration date is not a valid date - enter DD/MM/YYYY, not in the future.' : '';
+  $('regDate').value = '';
+  updateAgeBadge();
+  updateDiscountHint();
+  scheduleAutoCalc();
+}
+
+// Text → Date sync
+$('regDateText').addEventListener('input', e=>{
+  autoFormatDateText(e.target);
+  regDateTextApply(e.target.value, false);
+});
+$('regDateText').addEventListener('change', e=>{
+  const t = expandShortYear(e.target.value);
+  if(t !== e.target.value) e.target.value = t;
+  if(!t || isoToDDMMYYYY($('regDate').value) !== t) regDateTextApply(t, true);
 });
 // Date picker → Text sync only (all downstream updates handled by the wiring block listener below)
 $('regDate').addEventListener('change', ()=>{
+  _regDateTouched = true; _dateTextErr.reg = '';
   $('regDateText').value = isoToDDMMYYYY($('regDate').value);
-  resetIncDateToToday();
 });
 // Registration date can never be in the future — cap the native picker at today
 (function(){
@@ -11019,21 +11065,42 @@ function ddmmyyyyToISOAnyDate(text){
   if(dt.getFullYear() !== yy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return '';
   return `${yy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
 }
+/* Same rules as the registration date (v164). An emptied start date goes back to today; one that is
+   not a date is cleared, and calculate() refuses the quote until it is corrected. */
+function incDateTextApply(text, final){
+  const iso = DATE_TEXT_FULL.test(text) ? ddmmyyyyToISOAnyDate(text) : '';
+  if(iso){
+    _incDateTouched = true; _dateTextErr.inc = '';
+    $('incDate').value = iso;
+  } else if(!final && !DATE_TEXT_FULL.test(text)){
+    return;                                              // still typing
+  } else if(!text){
+    _incDateTouched = false; _dateTextErr.inc = '';
+    $('incDate').value = localISO(); $('incDateText').value = isoToDDMMYYYY(localISO());
+  } else {
+    _dateTextErr.inc = 'Policy start date is not a valid date - enter DD/MM/YYYY.';
+    $('incDate').value = '';
+  }
+  updateAgeBadge();
+  renderAddons();
+  autoApplySipDiscount();
+  updateDiscountHint();
+  if(typeof refreshEpCcBadge === 'function') refreshEpCcBadge();
+  scheduleAutoCalc();
+}
 if($('incDateText') && $('incDate')){
   $('incDateText').value = isoToDDMMYYYY($('incDate').value);
   $('incDateText').addEventListener('input', e=>{
     autoFormatDateText(e.target);
-    const iso = ddmmyyyyToISOAnyDate(e.target.value);
-    if(iso){
-      $('incDate').value = iso;
-      updateAgeBadge();
-      renderAddons();
-      autoApplySipDiscount();
-      updateDiscountHint();
-      scheduleAutoCalc();
-    }
+    incDateTextApply(e.target.value, false);
+  });
+  $('incDateText').addEventListener('change', e=>{
+    const t = expandShortYear(e.target.value);
+    if(t !== e.target.value) e.target.value = t;
+    if(!t || isoToDDMMYYYY($('incDate').value) !== t) incDateTextApply(t, true);
   });
   $('incDate').addEventListener('change', ()=>{
+    _incDateTouched = true; _dateTextErr.inc = '';
     $('incDateText').value = isoToDDMMYYYY($('incDate').value);
     updateAgeBadge(); renderAddons(); autoApplySipDiscount(); updateDiscountHint();
     if(typeof refreshEpCcBadge === 'function') refreshEpCcBadge();
@@ -11075,8 +11142,7 @@ setupSingleSelectChips('ncbChips', v=>{ state.ncbYears = parseInt(v,10); renderA
     state.policyRenewalType = rtRoll.checked ? 'rollOver' : 'ownRenewal';
     syncNote();
     if(typeof DISC_2026 !== 'undefined'){
-      _sipManualOverride = false;   // reset so auto-apply fires correctly on renewal type change
-      autoApplySipDiscount();
+      autoApplySipDiscount();   /* a manual discount is kept unless it is above the new maximum (v164) */
       updateDiscountHint();
       scheduleAutoCalc();
     }
@@ -11173,6 +11239,11 @@ const SIP_CHIPS = {
   misc:           [0, 60, 65, 70, 75, 80, 85, 90, 92]
 };
 
+/* The circular maximum for the current inputs; 100 when there is none (TP-only, IDV not entered). */
+function odDiscCeiling(){
+  try{ const lk = lookupMaxDiscount2026(); if(lk && typeof lk.max === 'number') return lk.max; }catch(e){}
+  return 100;
+}
 function renderSipChips(){
   const values = SIP_CHIPS[state.vehicleType] || SIP_CHIPS.privateCar;
   const container = $('odDiscChips');
@@ -11195,11 +11266,18 @@ function renderSipChips(){
   container.querySelectorAll('.chip').forEach(chip=>{
     chip.addEventListener('click', e=>{
       e.preventDefault();
+      const cap = odDiscCeiling();
+      if(parseFloat(chip.dataset.value) > cap){   /* above the circular maximum (v164) */
+        _sipManualOverride = false; autoApplySipDiscount();
+        toast('The maximum OD discount for this vehicle is ' + cap + '%');
+        scheduleAutoCalc();
+        return;
+      }
       container.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
       chip.classList.add('active');
       const ci = $('odDiscCustom'); if(ci) ci.value = '';
       state.odDiscount = parseFloat(chip.dataset.value);
-      _sipManualOverride = true;
+      _sipManualOverride = true; _sipClamp = null;
       scheduleAutoCalc();
     });
   });
@@ -11207,11 +11285,19 @@ function renderSipChips(){
   $('odDiscCustom').addEventListener('input', e=>{
     const v = parseFloat(e.target.value);
     if(!isNaN(v) && v>=0){
-      state.odDiscount = v;
-      _sipManualOverride = true;
+      state.odDiscount = Math.min(v, odDiscCeiling());
+      _sipManualOverride = true; _sipClamp = null;
       container.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
     } else { state.odDiscount = 0; }
     scheduleAutoCalc();
+  });
+  $('odDiscCustom').addEventListener('change', e=>{
+    const v = parseFloat(e.target.value), cap = odDiscCeiling();
+    if(!isNaN(v) && v > cap){
+      _sipManualOverride = false; autoApplySipDiscount();
+      toast('The maximum OD discount for this vehicle is ' + cap + '%');
+      scheduleAutoCalc();
+    }
   });
 }
 renderSipChips();
@@ -11446,6 +11532,16 @@ function lookupMaxDiscount2026(){
   // expiring policy carried NCB. Own-renewal and roll-over WITH NCB share the same
   // "With NCB" cap; renewal type does not change the cap.
   const col = (hasNCB || isBrandNew) ? 'wn' : 'nn';
+  /* Private Car and Two-Wheeler (v164). A Standalone OD policy is bought for a vehicle whose own
+     package cover is running out, so it is never "brand new": without NCB it takes the No NCB column.
+     Reported 26-09-2026: SAOD with no NCB got 90% where 75% is the maximum, whenever the Policy Start
+     Date was left at today and the car was under a year old. A Package policy without NCB is brand
+     new only when it starts in the vehicle's first month; a first renewal is not a new vehicle.
+     Bundled (issued at registration) keeps the rule above. */
+  const pcol = hasNCB ? 'wn'
+             : bucket === 'SAOD' ? 'nn'
+             : bucket === 'Bundled' ? col
+             : (months !== null && months <= 1 ? 'wn' : 'nn');
   const idv    = parseFloat(($('idv') || {}).value) || 0;
   const idvL   = idv / 100000;
   const slab   = ($('ccSlab') || {}).value || '';
@@ -11458,17 +11554,17 @@ function lookupMaxDiscount2026(){
     const ccKey  = ['s1','s2','s3','s4'].includes(slab) ? slab : 's2';
     if(bucket === 'Bundled'){
       const row = DISC_2026.twoWheeler.Bundled[idvKey][ccKey];
-      return { max: row[col], col, label: `Bundled · ${idvKey==='le5'?'≤₹5L':'>₹5L'} · ${ccKey}` };
+      return { max: row[pcol], col:pcol, label: `Bundled · ${idvKey==='le5'?'≤₹5L':'>₹5L'} · ${ccKey}` };
     }
     if(bucket === 'SAOD'){
       const row = DISC_2026.twoWheeler.SAOD[idvKey][ccKey];
-      return { max: row[col], col, label: `SAOD · ${idvKey==='le5'?'≤₹5L':'>₹5L'} · ${ccKey}` };
+      return { max: row[pcol], col:pcol, label: `SAOD · ${idvKey==='le5'?'≤₹5L':'>₹5L'} · ${ccKey}` };
     }
     // Package
     if(years === null) return null;
     const ageKey = years <= 10 ? 'le10' : 'gt10';
     const row = DISC_2026.twoWheeler.Package[idvKey][ageKey][ccKey];
-    return { max: row[col], col, label: `Package · ${idvKey==='le5'?'≤₹5L':'>₹5L'} · ${ageKey==='le10'?'≤10y':'>10y'} · ${ccKey}` };
+    return { max: row[pcol], col:pcol, label: `Package · ${idvKey==='le5'?'≤₹5L':'>₹5L'} · ${ageKey==='le10'?'≤10y':'>10y'} · ${ccKey}` };
   }
 
   /* ─── PRIVATE CAR ─── */
@@ -11493,19 +11589,19 @@ function lookupMaxDiscount2026(){
     if(bucket === 'Bundled'){
       const idvKey = idvL <= 100 ? 'le1cr' : 'gt1cr';
       const row = DISC_2026.privateCar.Bundled[idvKey][baseSlab];
-      return { max: row[col], col, label: `Bundled · ${idvKey==='le1cr'?'≤₹1Cr':'₹1-2Cr'} · ${ccLbl}` };
+      return { max: row[pcol], col:pcol, label: `Bundled · ${idvKey==='le1cr'?'≤₹1Cr':'₹1-2Cr'} · ${ccLbl}` };
     }
     if(bucket === 'SAOD'){
       const idvKey = idvL <= 50 ? 'le50' : 'gt50';
       const row = DISC_2026.privateCar.SAOD[idvKey][baseSlab];
-      return { max: row[col], col, label: `SAOD · ${idvKey==='le50'?'≤₹50L':'₹50L-2Cr'} · ${ccLbl}` };
+      return { max: row[pcol], col:pcol, label: `SAOD · ${idvKey==='le50'?'≤₹50L':'₹50L-2Cr'} · ${ccLbl}` };
     }
     // Package
     if(years === null) return null;
     const idvKey = idvL <= 50 ? 'le50' : 'gt50';
     const ageKey = years <= 10 ? 'le10' : 'gt10';
     const row = DISC_2026.privateCar.Package[idvKey][ageKey][baseSlab];
-    return { max: row[col], col, label: `Package · ${idvKey==='le50'?'≤₹50L':'₹50L-2Cr'} · ${ageKey==='le10'?'≤10y':'>10y'} · ${ccLbl}` };
+    return { max: row[pcol], col:pcol, label: `Package · ${idvKey==='le50'?'≤₹50L':'₹50L-2Cr'} · ${ageKey==='le10'?'≤10y':'>10y'} · ${ccLbl}` };
   }
 
   /* ─── GCCV ─── */
@@ -11677,12 +11773,14 @@ function updateDiscountHint(){
   const months = getAgeMonths();
   const years  = months !== null ? months / 12 : null;
   const isBrandNew = (years !== null && years <= 1);  /* band-months: <=1 = before 1st birthday */
-  const useNNcol = isBrandNew ? false : !hasNCB;
+  let useNNcol = isBrandNew ? false : !hasNCB;
   const idv    = parseFloat(($('idv') || {}).value) || 0;
   const idvL   = idv / 100000;
   const slab   = ($('ccSlab') || {}).value || '';
   const exactCC = parseFloat(($('exactCC') || {}).value) || 0;
   const lookup = lookupMaxDiscount2026();
+  /* Private Car / Two-Wheeler: the column rule of lookupMaxDiscount2026 (v164), also before IDV is entered */
+  if((vt === 'privateCar' || vt === 'twoWheeler') && bucket !== 'Bundled') useNNcol = !hasNCB && (bucket === 'SAOD' || !(months !== null && months <= 1));
 
   // Style helpers
   const colorWN = !useNNcol ? 'background:var(--accent-soft);font-weight:800;color:var(--accent-dark);' : 'color:var(--ink-soft);';
@@ -11954,7 +12052,7 @@ function updateDiscountHint(){
   html += `<div style="font-size:11.5px;font-weight:700;color:var(--accent-dark);margin:8px 0 6px">${title}</div>`;
   const noteText = (vt === 'commercial')
     ? `Note (GCCV): The <strong style="color:var(--ink-soft)">With NCB</strong> cap applies ONLY to <em>own-renewal</em> cases that carry NCB in the expiring policy. <strong style="color:var(--ink-soft)">No NCB</strong> column applies to <em>all roll-over cases</em> (even with NCB) and any renewal without NCB. NCB % is a separate deduction from the OD premium.`
-    : `Note: The <strong style="color:var(--ink-soft)">With NCB</strong> cap applies to own-renewal <em>and</em> roll-over cases that carry NCB in the expiring policy; <strong style="color:var(--ink-soft)">No NCB</strong> applies only when the expiring policy has none. NCB % is a separate deduction from the OD premium. Bundled = long-term comprehensive (brand-new).`;
+    : `Note: The <strong style="color:var(--ink-soft)">With NCB</strong> cap applies to own-renewal <em>and</em> roll-over cases that carry NCB in the expiring policy; <strong style="color:var(--ink-soft)">No NCB</strong> applies when the expiring policy has none. For a Private Car or Two-Wheeler, a Standalone OD without NCB always takes No NCB, and a Package policy counts as brand new only when it starts in the vehicle's first month. NCB % is a separate deduction from the OD premium. Bundled = long-term comprehensive (brand-new).`;
   html += `<div style="font-size:10.5px;color:var(--mute);margin-bottom:4px">${noteText}</div>`;
   html += `<div style="overflow-x:auto;max-height:280px;overflow-y:auto;border:1px solid var(--border-soft);border-radius:6px"><table style="width:100%;border-collapse:collapse;font-size:11px;line-height:1.35">
     <thead><tr style="position:sticky;top:0;z-index:2">
@@ -12102,7 +12200,7 @@ function renderTerms(){
   let terms;
   if(state.vehicleType==='twoWheeler')           terms = polType==='odOnly' ? [{key:'1yr',label:'1 Year'}] : [{key:'1yr',label:'1 Year'},{key:'5yr',label:'5 Years'}];
   else if(state.vehicleType==='twoWheelerHire')  terms = [{key:'1yr',label:'1 Year'}];
-  else if(state.vehicleType==='privateCar')      terms = [{key:'1yr',label:'1 Year'},{key:'3yr',label:'3 Years'}];
+  else if(state.vehicleType==='privateCar')      terms = polType==='odOnly' ? [{key:'1yr',label:'1 Year'}] : [{key:'1yr',label:'1 Year'},{key:'3yr',label:'3 Years'}];
   else                                           terms = [{key:'1yr',label:'1 Year'}];
   /* A bundled long term (1+3 car, 1+5 two-wheeler) is issued at registration, so it cannot be
      offered on a vehicle that is already past its first year. Both rate sets behind it are
@@ -13081,11 +13179,46 @@ document.querySelectorAll('input[name="policy"]').forEach(r=>{
 });
 
 $('regNumber').addEventListener('input', e=>{ e.target.value = e.target.value.toUpperCase(); });
-$('regDate').addEventListener('change', ()=>{ autoBundleForNewVehicle(); updateAgeBadge(); renderAddons(); refreshEpCcBadge(); updateDiscountHint(); scheduleAutoCalc(); });
+$('regDate').addEventListener('change', ()=>{ autoBundleForNewVehicle(); updateAgeBadge(); renderAddons(); refreshEpCcBadge(); autoApplySipDiscount(); updateDiscountHint(); scheduleAutoCalc(); });
+
+/* v164: dates left at their defaults. Both dates open at today; left there, an existing vehicle is
+   rated as brand new, and a renewal quoted ahead of its date is rated a year young. Soft checks,
+   shown under the dates and in the quote checks; they never block the quote. */
+function motorDateWarnings(){
+  const out = [];
+  if($('polTP') && $('polTP').checked) return out;
+  const reg = ($('regDate') || {}).value || '';
+  if(!reg) return out;
+  const today = localISO();
+  const inc = ($('incDate') || {}).value || '';
+  let months = null; try{ months = getAgeMonths(); }catch(e){}
+  if(!_regDateTouched && months !== null && months <= 1){
+    out.push({ f:'regDateText', t:'Registration date ' + isoToDDMMYYYY(reg) + ' was filled in automatically, so the vehicle is rated as brand new. For an existing vehicle enter the date on the RC.' });
+  }
+  if(!_incDateTouched && (inc || today) === today && months !== null && months > 1){
+    const [ry, rm, rd] = reg.split('-').map(Number);
+    const t0 = new Date(); t0.setHours(0,0,0,0);
+    let n = t0.getFullYear() - ry, ann = new Date(ry + n, rm - 1, rd);
+    if(ann <= t0){ n++; ann = new Date(ry + n, rm - 1, rd); }
+    const days = Math.round((ann - t0) / 86400000);
+    if(days <= 60){
+      const iso = localISO(ann);
+      out.push({ f:'incDateText', fix:iso, t:'The vehicle completes ' + n + ' year' + (n > 1 ? 's' : '') + ' on ' + isoToDDMMYYYY(iso) + ', in ' + days + ' day' + (days > 1 ? 's' : '') + '. If the renewal starts then, enter it as the Policy Start Date - the age-based rates and the OD discount can change on that date.' });
+    }
+  }
+  return out;
+}
 
 function updateAgeBadge(){
+  /* v164: a typed date that is not a date (red), then the soft date checks (amber, with a one-tap fix) */
+  const errs = [_dateTextErr.reg, _dateTextErr.inc].filter(Boolean)
+    .map(t => `<div style="font-size:11.5px;color:var(--danger,#c0392b);margin-top:4px;font-weight:600">⚠ ${t}</div>`).join('');
+  let soft = '';
+  try{
+    soft = motorDateWarnings().map(w => `<div style="font-size:11.5px;color:#9a5b00;margin-top:4px;font-weight:600">⚠ ${w.t}${w.fix ? ` <button type="button" class="date-fix-btn" data-inc-fix="${w.fix}" style="margin-left:4px;font:inherit;font-size:11px;padding:2px 9px;border:1px solid #9a5b00;border-radius:10px;background:transparent;color:inherit;cursor:pointer">Start on ${isoToDDMMYYYY(w.fix)}</button>` : ''}</div>`).join('');
+  }catch(e){}
   const m = getAgeMonths();                 // band age (flips on anniversary)
-  if(m === null){ $('ageBadgeWrap').innerHTML=''; return; }
+  if(m === null){ $('ageBadgeWrap').innerHTML = errs; return; }
   const bracket = getRateAgeBracket(state.vehicleType, m/12);
   const cm = getCompletedAgeMonths() ?? m;  // true age for display
   const yrs = Math.floor(cm/12), mos = cm % 12;
@@ -13102,7 +13235,13 @@ function updateAgeBadge(){
       warn = `<div style="font-size:11.5px;color:var(--danger,#c0392b);margin-top:4px;font-weight:600">⚠ Policy Start Date is in the past — enter the start date of the policy being quoted (renewal commencement), not the original inception.</div>`;
     }
   }
-  $('ageBadgeWrap').innerHTML = `<span class="age-badge">${yrs}y ${mos}m · ${bracket.label}${asOn}</span>${warn}`;
+  $('ageBadgeWrap').innerHTML = `<span class="age-badge">${yrs}y ${mos}m · ${bracket.label}${asOn}</span>${warn}${errs}${soft}`;
+  const fix = $('ageBadgeWrap').querySelector('[data-inc-fix]');
+  if(fix) fix.addEventListener('click', e => {
+    e.preventDefault();
+    $('incDate').value = fix.dataset.incFix;
+    $('incDate').dispatchEvent(new Event('change'));
+  });
 }
 
 /* seating capacity (incl. driver) feeds the quick quotes; defaults follow the vehicle class */
@@ -13385,15 +13524,17 @@ function solveForTargetPremium(target){
     _sipManualOverride = snapOverride;
   };
 
-  // Achievable bounds
+  // Achievable bounds. The lowest premium is at the circular's maximum OD discount for this vehicle
+  // (v164; was a flat 90%, which could solve to a discount above the maximum).
+  let cap = 90; try{ const lk = lookupMaxDiscount2026(); if(lk && typeof lk.max === 'number') cap = lk.max; }catch(e){}
   const pMax = probePremium(0, 0);     // no discount, no loading → highest base premium
-  const pMin = probePremium(90, 0);    // max realistic discount → lowest premium
+  const pMin = probePremium(cap, 0);   // maximum allowed discount → lowest premium
 
   const TOL = 25; // ₹ tolerance — close enough
 
   // ── Case A: target within discount range ──
   if(target <= pMax + TOL && target >= pMin - TOL){
-    let lo = 0, hi = 90, best = 0, bestTotal = pMax;
+    let lo = 0, hi = cap, best = 0, bestTotal = pMax;
     for(let i = 0; i < 40; i++){
       const mid = (lo + hi) / 2;
       const p = probePremium(mid, 0);
@@ -13437,17 +13578,17 @@ function solveForTargetPremium(target){
     };
   }
 
-  // ── Case C: target BELOW the max-discount premium → not reachable, cap at 90% ──
-  state.odDiscount = 90;
+  // ── Case C: target BELOW the max-discount premium → not reachable, stop at the maximum ──
+  state.odDiscount = cap;
   state.loadingPct = 0;
   _sipManualOverride = true;
   calculate(false);
   return {
     ok:true, mode:'capped',
-    disc:90, loading:0,
+    disc:cap, loading:0,
     achieved:(state.lastQuote && state.lastQuote.total) || pMin,
     target,
-    note:'Target is below the lowest achievable premium (90% OD discount cap). Showing the minimum.'
+    note:'Target is below the lowest achievable premium (maximum OD discount ' + cap + '% for this vehicle). Showing the minimum.'
   };
 }
 
@@ -13846,6 +13987,7 @@ function calculate(silent=false){
     vehicleModel: $('vehicleModel').value.trim() || '—',
     regNumber:    $('regNumber').value.trim(),
     regDate:      $('regDate').value,
+    incDate:      ($('incDate') && $('incDate').value) || '',
     slab:         $('ccSlab').value,
     idv:          parseFloat($('idv').value) || 0,
     seatCap:      (typeof seatCapacity === 'function') ? seatCapacity() : 0,
@@ -13899,6 +14041,16 @@ function calculate(silent=false){
     const regD = new Date(ry, rm - 1, rd);
     const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
     if(regD > todayEnd){ markError('regDate','Date cannot be in the future'); ok=false; }
+  }
+  /* v164: a start date that is not a date, or one well before the vehicle was registered (a policy
+     can start a few days before registration - the invoice date - but not months before) */
+  if($('incDateText') && $('incDateText').value.trim() && !data.incDate){ markError('incDate','Enter a valid policy start date (DD/MM/YYYY)'); ok=false; }
+  else if(data.regDate && data.incDate){
+    const [ry, rm, rd] = data.regDate.split('-').map(Number), [iy, im, id] = data.incDate.split('-').map(Number);
+    if(new Date(ry, rm - 1, rd) - new Date(iy, im - 1, id) > 31 * 86400000){
+      markError('incDate', 'Policy start date ' + isoToDDMMYYYY(data.incDate) + ' is before the registration date ' + isoToDDMMYYYY(data.regDate) + ' - check both dates');
+      ok=false;
+    }
   }
   if(data.policyType !== 'thirdParty' && (!data.idv || data.idv <= 0)){ markError('idv','Enter IDV'); ok=false; }
   if((data.vehicleType === 'twoWheelerHire' || data.vehicleType === 'pccv') && data.paxCount <= 0){ markError('paxCount','Enter passenger count'); ok=false; }
@@ -16315,6 +16467,17 @@ function motorQuoteChecks(){
   if(hasOD) facts.push(['IDV', '\u20b9' + Math.round(idv).toLocaleString('en-IN')]);
   facts.push(['NCB', (state.ncbYears || 0) > 0 ? state.ncbYears + ' year' + (state.ncbYears > 1 ? 's' : '') : 'Nil']);
 
+  /* Dates left at their defaults, and an NCB longer than the vehicle has been on the road (v164) */
+  try{ motorDateWarnings().forEach(w => warns.push({ f:w.f, t:w.t })); }catch(e){}
+  if(hasOD && (state.ncbYears || 0) > 0){
+    let cm = null; try{ cm = getCompletedAgeMonths(); }catch(e){}
+    const yrs = cm !== null ? Math.floor(cm / 12) : null;
+    if(yrs !== null && yrs < state.ncbYears){
+      const pc = Math.round(((RATES.ncb && RATES.ncb[state.ncbYears]) || 0) * 100);
+      warns.push({ f:'ncbChips', t:'NCB ' + pc + '% needs ' + state.ncbYears + ' claim-free year' + (state.ncbYears > 1 ? 's' : '') + ', but the vehicle is ' + yrs + ' year' + (yrs === 1 ? '' : 's') + ' old on the policy start date. This is correct only if the NCB is transferred from the customer\'s earlier vehicle.' });
+    }
+  }
+
   /* OD discount vs the maximum in the discount circular */
   if(hasOD){
     const od = parseFloat(state.odDiscount) || 0;
@@ -16552,8 +16715,10 @@ $('resetBtn').addEventListener('click', ()=>{
   // (SI, occupancy, ages, etc.) whenever a Motor quote was reset.
   const motorScope = document.getElementById('sectionMotor') || document;
   motorScope.querySelectorAll('input[type="text"],input[type="number"]').forEach(i=>i.value='');
-  $('regDate').value = new Date().toISOString().split('T')[0];
+  $('regDate').value = localISO();
   $('regDateText').value = isoToDDMMYYYY($('regDate').value);
+  if($('incDate')){ $('incDate').value = localISO(); if($('incDateText')) $('incDateText').value = isoToDDMMYYYY(localISO()); }   /* was left at the last quote's start date (v164) */
+  _regDateTouched = false; _incDateTouched = false; _dateTextErr.reg = ''; _dateTextErr.inc = '';
   $('paxCount').value = '1'; $('paUnPax').value = '1'; $('odDiscCustom').value = '';
   document.querySelectorAll('#addonsGrid input:checked').forEach(i=>i.checked=false);
 
@@ -16563,7 +16728,7 @@ $('resetBtn').addEventListener('click', ()=>{
     chips.forEach(c=>c.classList.remove('active'));
     if(chips[0]) chips[0].classList.add('active');
   });
-  state.ncbYears = 0; state.odDiscount = 0; _sipManualOverride = false; state.nilDepDiscount = 0; _nilDepManual = false; _imt23ManualOff = false;
+  state.ncbYears = 0; state.odDiscount = 0; _sipManualOverride = false; _sipClamp = null; state.nilDepDiscount = 0; _nilDepManual = false; _imt23ManualOff = false;
   _addonsDropped = [];
   state.loadingPct = 0;
   if($('loadingCustom')) $('loadingCustom').value = '';
@@ -16634,6 +16799,8 @@ function saveDraft(){
       vehicleModel: $('vehicleModel').value,
       regNumber:    $('regNumber').value,
       regDate:      $('regDate').value,
+      regDateTouched: _regDateTouched,
+      incDate:      _incDateTouched ? (($('incDate') && $('incDate').value) || '') : '',
       idv:          $('idv').value,
       ccSlab:       $('ccSlab').value,
       paxCount:     $('paxCount').value,
@@ -16679,7 +16846,7 @@ function loadDraft(){
     const raw = safeLS.getItem(DRAFT_KEY);
     if(!raw) return;
     const d = JSON.parse(raw);
-    _sipManualOverride = typeof d.sipManualOverride === 'boolean' ? d.sipManualOverride : false;
+    _sipManualOverride = typeof d.sipManualOverride === 'boolean' ? d.sipManualOverride : false; _sipClamp = null;
 
     // Vehicle type first (changes available slabs/zones/terms)
     if(d.vehicleType){
@@ -16722,6 +16889,9 @@ function loadDraft(){
     });
     // Sync regDateText with regDate
     if(d.regDate) $('regDateText').value = isoToDDMMYYYY(d.regDate);
+    _regDateTouched = typeof d.regDateTouched === 'boolean' ? d.regDateTouched : (!!d.regDate && d.regDate !== localISO());
+    _dateTextErr.reg = ''; _dateTextErr.inc = '';
+    if(d.incDate && $('incDate')){ $('incDate').value = d.incDate; if($('incDateText')) $('incDateText').value = isoToDDMMYYYY(d.incDate); _incDateTouched = true; }
     if(d.ccSlab && document.querySelector(`#ccSlab option[value="${d.ccSlab}"]`)){
       $('ccSlab').value = d.ccSlab;
       renderZones();
@@ -21498,7 +21668,16 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
   if(d.regDate){
     $$('regDate').value = d.regDate;
     $$('regDateText').value = isoToDDMMYYYY(d.regDate);
+    _regDateTouched = true;
   }
+  /* the start date is saved from v164; an older quote opens at today and is flagged if that matters */
+  if($$('incDate')){
+    const inc = d.incDate || localISO();
+    $$('incDate').value = inc;
+    if($$('incDateText')) $$('incDateText').value = isoToDDMMYYYY(inc);
+    _incDateTouched = !!d.incDate;
+  }
+  _dateTextErr.reg = ''; _dateTextErr.inc = '';
 
   // Vehicle type — the class is chosen with the .vehicle-tab buttons. This used to look for
   // input[name="vehSeg"], which exists nowhere in the file, so the selector matched nothing and
@@ -21554,7 +21733,7 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
       state.switches = Object.assign({}, state.switches, d.switches);
       _imt23ManualOff = !d.switches.imt23;
     }
-    _sipManualOverride = true;
+    _sipManualOverride = true; _sipClamp = null;
     _nilDepManual = true;
     if(typeof updateAll === 'function'){ try{ updateAll(); }catch(e){} }
     if(d.slab) $$('ccSlab').value = d.slab;          /* the refresh above re-renders the slab list */
@@ -21579,6 +21758,7 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
     if(asDuplicate && state.lastQuote) delete state.lastQuote.__savedId;
 
     // Trigger recalculation
+    if(typeof updateAgeBadge === 'function'){ try{ updateAgeBadge(); }catch(e){} }
     if(typeof calculate === 'function'){
       try { calculate(false); } catch(e){ console.warn(e); }
     }
@@ -22412,6 +22592,56 @@ const VERIFIED_CASES = [
                         agentSig(' · ', { name:'Ravi', phone:'98480 12345' }),
                         f({ name:oldN, phone:oldP }), f({ name:'Ravi', phone:oldP }), f({ name:oldN, phone:'98480' }),
                         f({ name:oldN, phone:oldP, v:2 }), f({ name:'', phone:'', v:2 })].join('|'); } },
+  { label:'OD discount column (v164): Private Car / Two-Wheeler Standalone OD without NCB takes No NCB even under a year old (Private Car 75, with NCB 90; Two-Wheeler 60, with NCB 85); a Package policy is brand new only when it starts in the first month (70 at 12 months, 90 at registration)', expect:'75/90/60/85/70/90',
+    check:()=>{ const run = (c, reg, inc) => { window._stRun(c); $('regDate').value = reg; $('incDate').value = inc; window.calculate(true); return state.odDiscount; };
+                return [run(['privateCar','s2','B',1,500000,'petrol','odOnly',0,0,0,0,0], '2025-10-01', '2026-09-26'),
+                        run(['privateCar','s2','B',1,500000,'petrol','odOnly',1,0,0,0,0], '2025-10-01', '2026-09-26'),
+                        run(['twoWheeler','s2','B',1,100000,'petrol','odOnly',0,0,0,0,0], '2025-10-01', '2026-09-26'),
+                        run(['twoWheeler','s2','B',1,100000,'petrol','odOnly',1,0,0,0,0], '2025-10-01', '2026-09-26'),
+                        run(['privateCar','s2','B',1,500000,'petrol','comprehensive',0,0,0,0,0], '2025-10-01', '2026-09-26'),
+                        run(['privateCar','s2','B',1,500000,'petrol','comprehensive',0,0,0,0,0], '2026-09-26', '2026-09-26')].join('/'); } },
+  { label:'OD discount ceiling (v164): a manual discount above the maximum is held at the maximum when NCB is removed and goes back to the agent\'s value when NCB returns; one within it stays; a chip or custom value above it is set to the maximum; the target solver stops at the maximum (was 90%)', expect:'75/true|90|60/true|75|75|capped/75',
+    check:()=>{ const out = [], keepToast = window.toast, keepCalc = window.calculate;
+                window.toast = () => {}; window.calculate = () => keepCalc(true);   /* no toasts or rendered quote from the check */
+                try{
+                  window._stRun(['privateCar','s2','B',1,500000,'petrol','odOnly',1,0,0,0,0]);
+                  $('regDate').value = '2025-10-01'; $('incDate').value = '2026-09-26'; keepCalc(true);
+                  _sipManualOverride = true; _sipClamp = null; state.odDiscount = 90; state.ncbYears = 0; autoApplySipDiscount();
+                  out.push(state.odDiscount + '/' + _sipManualOverride);
+                  state.ncbYears = 1; autoApplySipDiscount(); out.push(state.odDiscount);
+                  state.ncbYears = 0; _sipManualOverride = true; _sipClamp = null; state.odDiscount = 60; autoApplySipDiscount();
+                  out.push(state.odDiscount + '/' + _sipManualOverride);
+                  renderSipChips(); document.querySelector('#odDiscChips .chip[data-value="90"]').click(); out.push(state.odDiscount);
+                  const ci = $('odDiscCustom'); ci.value = '150'; ci.dispatchEvent(new Event('input')); ci.dispatchEvent(new Event('change')); out.push(state.odDiscount);
+                  const r = solveForTargetPremium(1); out.push(r.mode + '/' + r.disc);
+                } finally { window.toast = keepToast; window.calculate = keepCalc; _sipClamp = null; }
+                return out.join('|'); } },
+  { label:'Dates (v164): an incomplete typed date is not taken, an impossible one clears the date with a message, a 2-digit year expands on leaving the field; start date months before registration blocks the quote; SAOD Private Car offers 1 year only; registration date left at today, a start date left at today near the anniversary, and NCB longer than the age are flagged', expect:'2019-05-05|2021-10-01|/err|2025-10-01 01/10/2025|stop|go|1|regDateText|incDateText,ncbChips',
+    check:()=>{ const keep = { r:$('regDate').value, i:$('incDate').value, rt:$('regDateText').value, it:$('incDateText').value, a:_regDateTouched, b:_incDateTouched, e1:_dateTextErr.reg, e2:_dateTextErr.inc };
+                const out = [], rt = $('regDateText');
+                const type = v => { rt.value = v; rt.dispatchEvent(new Event('input')); };
+                const stopped = () => Array.from(document.querySelectorAll('#sectionMotor .error')).some(e => /before the registration date/.test(e.textContent)) ? 'stop' : 'go';
+                try{
+                  window._stRun(['privateCar','s2','B',1,500000,'petrol','comprehensive',0,0,0,0,0]);
+                  $('regDate').value = '2019-05-05';
+                  type('01/10/20'); out.push($('regDate').value);
+                  type('01/10/2021'); out.push($('regDate').value);
+                  type('31/02/2025'); out.push($('regDate').value + '/' + (_dateTextErr.reg ? 'err' : ''));
+                  type('01/10/25'); rt.dispatchEvent(new Event('change')); out.push($('regDate').value + ' ' + rt.value);
+                  $('regDate').value = '2026-09-01'; $('incDate').value = '2026-07-01'; $('incDateText').value = '01/07/2026'; window.calculate(true); out.push(stopped());
+                  $('incDate').value = '2026-08-11'; $('incDateText').value = '11/08/2026'; window.calculate(true); out.push(stopped());
+                  $('polOD').checked = true; renderTerms(); out.push(document.querySelectorAll('#termSeg input[name="term"]').length);
+                  $('polComp').checked = true; renderTerms();
+                  const flagged = () => [...new Set(motorQuoteChecks().warns.map(w => w.f).filter(f => ['regDateText','incDateText','ncbChips'].includes(f)))].join(',');
+                  _regDateTouched = false; _incDateTouched = false; state.ncbYears = 0;
+                  $('regDate').value = localISO(); $('incDate').value = localISO(); out.push(flagged());
+                  const t0 = new Date(); $('regDate').value = localISO(new Date(t0.getFullYear() - 1, t0.getMonth(), t0.getDate() + 10));
+                  state.ncbYears = 2; out.push(flagged());
+                } finally {
+                  $('regDate').value = keep.r; $('incDate').value = keep.i; $('regDateText').value = keep.rt; $('incDateText').value = keep.it;
+                  _regDateTouched = keep.a; _incDateTouched = keep.b; _dateTextErr.reg = keep.e1; _dateTextErr.inc = keep.e2;
+                }
+                return out.join('|'); } },
   { label:'Invoice / Ex-Showroom field (v162): shown for GCCV, PCCV and Misc-D on an own-damage policy and for a Private Car only on the 3-year package; never on Liability Only or for a two-wheeler', expect:'false/true/false/true/true/true/false/false',
     check:()=>[invoiceFieldApplies('privateCar','comprehensive','1yr'), invoiceFieldApplies('privateCar','comprehensive','3yr'), invoiceFieldApplies('privateCar','odOnly','1yr'),
                invoiceFieldApplies('pccv','comprehensive','1yr'), invoiceFieldApplies('commercial','comprehensive','1yr'), invoiceFieldApplies('misc','comprehensive','1yr'),
@@ -28233,7 +28463,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v163 · no built-in agent name or mobile: each agent's own details, blank until typed · 23-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v164 · SAOD without NCB takes the No NCB column; start date, typed dates and OD discount ceiling fixed · 26-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
