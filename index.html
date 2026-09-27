@@ -12598,7 +12598,7 @@ function getCcFromSlab(slab){
 //
 // Rules (Private Car Engine Protection Adjustment):
 //  Single scale for ALL policies: +15 / +10 / +10 loadings and −15 / −10 / −10 discounts.
-//  (Bundled brand-new 3-yr comprehensive policies still suppress the discount rows in calc.)
+//  Bundled (brand-new 3-yr package) policies take the discount too (v166, INLIAS R/432702/31/2027/2054).
 //  Rule 1: CC > 2500 AND IDV > Rs. 20L  → Loading (highest)
 //  Rule 2: CC ≤ 2500 AND IDV > Rs. 20L  → Loading
 //  Rule 3: CC > 2500 AND IDV ≤ Rs. 20L  → Loading
@@ -12664,29 +12664,10 @@ function getEpAdj() {
   return { factor, discPct, loadPct, netPct, label, badgeClass, ruleText, cc, idvLoad: idvLoad !== 0 };
 }
 
-// Live check: brand-new long-term (3yr) comprehensive private car = bundled.
-// Bundled policies get NO Engine Protection loading or discount.
-function isBundledEpExempt() {
-  const polComp = $('polComp');
-  const months = getAgeMonths();
-  return state.vehicleType === 'privateCar'
-      && polComp && polComp.checked
-      && state.policyTerm === '3yr'
-      && months !== null && months <= 12;
-}
-
 function refreshEpCcBadge() {
   const badge = $('epCcBadge'), rule = $('epCcRule');
   if (!badge) return;
   const adj = getEpAdj();
-  // Bundled policies: the EP DISCOUNT is not applied (loadings still are).
-  // So hide a discount badge for bundled, but keep showing loading badges.
-  if (isBundledEpExempt() && adj.factor < 1) {
-    adj.factor = 1;
-    adj.label = 'No Adjustment';
-    adj.badgeClass = '';
-    adj.ruleText = 'Bundled policy (brand-new 3-year package) → Engine Protection discount not applied. (Loadings still apply.)';
-  }
   badge.textContent = adj.label;
   badge.className   = adj.badgeClass || '';
   // Apply inline styles for each state
@@ -14197,21 +14178,13 @@ function calculate(silent=false){
         const baseEpAmt = Math.round(base * rate);
 
         // ── CC/IDV-based Loading / Discount — auto from slab + IDV ──
-        const isBundled = ageMonths !== null && ageMonths <= 12;
         let epFactor = 1, epLabel = '';
         let idvLoadAmt = 0, idvLoadLabel = '';
         if (isIdvBased && !isTwEp) {
           // Private car only — the CC/IDV loading grid does not apply to 2W.
           // Use the same getEpAdj() logic (slab + IDV derived, not manual CC input)
           const adj = getEpAdj();
-          epFactor = adj.factor;
-          // Bundled policy (brand-new 3-year package) → drop the DISCOUNT
-          // component only; any loading still applies. Under the ODS additive
-          // model the two components are separate, so suppress discPct and
-          // rebuild the factor rather than blanket-resetting it to 1.
-          if (is3yrPackage(data) && isBundled && adj.discPct < 0) {
-            epFactor = 1 + (adj.loadPct || 0) / 100;
-          }
+          epFactor = adj.factor;   // Bundled policies included (v166): INLIAS applies the discount to them too
           epLabel  = epFactor > 1 ? ` + ${Math.round((epFactor-1)*100)}% Load`
                    : epFactor < 1 ? ` - ${Math.round((1-epFactor)*100)}% Disc`
                    : '';
@@ -14220,7 +14193,10 @@ function calculate(silent=false){
         // EPC loading/discount is netted by the NCB rate, matching the Oriental
         // rating sheet: the +/- EP adjustment is reduced by (1 − NCB%). So a −10%
         // EP discount with 20% NCB nets to −8% effective (e.g. −356 → −285).
-        const epAdjRaw  = Math.round(baseEpAmt * epFactor) - baseEpAmt;  // signed loading/discount
+        // signed loading/discount, rounded as its own line in whole-% arithmetic as INLIAS prints it
+        // (15% of 1,410 = 211.5 -> 212; 1,410 x 0.85 in floating point rounded the other way) (v166)
+        const epPct     = Math.round((epFactor - 1) * 100);
+        const epAdjRaw  = Math.sign(epPct) * Math.round(baseEpAmt * Math.abs(epPct) / 100);
         const epNcbRate = RATES.ncb[data.ncbYears] || 0;
         const epAdjNet  = Math.round(epAdjRaw * (1 - epNcbRate));
         engineProtectAmt = baseEpAmt + epAdjNet + idvLoadAmt;
@@ -22653,6 +22629,15 @@ const VERIFIED_CASES = [
                 document.querySelectorAll('*').forEach(e => { for(const a of e.attributes) if(a.value.includes('\u20b9')) n++; });
                 const pre = [...new Set([...document.querySelectorAll('[data-prefix]')].map(e => e.dataset.prefix))].join(',');
                 return (m ? m[0] : txt.slice(0, 60)) + '|' + n + '|' + pre; } },
+  { label:'Bundled Private Car, Engine Protect discount (INLIAS R/432702/31/2027/2054, 27-09-2026): new Honda Amaze 1001-1500cc, Zone B, 3-year package, IDV 8,81,000, SIP 90%, Nil Dep less 40%: basic OD 28,113, SIP 25,302, Engine Protect 1,410 less 212 (CC 1500 or less and IDV Rs.10 lakh or less) = 1,198, Nil Dep 3,260 less 1,304 = 1,956, Return to Invoice 2,643, Consumables 881, TP 10,640, PA owner-driver 900, LL paid driver 150, total premium 21,179, total 24,991 (the discount used to be dropped for Bundled policies)', expect:'28113/25302/1410/1198/3260/1956/2643/881/10640/21179/24991',
+    check:()=>{ window._stRun(['privateCar','s2','B',0,881000,'petrol','comprehensive',0,0,0,0,0]);
+                state.policyTerm = '3yr'; state.cpaTerm = '3yr'; state.llTerm = '3yr'; state.switches.llDrv = true;
+                $('regDate').value = '2026-09-15'; $('incDate').value = '2026-09-15';
+                document.querySelectorAll('#addonsGrid input').forEach(i => i.checked = ['engineProtect','nilDep','rti','consumables'].includes(i.dataset.addon));
+                _sipManualOverride = true; state.odDiscount = 90; state.nilDepDiscount = 40; window.calculate(true);
+                const q = state.lastQuote, it = k => (q.addons.items || []).find(a => a.key === k) || {};
+                const ep = it('engineProtect'), nd = it('nilDep');
+                return [q.odBase, q.odDiscountAmt, ep.grossAmount, ep.amount, nd.grossAmount, nd.amount, it('rti').amount, it('consumables').amount, q.tpBase, q.subtotal, q.total].join('/'); } },
   { label:'Invoice / Ex-Showroom field (v162): shown for GCCV, PCCV and Misc-D on an own-damage policy and for a Private Car only on the 3-year package; never on Liability Only or for a two-wheeler', expect:'false/true/false/true/true/true/false/false',
     check:()=>[invoiceFieldApplies('privateCar','comprehensive','1yr'), invoiceFieldApplies('privateCar','comprehensive','3yr'), invoiceFieldApplies('privateCar','odOnly','1yr'),
                invoiceFieldApplies('pccv','comprehensive','1yr'), invoiceFieldApplies('commercial','comprehensive','1yr'), invoiceFieldApplies('misc','comprehensive','1yr'),
@@ -28474,7 +28459,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v165 · amounts shown as Rs. everywhere - screen, WhatsApp and share captions, images and PDFs · 27-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v166 · Engine Protect CC / IDV discount now applies to Bundled (new 3-year) Private Car policies · 27-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
