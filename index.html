@@ -15550,8 +15550,8 @@ function generatePDF(q, docOverride){
   const trailerIDV = (q.data.trailerCoverType && q.data.trailerCoverIDV > 0) ? q.data.trailerCoverIDV * (q.data.trailerCoverCount || 1) : 0;
   const totalIDV   = (q.idv||0)+trailerIDV+(q.data.cngKit||0)+(q.data.elecAcc||0)+(q.data.nonElecAcc||0);
   const ncbPct     = Math.round((RATES.ncb[q.data.ncbYears]||0)*100);
-  const polLabel   = q.data.policyType==='comprehensive'?'Comprehensive (Package)':q.data.policyType==='odOnly'?'Standalone OD (SAOD)':'Third Party Only';
-  const termLabel  = (q.data.vehicleType==='twoWheelerHire'||q.data.vehicleType==='pccv')?('1 Year | '+q.data.paxCount+' Pax'):q.data.policyTerm.replace('yr',' Year');
+  const polLabel   = MOTOR_POLICY_NAME[motorPolicyKind(q)];
+  const termLabel  = motorTermLabel(q);
   const rtoLoc     = (q.data.regNumber||'').replace(/\s/g,'').slice(0,4).toUpperCase() || ('Zone '+q.data.zone);
   const ccKw       = q.data.exactCC>0?(q.data.exactCC+' CC'):slabLabel;
 
@@ -15661,7 +15661,7 @@ function generatePDF(q, docOverride){
       ry=row(RX,ry,colW,'Basic OD Premium', R(_basicPure), {zebra:rz}); rz=!rz;
       if(_nonElP>0){ ry=row(RX,ry,colW,'Non-Electrical Accessories', R(_nonElP), {zebra:rz}); rz=!rz; }
       if(_gvwSur>0){ ry=row(RX,ry,colW,'GVW Surcharge (above 12,000 kg)', R(_gvwSur), {zebra:rz}); rz=!rz; }
-      if(q.odCNGKit>0){ ry=row(RX,ry,colW, q.odCNGInbuilt ? 'In-built Bi-Fuel CNG/LPG Cover (OD) – GR.42(b)' : 'CNG/LPG Kit OD Premium (4% of kit value)', R(q.odCNGKit), {zebra:rz}); rz=!rz; }
+      if(q.odCNGKit>0){ ry=row(RX,ry,colW, q.odCNGInbuilt ? 'In-built Bi-Fuel CNG/LPG Cover (OD)' : 'CNG/LPG Kit OD Premium', R(q.odCNGKit), {zebra:rz}); rz=!rz; }
       if(q.imt47Amt>0){ ry=row(RX,ry,colW,'Add: Overturning Cover (IMT-47)', R(q.imt47Amt), {zebra:rz}); rz=!rz; }
       if(q.odElecAcc>0){ ry=row(RX,ry,colW,'Electrical Accessories', R(q.odElecAcc), {zebra:rz}); rz=!rz; }
       }
@@ -15669,7 +15669,7 @@ function generatePDF(q, docOverride){
       ry=row(RX,ry,colW,'Less: No Claim Bonus ('+ncbPct+'%)', ncbSecI>0?'- '+R(ncbSecI):R(0), {zebra:rz}); rz=!rz;
       if(q.odCNGFuel>0){ ry=row(RX,ry,colW,'CNG/LPG Fuel Loading', R(q.odCNGFuel), {zebra:rz}); rz=!rz; }
       if(imt23InOD){ ry=row(RX,ry,colW,'IMT 23 \u2013 IMT 21 Exclusions', R(imt23Amt), {zebra:rz}); rz=!rz; }
-      if(geoOdAmt>0){ ry=row(RX,ry,colW,'Add: Geographical Extension (GR.4)', R(geoOdAmt), {zebra:rz}); rz=!rz; }
+      if(geoOdAmt>0){ ry=row(RX,ry,colW,'Add: Geographical Extension', R(geoOdAmt), {zebra:rz}); rz=!rz; }
       ry=row(RX,ry,colW,'Total Own Damage Premium', R(odTotalDisp), {total:true});
       ry+=Math.round(3*VS);
     }
@@ -15677,7 +15677,7 @@ function generatePDF(q, docOverride){
       ry=subBar(RX,ry,colW,'Section II \u2013 Liability'); rz=false;
       if(q.data.policyType!=='odOnly'){
         ry=row(RX,ry,colW,'Basic Liability Premium', R(q.tpBase), {zebra:rz}); rz=!rz;
-        if(q.fuelTPLoad>0){ ry=row(RX,ry,colW, q.data.fuel==='cng' ? 'In-built Bi-Fuel CNG/LPG Cover (TP) – GR.42(b)' : q.fuelCfg.label+' TP Loading', R(q.fuelTPLoad), {zebra:rz}); rz=!rz; }
+        if(q.fuelTPLoad>0){ ry=row(RX,ry,colW, q.data.fuel==='cng' ? 'In-built Bi-Fuel CNG/LPG Cover (TP)' : q.fuelCfg.label+' TP Loading', R(q.fuelTPLoad), {zebra:rz}); rz=!rz; }
       }
       if(cpaItem){ ry=row(RX,ry,colW,'Compulsory Personal Accident', R(cpaItem.amount), {zebra:rz}); rz=!rz; }
       if(q.kitTPLoad>0){ ry=row(RX,ry,colW,'CNG/LPG Kit TP Premium', R(q.kitTPLoad), {zebra:rz}); rz=!rz; }
@@ -15686,7 +15686,7 @@ function generatePDF(q, docOverride){
       if(ambItem){ ry=row(RX,ry,colW,'Ambulance Liability', R(ambItem.amount), {zebra:rz}); rz=!rz; }
       if(hearseItem){ ry=row(RX,ry,colW,'Hearse Liability', R(hearseItem.amount), {zebra:rz}); rz=!rz; }
       if(transferItem){ ry=row(RX,ry,colW,'Transfer / Duplicate Fee', R(transferItem.amount), {zebra:rz}); rz=!rz; }
-      if(geoItem){ ry=row(RX,ry,colW,'Geographical Extension (GR.4)', R(geoItem.amount), {zebra:rz}); rz=!rz; }
+      if(geoItem){ ry=row(RX,ry,colW,'Geographical Extension', R(geoItem.amount), {zebra:rz}); rz=!rz; }
       // Anything the engine added to the liability extras that is not one of the named rows
       // above (trailer liability, the TPPD-restriction credit, future extras) used to vanish
       // from the sheet while still sitting inside the total. Print each remaining line.
@@ -15700,9 +15700,10 @@ function generatePDF(q, docOverride){
     }
     if(addonList.length>0||addonExtra>0||epAmt>0){
       ry=subBar(RX,ry,colW,'Section III \u2013 Add-on Covers'); rz=false;
-      if(epItem){ const _epNm=(epItem.name||'Engine Protection').replace(/\s*\([\s\S]*$/,'').trim()||'Engine Protection';
-                  ry=row(RX,ry,colW,_epNm,R(epAmt),{zebra:rz}); rz=!rz; }
-      addonList.forEach(a=>{ const nm=(a.name||'').replace(/\s*\([\s\S]*$/,'').trim()||a.name; ry=row(RX,ry,colW,nm,R(a.amount),{zebra:rz}); rz=!rz; });
+      /* add-on names as the INLIAS quote worksheet prints them (v167) */
+      const _inliasNm = { engineProtect:'Engine Protect Cover', nilDep:'Nil Depreciation Cover', consumables:'Consumables Expenses', rti:'Return To Invoice', tyreProtect:'Tyre and Rim Protector' };
+      if(epItem){ ry=row(RX,ry,colW,_inliasNm.engineProtect,R(epAmt),{zebra:rz}); rz=!rz; }
+      addonList.forEach(a=>{ const nm=_inliasNm[a.key]||(a.name||'').replace(/\s*\([\s\S]*$/,'').trim()||a.name; ry=row(RX,ry,colW,nm,R(a.amount),{zebra:rz}); rz=!rz; });
       if(llItem){ ry=row(RX,ry,colW,'LL Paid Driver', R(llItem.amount), {zebra:rz}); rz=!rz; }
       if(paUnItem){ ry=row(RX,ry,colW,'PA Unnamed Passenger', R(paUnItem.amount), {zebra:rz}); rz=!rz; }
       if(ncbSecAddons>0){ ry=row(RX,ry,colW,'Less: No Claim Bonus ('+ncbPct+'%) balance', '- '+R(ncbSecAddons), {zebra:rz}); rz=!rz; }
@@ -15789,9 +15790,7 @@ function generatePDF(q, docOverride){
 
   const safeName = (q.data.customerName||'Customer').replace(/[^a-zA-Z0-9]/g,'_').slice(0,30);
   const clsCode  = vehicleClassCode(q.data.vehicleType);
-  const covCode  = q.data.policyType==='comprehensive' ? 'PACKAGE'
-                 : q.data.policyType==='odOnly'        ? 'SAOD'
-                 :                                       'LIABILITY';
+  const covCode  = { package:'PACKAGE', bundled:'BUNDLED', saod:'SAOD', tp:'LIABILITY' }[motorPolicyKind(q)];
   /* Append the add-on scope & conditions schedule (all vehicle classes) so every
      Motor quote goes out with the selected add-ons' cover and conditions behind it,
      the same way the OSSS and Youth Eco Care benefit schedules travel with theirs. */
@@ -16225,7 +16224,6 @@ function drawMotorAddonPages(doc, q){
   const LBLW = 118, VALW = CW - LBLW, VALX = M + LBLW, PADX = 9, PADY = 6, FS = 8.2, LH = 10.6;
   const vt = (q.data && q.data.vehicleType) || 'privateCar';
   const VT_LABEL = { privateCar:'Private Car', twoWheeler:'Two-Wheeler', twoWheelerHire:'Two-Wheeler (Hire)', pccv:'Passenger Carrying Commercial Vehicle', commercial:'Goods Carrying Commercial Vehicle', misc:'Miscellaneous Class D' };
-  const POL_LABEL = { comprehensive:'Package Policy', odOnly:'Standalone OD Policy', thirdParty:'Liability Only Policy' };
   const age = (q.ageYears != null) ? Number(q.ageYears) : null;
   const fmtAge = function(a){ return a == null ? '' : (Math.round(a*10)/10) + ' years'; };
   const safe = function(s){ return String(s == null ? '' : s).replace(/₹\s*/g,'Rs. ').replace(/[≤]/g,'<=').replace(/[≥]/g,'>=').replace(/[^\x00-\xFF]/g,''); };
@@ -16242,7 +16240,7 @@ function drawMotorAddonPages(doc, q){
     setText(WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(11.5); doc.setCharSpace(0.55);
     doc.text('MOTOR ADD-ON COVERS — SCOPE & CONDITIONS', M+12, M+14);
     doc.setCharSpace(0); doc.setFont('helvetica','normal'); doc.setFontSize(7.0); doc.setTextColor(197,217,242);
-    doc.text(safe((VT_LABEL[vt] || vt) + '   |   ' + (POL_LABEL[(q.data && q.data.policyType)] || '') + (age != null ? '   |   Vehicle age ' + fmtAge(age) : '') + '   |   ' + ((q.data && q.data.customerName) || '')), M+12, M+25);
+    doc.text(safe((VT_LABEL[vt] || vt) + '   |   ' + (q.data ? MOTOR_POLICY_NAME[motorPolicyKind(q)] : '') + (age != null ? '   |   Vehicle age ' + fmtAge(age) : '') + '   |   ' + ((q.data && q.data.customerName) || '')), M+12, M+25);
     y = M + 34 + 8;
   }
   function footer(){
@@ -16381,33 +16379,56 @@ function vehicleClassCode(vt){
   })[vt] || 'MOTOR';
 }
 
+/* Motor policy name and term as INLIAS prints them (v167). A Private Car 1+3 or Two-Wheeler 1+5 long
+   term issued in the vehicle's first year is a BUNDLED POLICY (INLIAS quote worksheet "PRIVATE CAR
+   BUNDLED POLICY" / "TWO WHEELERS BUNDLED POLICY"): own damage for 1 year, liability for 3 / 5. */
+function motorPolicyKind(q){
+  const d = q.data || {};
+  if(d.policyType === 'odOnly') return 'saod';
+  if(d.policyType === 'thirdParty') return 'tp';
+  const longTerm = (d.vehicleType === 'privateCar' && d.policyTerm === '3yr') || (d.vehicleType === 'twoWheeler' && d.policyTerm === '5yr');
+  return (longTerm && (q.ageMonths == null || q.ageMonths <= 12)) ? 'bundled' : 'package';
+}
+const MOTOR_POLICY_NAME = { package:'Package Policy', bundled:'Bundled Policy', saod:'Standalone OD Policy (SAOD)', tp:'Liability Only Policy' };
+function motorTermLabel(q){
+  const d = q.data || {};
+  if(d.vehicleType === 'twoWheelerHire' || d.vehicleType === 'pccv') return '1 Year | ' + d.paxCount + ' Pax';
+  const n = parseInt(d.policyTerm, 10) || 1;
+  if(motorPolicyKind(q) === 'bundled') return 'OD 1 Year + TP ' + n + ' Years';
+  return n === 1 ? '1 Year' : n + ' Years';
+}
+
 function quoteSubtitle(q){
   const pt = q.data.policyType; // comprehensive | odOnly | thirdParty
+  const kind = motorPolicyKind(q);
   let vehicleName, pkgLabel;
   if(q.data.vehicleType === 'commercial'){
-    vehicleName = 'GOODS CARRYING VEHICLE QUOTE'; pkgLabel = 'PUBLIC CARRIER';
+    vehicleName = 'GOODS CARRYING VEHICLE (' + (q.data.slab === 'gcv3wPrivate' ? 'PRIVATE' : 'PUBLIC') + ' CARRIER) QUOTE'; pkgLabel = 'PACKAGE POLICY';
   } else if(q.data.vehicleType === 'twoWheeler'){
     vehicleName = 'TWO WHEELER QUOTE'; pkgLabel = 'PACKAGE POLICY';
   } else if(q.data.vehicleType === 'twoWheelerHire'){
     vehicleName = 'TWO WHEELER (HIRE/REWARD) QUOTE'; pkgLabel = 'PACKAGE POLICY';
   } else if(q.data.vehicleType === 'pccv'){
-    vehicleName = 'PASSENGER CARRYING COMMERCIAL VEHICLE QUOTE'; pkgLabel = 'PACKAGE';
+    vehicleName = 'PASSENGER CARRYING COMMERCIAL VEHICLE QUOTE'; pkgLabel = 'PACKAGE POLICY';
   } else if(q.data.vehicleType === 'misc'){
     vehicleName = 'MISCELLANEOUS & SPECIAL TYPE OF VEHICLE (CLASS D) QUOTE'; pkgLabel = 'PACKAGE POLICY';
   } else {
     vehicleName = 'PRIVATE CAR QUOTE'; pkgLabel = 'PACKAGE POLICY';
   }
   const coverage = pt === 'comprehensive' ? pkgLabel
-                 : pt === 'odOnly'        ? 'STANDALONE OD (SAOD)'
-                 :                          'LIABILITY ONLY';
-  let base = `${vehicleName} - ${coverage}`;
+                 : pt === 'odOnly'        ? 'STANDALONE OD POLICY (SAOD)'
+                 :                          'LIABILITY ONLY POLICY';
+  let base = kind === 'bundled'
+    ? (q.data.vehicleType === 'twoWheeler' ? 'TWO WHEELERS' : 'PRIVATE CAR') + ' BUNDLED POLICY'
+    : `${vehicleName} - ${coverage}`;
   // Suffix for auto-quote variants
   if(q._autoQuoteKey){
+    const pk = kind === 'bundled' ? 'BUNDLED' : 'PACKAGE';
     const variantSuffix = {
       tpBasic:  ' · TP + LL',
       tpFull:   ' · TP + LL + Owner PA + Unnamed PA',
-      pkgBasic: ' · PACKAGE + LL',
-      pkgFull:  ' · PACKAGE + LL + Owner PA + Unnamed PA'
+      pkgBasic: ` · ${pk} + LL`,
+      pkgFull:  ` · ${pk} + LL + Owner PA + Unnamed PA`
     }[q._autoQuoteKey];
     if(variantSuffix) base += variantSuffix;
   }
@@ -22638,6 +22659,24 @@ const VERIFIED_CASES = [
                 const q = state.lastQuote, it = k => (q.addons.items || []).find(a => a.key === k) || {};
                 const ep = it('engineProtect'), nd = it('nilDep');
                 return [q.odBase, q.odDiscountAmt, ep.grossAmount, ep.amount, nd.grossAmount, nd.amount, it('rti').amount, it('consumables').amount, q.tpBase, q.subtotal, q.total].join('/'); } },
+  { label:'Motor PDF labels (v167, INLIAS quote worksheet "PRIVATE CAR BUNDLED POLICY" / "TWO WHEELERS BUNDLED POLICY"): a new Private Car on the 3-year term is a Bundled Policy, OD 1 Year + TP 3 Years, file BUNDLED, with Engine Protect Cover and Nil Depreciation Cover in the add-ons; a new Two-Wheeler on 5 years the same; a 1-year car is a Package Policy; Standalone OD and a 3-year Liability Only keep their names', expect:'PRIVATE CAR BUNDLED POLICY|Bundled Policy|OD 1 Year + TP 3 Years|BUNDLED|true/true/false/false#TWO WHEELERS BUNDLED POLICY|Bundled Policy|OD 1 Year + TP 5 Years|BUNDLED#PRIVATE CAR QUOTE - PACKAGE POLICY|Package Policy|1 Year|PACKAGE#PRIVATE CAR QUOTE - STANDALONE OD POLICY (SAOD)|Standalone OD Policy (SAOD)|1 Year|SAOD#PRIVATE CAR QUOTE - LIABILITY ONLY POLICY|Liability Only Policy|3 Years|LIABILITY',
+    check:()=>{ const out = [];
+                const one = (vt, slab, pt, term, extra) => {
+                  window._stRun([vt, slab, 'B', 0, vt === 'twoWheeler' ? 90000 : 881000, 'petrol', pt, 0, 0, 0, 0, 0]);
+                  $('regDate').value = '2026-09-15'; $('incDate').value = '2026-09-15';
+                  state.policyTerm = term; if(term !== '1yr'){ state.cpaTerm = term; }
+                  if(extra) extra();
+                  window.calculate(true);
+                  const q = state.lastQuote, r = generatePDF(q), txt = r.doc.output();
+                  let s = [quoteSubtitle(q), MOTOR_POLICY_NAME[motorPolicyKind(q)], motorTermLabel(q), (r.filename.match(/_(PACKAGE|BUNDLED|SAOD|LIABILITY)_/) || [])[1]].join('|');
+                  if(extra) s += '|' + ['Engine Protect Cover', 'Nil Depreciation Cover', 'Comprehensive (Package)', 'GR.42'].map(w => txt.includes(w)).join('/');
+                  out.push(s); };
+                one('privateCar', 's2', 'comprehensive', '3yr', () => document.querySelectorAll('#addonsGrid input').forEach(i => i.checked = ['engineProtect','nilDep'].includes(i.dataset.addon)));
+                one('twoWheeler', 's2', 'comprehensive', '5yr');
+                one('privateCar', 's2', 'comprehensive', '1yr');
+                one('privateCar', 's2', 'odOnly', '1yr');
+                one('privateCar', 's2', 'thirdParty', '3yr');
+                return out.join('#'); } },
   { label:'Invoice / Ex-Showroom field (v162): shown for GCCV, PCCV and Misc-D on an own-damage policy and for a Private Car only on the 3-year package; never on Liability Only or for a two-wheeler', expect:'false/true/false/true/true/true/false/false',
     check:()=>[invoiceFieldApplies('privateCar','comprehensive','1yr'), invoiceFieldApplies('privateCar','comprehensive','3yr'), invoiceFieldApplies('privateCar','odOnly','1yr'),
                invoiceFieldApplies('pccv','comprehensive','1yr'), invoiceFieldApplies('commercial','comprehensive','1yr'), invoiceFieldApplies('misc','comprehensive','1yr'),
@@ -28459,7 +28498,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v166 · Engine Protect CC / IDV discount now applies to Bundled (new 3-year) Private Car policies · 27-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v167 · Motor PDF says Bundled Policy (OD 1 Year + TP 3 / 5 Years) for a new car / two-wheeler long term; policy and add-on labels as INLIAS prints them · 27-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
