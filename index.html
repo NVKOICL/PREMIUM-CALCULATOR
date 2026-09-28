@@ -16467,11 +16467,17 @@ function motorQuoteChecks(){
   /* Dates left at their defaults, and an NCB longer than the vehicle has been on the road (v164) */
   try{ motorDateWarnings().forEach(w => warns.push({ f:w.f, t:w.t })); }catch(e){}
   if(hasOD && (state.ncbYears || 0) > 0){
-    let cm = null; try{ cm = getCompletedAgeMonths(); }catch(e){}
-    const yrs = cm !== null ? Math.floor(cm / 12) : null;
+    /* Claim-free years run in policy years, and the first policy starts on or before the registration
+       date, so a renewal a few days or weeks before the registration anniversary has still completed
+       that year (25% last year, 35% now, on a bus 2 years 11 months old - v168). Band age, as every
+       other age test here: the running month counts. */
+    let bm = null, cm = null; try{ bm = getAgeMonths(); cm = getCompletedAgeMonths(); }catch(e){}
+    const yrs = bm !== null ? Math.floor(bm / 12) : null;
     if(yrs !== null && yrs < state.ncbYears){
       const pc = Math.round(((RATES.ncb && RATES.ncb[state.ncbYears]) || 0) * 100);
-      warns.push({ f:'ncbChips', t:'NCB ' + pc + '% needs ' + state.ncbYears + ' claim-free year' + (state.ncbYears > 1 ? 's' : '') + ', but the vehicle is ' + yrs + ' year' + (yrs === 1 ? '' : 's') + ' old on the policy start date. This is correct only if the NCB is transferred from the customer\'s earlier vehicle.' });
+      const cy = Math.floor((cm || 0) / 12), cmo = (cm || 0) % 12;
+      const ageTxt = (cy ? cy + ' year' + (cy === 1 ? '' : 's') : '') + (cy && cmo ? ' ' : '') + (cmo || !cy ? cmo + ' month' + (cmo === 1 ? '' : 's') : '');
+      warns.push({ f:'ncbChips', t:'NCB ' + pc + '% needs ' + state.ncbYears + ' claim-free year' + (state.ncbYears > 1 ? 's' : '') + ', but the vehicle is only ' + ageTxt + ' old on the policy start date. This is correct only if the first policy began well before registration (for example, a chassis insured while its body was built) or the NCB is transferred from the customer\'s earlier vehicle.' });
     }
   }
 
@@ -22677,6 +22683,14 @@ const VERIFIED_CASES = [
                 one('privateCar', 's2', 'odOnly', '1yr');
                 one('privateCar', 's2', 'thirdParty', '3yr');
                 return out.join('#'); } },
+  { label:'Check-before-quoting NCB line (v168, office report 28-Sep-2026: PCCV staff bus, 25% last year, 35% now, flagged as needing 3 claim-free years on a 2-year-old vehicle): renewal 28-09-2026 on a bus registered 20-10-2023 (2 years 11 months) takes NCB 3 years without a warning; registered 20-11-2023 (2 years 10 months) it is still flagged; registered 28-09-2023 no warning; 4 years NCB on the 20-10-2023 bus flagged', expect:'-/ncbChips 2 years 10 months/-/ncbChips 2 years 11 months',
+    check:()=>{ window._stRun(['pccv','staffBus','C',2,1539000,'petrol','comprehensive',3,20,0,0,0]);
+                const keep = { r:$('regDate').value, i:$('incDate').value };
+                const ncb = (reg, yrs) => { $('regDate').value = reg; $('incDate').value = '2026-09-28'; state.ncbYears = yrs;
+                  const w = motorQuoteChecks().warns.find(w => w.f === 'ncbChips');
+                  return w ? 'ncbChips ' + ((w.t.match(/only (.*?) old/) || [])[1]) : '-'; };
+                try { return [ncb('2023-10-20', 3), ncb('2023-11-20', 3), ncb('2023-09-28', 3), ncb('2023-10-20', 4)].join('/'); }
+                finally { $('regDate').value = keep.r; $('incDate').value = keep.i; } } },
   { label:'Invoice / Ex-Showroom field (v162): shown for GCCV, PCCV and Misc-D on an own-damage policy and for a Private Car only on the 3-year package; never on Liability Only or for a two-wheeler', expect:'false/true/false/true/true/true/false/false',
     check:()=>[invoiceFieldApplies('privateCar','comprehensive','1yr'), invoiceFieldApplies('privateCar','comprehensive','3yr'), invoiceFieldApplies('privateCar','odOnly','1yr'),
                invoiceFieldApplies('pccv','comprehensive','1yr'), invoiceFieldApplies('commercial','comprehensive','1yr'), invoiceFieldApplies('misc','comprehensive','1yr'),
@@ -28498,7 +28512,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v167 · Motor PDF says Bundled Policy (OD 1 Year + TP 3 / 5 Years) for a new car / two-wheeler long term; policy and add-on labels as INLIAS prints them · 27-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v168 · NCB check no longer flags a correct NCB when the renewal falls just before the registration anniversary · 28-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
