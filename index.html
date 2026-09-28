@@ -10608,16 +10608,16 @@ const TRAILER_COVER = {
   others: { label:'Trailer – Others (incl. Misc & Special Types)', odRate:1.050, tp:2485 }
 };
 
-/* OD-RATE CONFLICT, unresolved — INLIAS vs the printed tariff.
-   OIC worksheet R/432702/31/2027/1584 (Misc Class D, 14/08/2026) charges:
-       TRAILER - OD COVER   SI 25,000  ->  Rs.218  = 0.870% of SI
-       TRAILER TP                          Rs.2,485 = the "Others" row
-   i.e. the OTHERS liability rate paired with the AGRI od rate. Under the OICL
-   tariff sheet an "Others" trailer should be 1.050% -> Rs.263.
-   Default follows INLIAS (0.870% for both types) so quotes match what the
-   branch actually issues; set to 'tariff' to follow the printed rate card.
-   AWAITING UNDERWRITING CONFIRMATION. */
-const TRAILER_OD_RATE_MODE = 'inlias';       // 'inlias' | 'tariff'
+/* OD RATE — the rate of the trailer type picked (v169).
+   Until v168 this was forced to 0.870% for both types on the strength of one
+   worksheet, R/432702/31/2027/1584 (Misc Class D, 14/08/2026: TRAILER - OD
+   COVER SI 25,000 -> Rs.218 = 0.870%, with the Others TP Rs.2,485). A later
+   INLIAS sheet, R/162403/31/2027/1285 (Misc Class D tractor, start 03/10/2026),
+   charges TRAILER OD COVER SI 1,35,000 -> Rs.1,418 = 1.050% with the same
+   Others TP Rs.2,485 - the printed tariff rate, which the dropdown already
+   showed while the quote charged 0.870% (Rs.1,175, field report 28-09-2026).
+   The standalone "Trailer - Others" slab was always 1.050%. */
+const TRAILER_OD_RATE_MODE = 'tariff';       // 'inlias' (0.870% flat, pre-v169) | 'tariff'
 function trailerODRate(typeKey){
   return TRAILER_OD_RATE_MODE === 'inlias' ? 0.870 : TRAILER_COVER[typeKey].odRate;
 }
@@ -22691,6 +22691,16 @@ const VERIFIED_CASES = [
                   return w ? 'ncbChips ' + ((w.t.match(/only (.*?) old/) || [])[1]) : '-'; };
                 try { return [ncb('2023-10-20', 3), ncb('2023-11-20', 3), ncb('2023-09-28', 3), ncb('2023-10-20', 4)].join('/'); }
                 finally { $('regDate').value = keep.r; $('incDate').value = keep.i; } } },
+  { label:'Misc D tractor + attached trailer (INLIAS R/162403/31/2027/1285, start 03-10-2026, field report 28-09-2026 - the quote charged the trailer 0.870% = 1,175): Zone C, diesel, reg 27-12-2021, IDV 4,95,000, IMT 23, SIP 80%, NCB 50%, CPA, LL paid driver, trailer Others SI 1,35,000: basic OD 5,891, SIP 4,713, NCB 678, IMT 23 177, basic TP 7,267, TRAILER OD COVER 1,418 (1.050%, no SIP, no NCB), TRAILER TP 2,485, CPA 320, LL 50, total premium 12,217 (INLIAS 12,218: it keeps paise, NCB 677.54, and rounds the OD to 678), GST 2,200 as CGST + SGST (the sheet is IGST, one 18% line, 2,199), total 14,417 as on the sheet', expect:'5891/4713/678/177/7267/1418/2485/320/50/12217/2200/14417',
+    check:()=>{ window._stRun(['misc','agriTractorGt6HP','C',4,495000,'diesel','comprehensive',5,1,0,0,1]);
+                $('regDate').value = '2021-12-27'; $('incDate').value = '2026-10-03';
+                _sipManualOverride = true; state.odDiscount = 80;
+                state.switches.cpa = true; state.switches.llDrv = true;
+                document.querySelectorAll('#addonsGrid input').forEach(i => i.checked = false);
+                $('trailerCoverType').value = 'others'; $('trailerCoverIDV').value = '135000';
+                try { window.calculate(true); const q = state.lastQuote, x = n => ((q.extras.items.find(i => i.name.indexOf(n) === 0) || {}).amount);
+                  return [q.odBase, q.odDiscountAmt, q.ncbDiscount, x('IMT 23'), q.tpPremium, q.trailerCoverOD, q.trailerCoverTP, x('Compulsory PA'), x('LL to Paid Driver'), q.subtotal, q.gst, q.total].join('/'); }
+                finally { $('trailerCoverType').value = ''; $('trailerCoverIDV').value = ''; } } },
   { label:'Invoice / Ex-Showroom field (v162): shown for GCCV, PCCV and Misc-D on an own-damage policy and for a Private Car only on the 3-year package; never on Liability Only or for a two-wheeler', expect:'false/true/false/true/true/true/false/false',
     check:()=>[invoiceFieldApplies('privateCar','comprehensive','1yr'), invoiceFieldApplies('privateCar','comprehensive','3yr'), invoiceFieldApplies('privateCar','odOnly','1yr'),
                invoiceFieldApplies('pccv','comprehensive','1yr'), invoiceFieldApplies('commercial','comprehensive','1yr'), invoiceFieldApplies('misc','comprehensive','1yr'),
@@ -22794,8 +22804,8 @@ const VERIFIED_CASES = [
     check:()=>{ const src=String(calculate); 
       return /miscNdEligible = !!data\.switches\.imt23;/.test(src) ? 'imt23-only' : 'other'; },
     expect:'imt23-only' },
-  { label:'Attached trailer OD 0.870% on SI 25,000 (OIC wksht R/432702/31/2027/1584)',
-    check:()=>Math.round(25000 * trailerODRate('others') / 100), expect:218 },
+  { label:'Attached trailer OD follows the type picked (v169): Others 1.050% on SI 1,35,000 = 1,418 (INLIAS R/162403/31/2027/1285); Agri 0.870% on SI 25,000 = 218',
+    check:()=>Math.round(135000 * trailerODRate('others') / 100)+'/'+Math.round(25000 * trailerODRate('agri') / 100), expect:'1418/218' },
   { label:'Attached trailer TP "Others" = Rs.2,485 (same worksheet)',
     check:()=>TRAILER_COVER.others.tp, expect:2485 },
   { label:'Attached trailer — Agri/Forestry OD rate + TP (tariff sheet / Table I B)',
@@ -28512,7 +28522,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v168 · NCB check no longer flags a correct NCB when the renewal falls just before the registration anniversary · 28-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v169 · Attached trailer OD charged at the rate of the type picked: Others 1.050%, Agri 0.870% · 28-Sep-2026</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
