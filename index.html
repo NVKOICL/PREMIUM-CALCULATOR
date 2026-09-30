@@ -2473,6 +2473,14 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
         <div class="switch" data-key="tppd"><input type="checkbox"></div>
       </div>
 
+      <div class="switch-row" id="rsaTpRow" style="display:none">
+        <div class="info">
+          <div class="t">Road Side Assistance</div>
+          <div class="s" id="rsaTpHint"></div>
+        </div>
+        <div class="switch" data-key="rsaTp"><input type="checkbox"></div>
+      </div>
+
       <div class="switch-row comp-only visible" id="vintageRow" style="display:none">
         <div class="info">
           <div class="t">Vintage Car</div>
@@ -10368,7 +10376,7 @@ const RATES = {
     towing10k:    { name:'Towing Charges (≤Rs. 10,000)',type:'towing', towingLimit:10000, towingPremium:500, },
     towing20k:    { name:'Towing Charges (≤Rs. 20,000)',type:'towing', towingLimit:20000, towingPremium:1500, },
     imt47:        { name:'IMT-47 Overturning Cover (Tool of Trade)', type:'percent', rate:0.005, idvBased:true, vehicleOnly:['misc'] },
-    rsa:          { name:'Road Side Assistance', type:'rsa', vehicleOnly:['privateCar'] }   // flat: Rs.100 package / SAOD, Rs.283 bundled (v161)
+    rsa:          { name:'Road Side Assistance', type:'rsa', vehicleOnly:['privateCar','twoWheeler','twoWheelerHire','pccv','commercial'] }   // flat per policy - RSA_PREMIUM (v171)
   },
 
   // ── RTI RATE TABLE (% of IDV by policy/vehicle age) ──────────────
@@ -10851,7 +10859,7 @@ const state = {
   personalEffectsSI: 5000,  // 5000 or 10000
   lastQuote: null,
   hasCalcedOnce: false,
-  switches: { cpa:true, atd:false, paUn:false, llDrv:false, llNFPP:false, imt23:false, vintage:false, transfer:false, nilDepGccvRenewal:false, geoExt:false, tppd:false }
+  switches: { cpa:true, atd:false, paUn:false, llDrv:false, llNFPP:false, imt23:false, vintage:false, transfer:false, nilDepGccvRenewal:false, geoExt:false, tppd:false, rsaTp:false }
 };
 
 /* ── EDITABLE AGENT DETAILS — name & mobile, persisted in this browser ──
@@ -12223,7 +12231,7 @@ function renderTerms(){
     <label for="t_${t.key}">${t.label}</label>
   `).join('');
   document.querySelectorAll('input[name="term"]').forEach(r=>{
-    r.addEventListener('change',()=>{ state.policyTerm = r.value; updateInvoiceValueField(); syncTpTermRow(); autoApplySipDiscount(); updateDiscountHint(); scheduleAutoCalc(); });
+    r.addEventListener('change',()=>{ state.policyTerm = r.value; renderAddons(); updateInvoiceValueField(); syncTpTermRow(); autoApplySipDiscount(); updateDiscountHint(); scheduleAutoCalc(); });
   });
 }
 
@@ -12283,10 +12291,10 @@ function renderAddons(){
       const pct = (tp/a.towingLimit*100).toFixed(1).replace('.0','');
       note = `Rs. ${tp} (${pct}% of Rs. ${(a.towingLimit/1000).toFixed(0)}K limit)`;
     } else if(a.type === 'rsa'){
-      const polNow = ($('polComp') && $('polComp').checked) ? 'comprehensive' : (($('polOD') && $('polOD').checked) ? 'odOnly' : 'thirdParty');
-      const rsaData = { vehicleType: state.vehicleType, policyType: polNow, policyTerm: state.policyTerm };
-      if(polNow === 'thirdParty'){ disabled = true; note = 'Not available on Liability Only'; }
-      else note = rsaIsBundled(rsaData, ageMonths) ? `Rs. ${RSA_PREMIUM.bundled} flat · bundled policy` : `Rs. ${RSA_PREMIUM.standard} flat · package / stand-alone OD`;
+      const rsaData = rsaDataNow();
+      const why = rsaIneligibleReason(rsaData);
+      if(why){ disabled = true; note = why; }
+      else note = `Rs. ${rsaPremiumFor(rsaData, ageMonths)} flat · ${rsaPolicyLabel(rsaData, ageMonths)}`;
     } else if(a.type === 'towingFlat'){
       const capNow = towingCapFor(state.vehicleType, ($('ccSlab')||{}).value);
       if(capNow >= 1500) return '';       // covered by the Rs. 1,500 / Rs. 10K / Rs. 20K chips
@@ -12550,6 +12558,7 @@ function renderAddons(){
       updateTyreHint();
     }
     if(i.dataset.addon === 'nilDep' && i.checked) applyAutoNilDepDisc();
+    if(i.dataset.addon === 'rsa') updateRsaTpRow();
     syncEpCcWrap(); scheduleAutoCalc();
   }));
 
@@ -12575,6 +12584,7 @@ function renderAddons(){
     if(el.disabled){ _addonsDropped.push(k); return; }   /* offered but not eligible - keep it pending */
     if(!el.checked){ el.checked = true; el.dispatchEvent(new Event('change', { bubbles:true })); }
   });
+  updateRsaTpRow();
 }
 
 /* ─── Engine Protection CC Loading / Discount ─────────────── */
@@ -13352,6 +13362,11 @@ document.querySelectorAll('#sectionMotor .switch').forEach(s=>{
     // Nil Depreciation eligibility for Misc/GCCV depends on IMT-23, so the
     // add-on cards have to be redrawn when the user toggles it by hand.
     if(key==='imt23' && typeof renderAddons === 'function') renderAddons();
+    if(key==='rsaTp'){
+      const b = document.querySelector('#addonsGrid input[data-addon="rsa"]');
+      if(b && !b.disabled) b.checked = state.switches.rsaTp;
+      updateRsaTpRow();
+    }
     scheduleAutoCalc();
   });
 });
@@ -13448,7 +13463,7 @@ function updateGVWSurchargePreview(){
   }
 }
 if($('gcvActualGVW')){
-  $('gcvActualGVW').addEventListener('input', ()=>{ updateGVWSurchargePreview(); autoApplySipDiscount(); updateDiscountHint(); scheduleAutoCalc(); });
+  $('gcvActualGVW').addEventListener('input', ()=>{ updateGVWSurchargePreview(); renderAddons(); autoApplySipDiscount(); updateDiscountHint(); scheduleAutoCalc(); });
 }
 
 let autoCalcTimer;
@@ -13635,18 +13650,74 @@ function syncDiscountUIFromState(){
 })();
 
 
-/* Road Side Assistance - Private Car only (office direction, 22-Sep-2026): flat Rs.100 on a Package
-   or Stand-Alone OD policy, flat Rs.283 on a Bundled one; not offered on Liability Only. "Bundled" is
-   read exactly as the discount grid reads it (getDiscountPolicyBucket): comprehensive on a 3- or
-   5-year term while the car is in its first year. */
-const RSA_PREMIUM = { standard:100, bundled:283 };
+/* Road Side Assistance (v171, RSA add-on UW guidelines premium table): a flat premium per policy.
+     Private Car  - Package / Stand-alone OD / Liability Only Rs.100; Bundled or 3-year Liability Only Rs.283
+     Two-Wheeler  - Package / Stand-alone OD / Liability Only Rs.50;  Bundled or 5-year Liability Only Rs.223
+     PCCV up to 6 passengers, GCCV up to 3,500 kg GVW - Package or Liability Only Rs.100
+     Miscellaneous vehicles - not covered.
+   A two-wheeler for hire is a passenger carrying commercial vehicle and takes the PCCV row. The long
+   term is the bundled / long-term liability term, offered only while the vehicle is in its first year
+   (renderTerms); a blank registration date still counts as new. */
+const RSA_PREMIUM = {
+  privateCar: { standard:100, longTerm:283, term:'3yr', years:3 },
+  twoWheeler: { standard:50,  longTerm:223, term:'5yr', years:5 },
+  pccv:       { standard:100 },
+  commercial: { standard:100 }
+};
+function rsaClass(vt){ return vt === 'twoWheelerHire' ? 'pccv' : (RSA_PREMIUM[vt] ? vt : null); }
+function rsaDataNow(){
+  const polNow = ($('polComp') && $('polComp').checked) ? 'comprehensive' : (($('polOD') && $('polOD').checked) ? 'odOnly' : 'thirdParty');
+  return { vehicleType: state.vehicleType, policyType: polNow, policyTerm: state.policyTerm,
+           slab: ($('ccSlab') || {}).value, paxCount: parseInt(($('paxCount') || {}).value, 10) || 0,
+           gcvActualGVW: parseInt(($('gcvActualGVW') || {}).value, 10) || 0 };
+}
+function rsaIneligibleReason(data){
+  if(!rsaClass(data.vehicleType)) return 'Not offered for this class';
+  if(data.vehicleType === 'pccv' && (data.paxCount || 0) > 6) return 'Only up to 6 passengers';
+  if(data.vehicleType === 'commercial'){
+    const gvw = data.gcvActualGVW || GCV_SLAB_GVW[data.slab] || 0;
+    if(gvw > 3500) return `Only up to 3,500 kg GVW (GVW now ${gvw.toLocaleString('en-IN')} kg)`;
+  }
+  return '';
+}
 function rsaIsBundled(data, ageMonths){
-  return data.policyType === 'comprehensive' && (data.policyTerm === '3yr' || data.policyTerm === '5yr')
+  const t = RSA_PREMIUM[rsaClass(data.vehicleType)];
+  return !!(t && t.term) && data.policyTerm === t.term && data.policyType !== 'odOnly'
       && (ageMonths === null || ageMonths === undefined || ageMonths <= 12);
 }
+function rsaPolicyLabel(data, ageMonths){
+  if(rsaIsBundled(data, ageMonths)){
+    return data.policyType === 'thirdParty'
+      ? `liability only, ${RSA_PREMIUM[rsaClass(data.vehicleType)].years} years` : 'bundled policy';
+  }
+  return data.policyType === 'odOnly' ? 'stand-alone OD' : (data.policyType === 'thirdParty' ? 'liability only' : 'package');
+}
 function rsaPremiumFor(data, ageMonths){
-  if(data.vehicleType !== 'privateCar' || data.policyType === 'thirdParty') return 0;
-  return rsaIsBundled(data, ageMonths) ? RSA_PREMIUM.bundled : RSA_PREMIUM.standard;
+  const t = RSA_PREMIUM[rsaClass(data.vehicleType)];
+  if(!t || rsaIneligibleReason(data)) return 0;
+  return rsaIsBundled(data, ageMonths) ? t.longTerm : t.standard;
+}
+/* The add-on cards are hidden on a Liability Only quote, and Road Side Assistance is the one add-on
+   also sold there, so this switch stands in for the card on TP: it only ticks or unticks the card. */
+function updateRsaTpRow(){
+  const row = $('rsaTpRow'); if(!row) return;
+  const box = document.querySelector('#addonsGrid input[data-addon="rsa"]');
+  const isTP = !!($('polTP') && $('polTP').checked);
+  row.style.display = (isTP && box) ? '' : 'none';
+  const on = !!(box && box.checked && !box.disabled);
+  state.switches.rsaTp = on;
+  const sw = row.querySelector('.switch');
+  if(sw){
+    sw.classList.toggle('on', on);
+    const inp = sw.querySelector('input'); if(inp) inp.checked = on;
+    sw.style.opacity = (box && box.disabled) ? '.45' : '';
+    sw.style.pointerEvents = (box && box.disabled) ? 'none' : '';
+  }
+  const hint = $('rsaTpHint');
+  if(hint && box){
+    const d = rsaDataNow(), m = getAgeMonths(), why = rsaIneligibleReason(d);
+    hint.textContent = why || `Rs. ${rsaPremiumFor(d, m)} flat · ${rsaPolicyLabel(d, m)} · breakdown help on the spot, towing up to 50 km, fuel, battery, flat tyre and key help`;
+  }
 }
 function is3yrPackage(data){
   return data.vehicleType === 'privateCar'
@@ -14520,11 +14591,11 @@ function calculate(silent=false){
         continue;
       }
 
-      // ── Road Side Assistance (Private Car — Rs. 100 package / SAOD, Rs. 283 bundled; flat) ──
+      // ── Road Side Assistance (flat per policy — RSA_PREMIUM) ──
       if(a.type === 'rsa'){
         const rsaAmt = rsaPremiumFor(data, ageMonths);
         if(rsaAmt > 0){
-          addons.items.push({ key, name:`${a.name} (${rsaIsBundled(data, ageMonths) ? 'bundled policy' : 'package / stand-alone OD'} · flat)`, amount:rsaAmt });
+          addons.items.push({ key, name:`${a.name} (${rsaPolicyLabel(data, ageMonths)} · flat)`, amount:rsaAmt });
           addons.total += rsaAmt;
         }
         continue;
@@ -14696,6 +14767,17 @@ function calculate(silent=false){
       const label = a.type==='percent' ? `${a.name} (${(rate*100).toFixed(2)}% ${baseLabel}${suffix})` : a.name;
       addons.items.push({ key, name:label, amount:amt });
       addons.total += amt;
+    }
+  }
+
+  // ── Road Side Assistance on Liability Only / Long Term Liability Only (v171) ──
+  // The add-on loop above runs only when the policy has an OD section; RSA alone is also sold on TP.
+  // It is in no NCB base, so it sits outside the corrections below.
+  if(!hasOD && data.selectedAddons.includes('rsa')){
+    const rsaAmt = rsaPremiumFor(data, ageMonths);
+    if(rsaAmt > 0){
+      addons.items.push({ key:'rsa', name:`Road Side Assistance (${rsaPolicyLabel(data, ageMonths)} · flat)`, amount:rsaAmt });
+      addons.total += rsaAmt;
     }
   }
 
@@ -15050,7 +15132,7 @@ function calculate(silent=false){
     // FIX: the vintage-car concession is an OWN-DAMAGE concession. It must not
     // reduce the statutory liability premium, CPA, LL or PA-Unnamed. Base is
     // Net OD + OD add-ons + OD-side geographical extension.
-    const vintageBase = Math.max(netOD + addons.total + geoExtODAmt, 0);
+    const vintageBase = Math.max(netOD + (hasOD ? addons.total : 0) + geoExtODAmt, 0);
     vintageDiscount = Math.round(vintageBase * RATES.optional.vintageDiscount);
     subtotal = subtotal - vintageDiscount;
   }
@@ -16192,6 +16274,53 @@ const MOTOR_ADDON_WORDINGS = {
       "Overturning caused by a breach of the policy conditions, or arising from the vehicle being driven by a person not permitted to drive under the policy."
     ],
     uin: {}
+  },
+  rsa: {
+    title: "Road Side Assistance Add-on Cover",
+    scope: "Private Car, Two-Wheeler, Passenger Carrying Commercial Vehicle up to 6 passengers and Goods Carrying Commercial Vehicle up to 3,500 kg GVW - on Package, Stand-alone OD, Bundled, Liability Only and Long Term Liability Only policies",
+    covers: [
+      "Breakdown support over the phone - help to sort out a minor mechanical or electrical fault.",
+      "Repair on the spot - a technician reaches the vehicle and carries out minor repairs (work of less than 45 minutes); parts and consumables are paid by the insured.",
+      "Battery jump-start at the breakdown location; a new battery, if one is needed, is at the insured's cost.",
+      "Flat tyre - the spare wheel is fitted, or the tyre is taken to the nearest repair facility and refitted; the cost of repairing or replacing the tyre is borne by the insured.",
+      "Fuel supply - up to 5 litres of petrol or diesel brought to the vehicle; labour and conveyance are paid by the insurer, the fuel by the insured.",
+      "Towing to the nearest garage within 50 km by road after a breakdown or an accident, and for a hybrid or electric vehicle whose battery has run down, to the nearest garage or charging station; charges beyond 50 km are borne by the insured.",
+      "Key retrieval - spare keys collected from the registered address and brought to the vehicle, or the vehicle unlocked on site, within 25 km of the residence in the policy schedule; identity and ownership proof is needed, and new keys or locks are at the insured's cost.",
+      "Ambulance arranged to take the insured and occupants to the nearest hospital after an accident; the ambulance charges are borne by the insured.",
+      "Repatriation of the vehicle arranged on request, at the policyholder's expense.",
+      "A vehicle stuck in a ditch, pit, mud, sand or valley (not a total loss) - its retrieval is arranged; the cost and equipment are borne by the insured.",
+      "Women assistance - where a woman driver or occupant calls the assistance number after a breakdown or accident, quick help including mobile charging and Wi-Fi / hotspot is provided."
+    ],
+    table: { head: ["Service", "Limit"], rows: [
+      ["Fuel supply", "Up to 5 litres (fuel paid by the insured)"], ["Towing", "Nearest garage within 50 km by road"],
+      ["Key retrieval", "Within 25 km of the residence in the schedule"], ["Assistance number (toll free)", "1800-309-1209"] ] },
+    conditions: [
+      "Call the toll-free assistance number with the policy number, registration number, location, a contact number and what has happened.",
+      "Until help arrives, the insured must take reasonable steps to keep the vehicle and its occupants safe.",
+      "Keep the invoices for any cost the insured pays under the cover.",
+      "No No Claim Bonus accrues on the Road Side Assistance premium, and using the cover does not affect the No Claim Bonus of the policy.",
+      "The cover runs for the policy period; cancellation and refund follow the base policy. Subject otherwise to the terms, conditions and exclusions of the policy."
+    ],
+    exclusions: [
+      "Routine servicing, maintenance or cosmetic repairs.",
+      "War, invasion, riot, strike, civil commotion, terrorism, nuclear risks and similar events.",
+      "Deliberate damage, vandalism or a criminal act by the insured.",
+      "A vehicle on a road that is not motorable.",
+      "Use of the vehicle against the manufacturer's manual.",
+      "A vehicle that is not roadworthy.",
+      "A driver under the influence of alcohol or drugs.",
+      "A vehicle removed without lawful authority.",
+      "Defects that existed before the cover started.",
+      "A vehicle seized or impounded by an authority.",
+      "Fraud, misuse, or repeated calls without genuine cause.",
+      "Personal belongings in the vehicle.",
+      "Consequential loss of any kind.",
+      "Accidental damage caused while towing or recovering the vehicle.",
+      "Tolls, taxes and other additional costs.",
+      "Fuel that cannot be supplied because of a shortage or a strike.",
+      "Wrong fuel filled, or contaminated fuel."
+    ],
+    uin: {}
   }
 };
 
@@ -16739,7 +16868,7 @@ $('resetBtn').addEventListener('click', ()=>{
      rely on had nothing to turn back on. A fresh goods vehicle quote then started with the
      endorsement off and, since v128, Nil Depreciation refused. */
   state.switches = { cpa:true, atd:false, paUn:false, llDrv:false, llNFPP:false, imt23:false,
-                     vintage:false, transfer:false, nilDepGccvRenewal:false, geoExt:false, tppd:false };
+                     vintage:false, transfer:false, nilDepGccvRenewal:false, geoExt:false, tppd:false, rsaTp:false };
   state.cpaTerm = '1yr'; state.paUnTerm = '1yr'; state.llTerm = '1yr';
   document.querySelectorAll('#sectionMotor .switch').forEach(s=>{
     s.classList.toggle('on', state.switches[s.dataset.key]);
@@ -22699,17 +22828,31 @@ const VERIFIED_CASES = [
                 const c = tyre();
                 state.policyTerm = '1yr';
                 return [p, c].join('/'); } },
-  { label:'Road Side Assistance (office direction 22-Sep-2026): Private Car package Rs.100, stand-alone OD Rs.100, bundled (comprehensive 3-year term in the first year) Rs.283, a 3-year term on an older car reads as package Rs.100; not on Liability Only, and not for PCCV, GCCV, two-wheelers or Misc', expect:'100/100/283/100/0/0/0/0/0',
-    check:()=>[rsaPremiumFor({ vehicleType:'privateCar', policyType:'comprehensive', policyTerm:'1yr' }, 6),
-               rsaPremiumFor({ vehicleType:'privateCar', policyType:'odOnly', policyTerm:'1yr' }, 30),
-               rsaPremiumFor({ vehicleType:'privateCar', policyType:'comprehensive', policyTerm:'3yr' }, 3),
-               rsaPremiumFor({ vehicleType:'privateCar', policyType:'comprehensive', policyTerm:'3yr' }, 30),
-               rsaPremiumFor({ vehicleType:'privateCar', policyType:'thirdParty', policyTerm:'1yr' }, 6),
-               rsaPremiumFor({ vehicleType:'pccv', policyType:'comprehensive', policyTerm:'1yr' }, 6),
-               rsaPremiumFor({ vehicleType:'commercial', policyType:'comprehensive', policyTerm:'1yr' }, 6),
-               rsaPremiumFor({ vehicleType:'twoWheeler', policyType:'comprehensive', policyTerm:'1yr' }, 6),
-               rsaPremiumFor({ vehicleType:'misc', policyType:'comprehensive', policyTerm:'1yr' }, 6)].join('/') },
-  { label:'Road Side Assistance through the Motor engine: a private car package quote with the cover ticked carries a flat Rs.100 add-on, untouched by the OD discount, and the card is offered only for Private Car', expect:'100/false',
+  { label:'Road Side Assistance (RSA UW guidelines premium table, v171): Private Car Rs.100 on package, stand-alone OD and liability only, Rs.283 bundled or 3-year liability only on a new car (a 3-year term on an older car reads as package); Two-Wheeler Rs.50, Rs.223 bundled or 5-year liability only; PCCV up to 6 passengers, two-wheeler for hire and GCCV up to 3,500 kg GVW Rs.100; nothing for PCCV 7 passengers, GCCV 5,000 kg, GCCV s1 with no GVW entered (slab default 5,000 kg) or Misc', expect:'100/100/283/100/100/283/50/223/50/223/100/100/0/100/100/0/0/0/100',
+    check:()=>{ const R = (vt, pt, term, m, x) => rsaPremiumFor(Object.assign({ vehicleType:vt, policyType:pt, policyTerm:term }, x || {}), m);
+                return [R('privateCar','comprehensive','1yr',6), R('privateCar','odOnly','1yr',30), R('privateCar','comprehensive','3yr',3),
+                        R('privateCar','comprehensive','3yr',30), R('privateCar','thirdParty','1yr',6), R('privateCar','thirdParty','3yr',0),
+                        R('twoWheeler','comprehensive','1yr',6), R('twoWheeler','comprehensive','5yr',3), R('twoWheeler','odOnly','1yr',30),
+                        R('twoWheeler','thirdParty','5yr',null),
+                        R('pccv','comprehensive','1yr',6,{ paxCount:6 }), R('pccv','thirdParty','1yr',6,{ paxCount:3 }), R('pccv','comprehensive','1yr',6,{ paxCount:7 }),
+                        R('commercial','thirdParty','1yr',6,{ slab:'s1', gcvActualGVW:3000 }), R('commercial','comprehensive','1yr',6,{ slab:'s1', gcvActualGVW:3500 }),
+                        R('commercial','comprehensive','1yr',6,{ slab:'s1', gcvActualGVW:5000 }), R('commercial','comprehensive','1yr',6,{ slab:'s1' }),
+                        R('misc','comprehensive','1yr',6), R('twoWheelerHire','comprehensive','1yr',6)].join('/'); } },
+  { label:'Road Side Assistance on Liability Only (v171): a private car TP quote with the cover switched on adds a flat Rs.100 plus 18% GST and shows the TP switch; a 3-year liability-only policy on a new car takes Rs.283; a two-wheeler 5-year liability only Rs.223; a PCCV with 7 passengers has the card disabled and charges nothing', expect:'100/118/true/283/223/true/0',
+    check:()=>{ const tick = () => { renderAddons(); const b = document.querySelector('#addonsGrid input[data-addon="rsa"]');
+                                     if(b && !b.disabled) b.checked = true; window.calculate(true);
+                                     return ((state.lastQuote.addons.items || []).find(a => a.key === 'rsa') || {}).amount || 0; };
+                window._stRun(['privateCar','s2','A',0.5,500000,'petrol','thirdParty',0,0,0,0,0]);
+                const t0 = state.lastQuote.total;
+                const a1 = tick(), d1 = state.lastQuote.total - t0, shown = $('rsaTpRow').style.display !== 'none';
+                state.policyTerm = '3yr'; const a3 = tick();
+                window._stRun(['twoWheeler','s2','A',0.5,80000,'petrol','thirdParty',0,0,0,0,0]);
+                state.policyTerm = '5yr'; const a5 = tick();
+                window._stRun(['pccv','taxi1000to1500','A',1.4,910000,'petrol','comprehensive',0,7,0,0,0]);
+                const a7 = tick(), box = document.querySelector('#addonsGrid input[data-addon="rsa"]');
+                state.policyTerm = '1yr';
+                return [a1, d1, shown, a3, a5, !!(box && box.disabled), a7].join('/'); } },
+  { label:'Road Side Assistance through the Motor engine: a private car package quote with the cover ticked carries a flat Rs.100 add-on, untouched by the OD discount, and the card is offered for a 6-passenger PCCV (v171)', expect:'100/true',
     check:()=>{ window._stRun(['privateCar','s2','A',0.5,500000,'petrol','comprehensive',0,0,0,0,0]);
                 const box = document.querySelector('#addonsGrid input[data-addon="rsa"]');
                 if(!box) return 'no card';
@@ -22719,7 +22862,7 @@ const VERIFIED_CASES = [
                 renderAddons();   /* the harness switches class without redrawing the grid; the screen redraws on a tab click */
                 const onPccv = !!document.querySelector('#addonsGrid input[data-addon="rsa"]');
                 return [it.amount, onPccv].join('/'); } },
-  { label:'Motor add-on schedule: wordings present for every add-on key (Nil Dep, Engine Protect, RTI, Consumables, Key, Tyre, Battery, EMI, Alt Car, Personal Effects, Towing, IMT-47, IMT-23)', expect:'13/towing/batteryProtect',
+  { label:'Motor add-on schedule: wordings present for every add-on key (Nil Dep, Engine Protect, RTI, Consumables, Key, Tyre, Battery, EMI, Alt Car, Personal Effects, Towing, IMT-47, IMT-23, Road Side Assistance)', expect:'14/towing/batteryProtect',
     check:()=>Object.keys(MOTOR_ADDON_WORDINGS).length+'/'+motorAddonWordingKey('towing10k')+'/'+motorAddonWordingKey('batteryProtectCoPay') },
   // ── INLIAS worksheet R/161600/31/2027/453 (GCCV KA22D9540, 19/08/2026) ──
   // reg 01/08/2022, inception 19/08/2026 = 4y0m -> must sit in the `0-5` band.
@@ -22936,7 +23079,7 @@ function _stBaseline(){
   _sipManualOverride = false; _imt23ManualOff = false;   /* golden cases carry the auto-applied discount; a chip clicked in the UI must not suppress it */
   state.switches = { cpa:true, atd:false, paUn:false, llDrv:false, llNFPP:false,
     imt23:false, vintage:false, transfer:false, nilDepGccvRenewal:false,
-    geoExt:false, tppd:false };
+    geoExt:false, tppd:false, rsaTp:false };
   state.cpaTerm='1yr'; state.paUnTerm='1yr'; state.llTerm='1yr';
   state.loadingPct=0; state.paUnSI=100000; state.emiAmt=5000; state.emiTenure='1';
   state.altCarDays='5'; state.personalEffectsSI=5000; state.invoiceValue=0;
@@ -28506,7 +28649,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v170 · Check-before-quoting pop-up no longer raises NCB or Nil Dep lines · 28-Sep-2026</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v171 · Road Side Assistance per the RSA add-on documents</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
