@@ -10352,7 +10352,7 @@ const RATES = {
     nilDep:       { name:'Nil Depreciation',        type:'nilDep' },
     engineProtect:{ name:'Engine Protection',        type:'percent', rate:0.03,  rateTable:'engineProtect',
                     hideFor:['commercial','pccv','misc'], hideFuel:['electric'] },   // no engine to protect on a pure EV; hybrids keep it
-    rti:          { name:'Return to Invoice',        type:'percent', rate:0.003, maxAgeYears:3, idvBased:true },
+    rti:          { name:'Return to Invoice',        type:'percent', rate:0.003, maxAgeYears:3, maxAgeYearsBy:{ privateCar:5 }, idvBased:true },
     consumables:  { name:'Consumables Cover',        type:'percent', rate:0.04,  rateTable:'consumables',
                     hideFor:['twoWheeler','twoWheelerHire','misc'], maxAgeYears:5 },   // wording: Private Car and PCCV / GCCV, up to 5 years
     keyReplace:   { name:'Key Replacement',          type:'keyReplace',
@@ -10380,12 +10380,15 @@ const RATES = {
   },
 
   // ── RTI RATE TABLE (% of IDV by policy/vehicle age) ──────────────
-  // Source: Underwriting Manual — Return to Invoice. Two columns:
-  //   twpc     = Two-Wheeler & Pvt Car segment
+  //   pc       = Private Car - revised RTI underwriting guidelines (01-10-2026), the same
+  //              rate for Package, Standalone OD and Bundled 1+3; Package / SAOD up to 5 yrs,
+  //              Bundled brand-new only. (NDC Long Term 3+3 at 0.40% has no policy here.)
+  //   twpc     = Two-Wheeler (the old Underwriting Manual column it shared with Pvt Car)
   //   commMisc = Commercial Vehicles & MISC 'D' Class (also PCCV)
-  // Age bands: 0–1 yr = fresh/new, 1–2 yr = Year-1 renewal, 2–3 yr = Year-2
+  // Age bands for twpc / commMisc: 0–1 yr = fresh/new, 1–2 yr = Year-1 renewal, 2–3 yr = Year-2
   // renewal. Beyond 3 yrs not eligible. (Not available for Class E/F/G.)
   rtiAnnualTable: {
+    pc:       { '0-1': 0.10, '1-2': 0.14, '2-3': 0.20, '3-4': 0.28, '4-5': 0.39 },
     twpc:     { '0-1': 0.30, '1-2': 0.40, '2-3': 0.60 },
     commMisc: { '0-1': 0.45, '1-2': 0.55, '2-3': 0.70 }
   },
@@ -10398,14 +10401,14 @@ const RATES = {
       nilDep:        0.37,  // % of IDV
       engineProtect: 0.16,  // % of IDV
       consumables:   0.10,  // % of IDV
-      rti:           0.30,  // % of IDV
+      rti:           0.10,  // % of IDV - revised RTI guidelines 01-10-2026 (was 0.30, INLIAS 27-09-2026)
       tyreProtect:   0.20,  // % of Invoice Value
     },
     diesel: {
       nilDep:        0.56,
       engineProtect: 0.19,
       consumables:   0.10,
-      rti:           0.30,
+      rti:           0.10,
       tyreProtect:   0.20,
     }
   },
@@ -12418,8 +12421,8 @@ function renderAddons(){
       } else {
         note = `0.20% on IDV`;
       }
-    } else if(a.maxAgeYears && ageMonths !== null && ageMonths/12 > a.maxAgeYears){
-      disabled = true; note = `Not available · age &gt; ${a.maxAgeYears} yrs`;
+    } else if(addonMaxAgeYears(a, state.vehicleType) && ageMonths !== null && ageMonths/12 > addonMaxAgeYears(a, state.vehicleType)){
+      disabled = true; note = `Not available · age &gt; ${addonMaxAgeYears(a, state.vehicleType)} yrs`;
     } else if(key === 'rti' && pkg3yr && rates3yr){
       note = `${rates3yr.rti}% on IDV · 3yr package`;
     } else if(key === 'rti'){
@@ -13838,19 +13841,34 @@ function getConsumablesAgeBucket(ageMonths){
   return null;                         // >5 yr — not eligible
 }
 
-// RTI rate (% of IDV) by vehicle segment + policy/vehicle age, per the
-// Underwriting Manual. Two-Wheeler & Pvt Car share one column; Commercial,
-// Misc-D and PCCV share the higher column. Returns null beyond 3 yrs.
+// RTI rate (% of IDV) by vehicle segment + policy/vehicle age. Private Car follows
+// the revised RTI guidelines (5 bands, up to 5 yrs); Two-Wheeler keeps the old
+// Underwriting Manual column; Commercial, Misc-D and PCCV share the higher column.
+// Returns null beyond the segment's last band.
 function rtiRateForAge(vehicleType, ageMonths){
   const yrs = (ageMonths || 0) / 12;
-  const twpcSeg = (vehicleType === 'privateCar'
-                || vehicleType === 'twoWheeler'
+  if(vehicleType === 'privateCar'){
+    const pc = RATES.rtiAnnualTable.pc;
+    if(yrs <= 1) return pc['0-1'];
+    if(yrs <= 2) return pc['1-2'];
+    if(yrs <= 3) return pc['2-3'];
+    if(yrs <= 4) return pc['3-4'];
+    if(yrs <= 5) return pc['4-5'];
+    return null;
+  }
+  const twpcSeg = (vehicleType === 'twoWheeler'
                 || vehicleType === 'twoWheelerHire');
   const tbl = twpcSeg ? RATES.rtiAnnualTable.twpc : RATES.rtiAnnualTable.commMisc;
   if(yrs <= 1) return tbl['0-1'];   // fresh / new vehicle
   if(yrs <= 2) return tbl['1-2'];   // Year-1 renewal
   if(yrs <= 3) return tbl['2-3'];   // Year-2 renewal
   return null;                       // beyond 3 yrs — not eligible
+}
+
+/* An add-on's age limit for this vehicle class: maxAgeYearsBy overrides maxAgeYears for the
+   classes it names (Return to Invoice: 5 years on a Private Car, 3 elsewhere). */
+function addonMaxAgeYears(a, vehicleType){
+  return (a && a.maxAgeYearsBy && a.maxAgeYearsBy[vehicleType] != null) ? a.maxAgeYearsBy[vehicleType] : (a || {}).maxAgeYears;
 }
 
 // PCCV IMT-23 eligibility: applies when seating > 6 OR the vehicle is a
@@ -13930,6 +13948,9 @@ window.antiTheftDiscountFor = antiTheftDiscountFor;
    one, so anything they need from the motor tables has to be reachable through window. */
 window.motorRatesProbe = {
   addonMaxAge:        k => (RATES.addons[k] || {}).maxAgeYears,
+  addonMaxAgeFor:     (k, vt) => addonMaxAgeYears(RATES.addons[k], vt),
+  rtiPct:             (vt, months) => rtiRateForAge(vt, months),
+  pkg3yrRtiPct:       fuel => RATES.addonRates3yr[fuel].rti,
   pkg3yrNilDepPct:    fuel => RATES.addonRates3yr[fuel].nilDep,
   /* both tables store a percentage, which is why lookupNilDepRate divides by 100 */
   annualNewNilDepPct: (fuel, slab) => RATES.nilDepTable[fuel]['0-1'][slab],
@@ -14572,7 +14593,7 @@ function calculate(silent=false){
         continue;
       }
 
-      if(a.maxAgeYears && ageYears > a.maxAgeYears) continue;
+      if(addonMaxAgeYears(a, data.vehicleType) && ageYears > addonMaxAgeYears(a, data.vehicleType)) continue;
       /* class restriction is enforced here too, so a selection left over from another vehicle class is never charged */
       if(addonClassBlocked(a, data.vehicleType, data.paxCount)) continue;
       if(a.vehicleOnly && !a.vehicleOnly.includes(data.vehicleType)) continue;
@@ -14717,7 +14738,7 @@ function calculate(silent=false){
       if(pkg3yr && rates3yr && rates3yr[key]){
         rate = rates3yr[key] / 100;
       } else if(key === 'rti'){
-        // Two-Wheeler & Pvt Car: 0.30/0.40/0.60 · Commercial/Misc-D/PCCV: 0.45/0.55/0.70 (% on IDV)
+        // Pvt Car: 0.10/0.14/0.20/0.28/0.39 to 5 yrs · Two-Wheeler: 0.30/0.40/0.60 · Commercial/Misc-D/PCCV: 0.45/0.55/0.70 (% on IDV)
         const r = rtiRateForAge(data.vehicleType, ageMonths);
         rate = (r !== null) ? r / 100 : null;   // beyond 3 yrs / unknown age — not chargeable (no generic fallback)
       } else if(data.vehicleType === 'privateCar' && a.rateTable){
@@ -16009,7 +16030,26 @@ const MOTOR_ADDON_WORDINGS = {
   rti: {
     title: "Return to Invoice Add-on Cover",
     scope: "All types of vehicle",
-    maxAge: { _all: 3 },
+    maxAge: { _all: 3, privateCar: 5 },
+    byClass: {
+      privateCar: {
+        scope: "Private Car - Package, Standalone OD and Bundled policies",
+        covers: [
+          "On a Total Loss / Constructive Total Loss / Theft claim admissible under Section I (Own Damage) of the policy, the Company pays (1) the difference between the current invoice price of the insured vehicle and the Insured Declared Value applicable for the policy period, and (2) the registration charges, the Motor Own Damage premium paid and the road tax paid for the first time at the place of the registering authority shown in the schedule, in aggregate not exceeding 10% of the current invoice price.",
+          "Current invoice price means the manufacturer's listed selling / ex-showroom price of the same model, variant, colour and specification on the date of loss. It may include factory- or dealer-fitted accessories whose cost was in the purchase invoice, and the fabrication cost of body and cabin, where that cost was declared when the cover commenced.",
+          "Obsolete or unavailable model: the amount payable is the difference between the IDV in the policy and the last available ex-showroom price of the same model, variant, colour and specification."
+        ],
+        conditions: [
+          "Package and Standalone OD policies: the vehicle must not be more than 5 years old on the date the policy commences or is renewed, age counted from the invoice date. Bundled Policy: brand-new vehicles insured at inception only.",
+          "The cover operates only when there is an admitted liability under Section I of the policy, and runs concurrently with Section I.",
+          "Ownership / insurance of the vehicle must be in the name of the original buyer / insured; the cover ceases to operate on transfer of ownership.",
+          "Non-built-in accessories (electric / non-electric / electronic, including bi-fuel kit) shown separately in the invoice but not insured / not in the schedule are excluded.",
+          "Mid-term cover and short-period cover are not allowed.",
+          "No Claim Bonus does not accrue on the premium for this add-on; a claim admitted under it affects the No Claim Bonus of the base policy.",
+          "The add-on can be cancelled only together with the base policy; the premium refund follows the base policy procedure."
+        ]
+      }
+    },
     covers: [
       "On a Total Loss / Constructive Total Loss / Theft claim where liability is admitted, the Company pays (1) the difference between the current invoice price of the insured vehicle and the Insured Declared Value, and (2) the registration charges and road tax paid for the first time at the place of the registering authority shown in the schedule, subject to a maximum of 10% of the current invoice price.",
       "Current invoice price means the manufacturer's listed selling / ex-showroom price of the same model, variant, colour and specification on the date of loss, including factory- or dealer-fitted accessories whose cost was in the purchase invoice and the declared fabrication cost of body and cabin. Insurance premium shown in the invoice is not part of the invoice price.",
@@ -16024,7 +16064,7 @@ const MOTOR_ADDON_WORDINGS = {
     ],
     exclusions: [],
     uin: {
-      privateCar: ["Bundled 4-wheeler: IRDAN556RP0005V01201/A0015V01201819", "Standalone OD: IRDAN556RP0001V01201920/A0004V01201920", "Motor Package: OIC-MO-A00-00-46-V01-13-14"],
+      privateCar: ["Bundled: IRDAN556RP0005V01201819/A0023V022627", "Standalone OD: IRDAN556RP0001V01201920/A0022V022627", "Package: IRDAN556RP0077V01200506/A0021V02202627"],
       twoWheeler: ["Bundled 2-wheeler: IRDAN556RP0006V01201/A0018V01201819", "Standalone OD: IRDAN556RP0002V01201920/A0010V01201920", "Motor Package: OIC-MO-A00-00-46-V01-13-14"],
       _all: ["Return to Invoice add-on for Motor Package Policy: OIC-MO-A00-00-46-V01-13-14"]
     }
@@ -22766,7 +22806,7 @@ const VERIFIED_CASES = [
                 document.querySelectorAll('*').forEach(e => { for(const a of e.attributes) if(a.value.includes('\u20b9')) n++; });
                 const pre = [...new Set([...document.querySelectorAll('[data-prefix]')].map(e => e.dataset.prefix))].join(',');
                 return (m ? m[0] : txt.slice(0, 60)) + '|' + n + '|' + pre; } },
-  { label:'Bundled Private Car, Engine Protect discount (INLIAS R/432702/31/2027/2054, 27-09-2026): new Honda Amaze 1001-1500cc, Zone B, 3-year package, IDV 8,81,000, SIP 90%, Nil Dep less 40%: basic OD 28,113, SIP 25,302, Engine Protect 1,410 less 212 (CC 1500 or less and IDV Rs.10 lakh or less) = 1,198, Nil Dep 3,260 less 1,304 = 1,956, Return to Invoice 2,643, Consumables 881, TP 10,640, PA owner-driver 900, LL paid driver 150, total premium 21,179, total 24,991 (the discount used to be dropped for Bundled policies)', expect:'28113/25302/1410/1198/3260/1956/2643/881/10640/21179/24991',
+  { label:'Bundled Private Car, Engine Protect discount (INLIAS R/432702/31/2027/2054, 27-09-2026): new Honda Amaze 1001-1500cc, Zone B, 3-year package, IDV 8,81,000, SIP 90%, Nil Dep less 40%: basic OD 28,113, SIP 25,302, Engine Protect 1,410 less 212 (CC 1500 or less and IDV Rs.10 lakh or less) = 1,198, Nil Dep 3,260 less 1,304 = 1,956, Return to Invoice 881 (0.10% of IDV under the revised RTI guidelines of 01-10-2026; the INLIAS sheet, issued before them, charged 2,643 at 0.30%), Consumables 881, TP 10,640, PA owner-driver 900, LL paid driver 150, total premium 19,417, total 22,913 (the discount used to be dropped for Bundled policies)', expect:'28113/25302/1410/1198/3260/1956/881/881/10640/19417/22913',
     check:()=>{ window._stRun(['privateCar','s2','B',0,881000,'petrol','comprehensive',0,0,0,0,0]);
                 state.policyTerm = '3yr'; state.cpaTerm = '3yr'; state.llTerm = '3yr'; state.switches.llDrv = true;
                 $('regDate').value = '2026-09-15'; $('incDate').value = '2026-09-15';
@@ -22775,6 +22815,17 @@ const VERIFIED_CASES = [
                 const q = state.lastQuote, it = k => (q.addons.items || []).find(a => a.key === k) || {};
                 const ep = it('engineProtect'), nd = it('nilDep');
                 return [q.odBase, q.odDiscountAmt, ep.grossAmount, ep.amount, nd.grossAmount, nd.amount, it('rti').amount, it('consumables').amount, q.tpBase, q.subtotal, q.total].join('/'); } },
+  { label:'Return to Invoice on a Private Car (revised RTI guidelines, 01-10-2026): 0.10% of IDV up to 1 year, 0.14% to 2, 0.20% to 3, 0.28% to 4, 0.39% to 5, nil beyond; Bundled 1+3 0.10%; the card stays open to 5 years on a car and 3 elsewhere; a two-wheeler keeps 0.30/0.60/nil; end to end a 4-year-4-month car on Standalone OD with IDV 5,00,000 pays 1,950, a 1-year-8-month car on a Package pays 700, and a car past 5 years is not charged', expect:'0.1/0.14/0.2/0.28/0.39/null|0.1/0.1|5/3/3|0.3/0.6/null|1950/700/none',
+    check:()=>{ const p = window.motorRatesProbe, f = r => r === null ? 'null' : String(r);
+                const run = (pt, reg) => { window._stRun(['privateCar','s2','B',1,500000,'petrol',pt,0,0,0,0,0]);
+                  $('regDate').value = reg; $('incDate').value = '2026-07-01';
+                  document.querySelectorAll('#addonsGrid input').forEach(i => i.checked = (i.dataset.addon === 'rti'));
+                  window.calculate(true); const r = (state.lastQuote.addons.items || []).find(a => a.key === 'rti'); return r ? r.amount : 'none'; };
+                return [[6,18,30,42,54,66].map(m => f(p.rtiPct('privateCar', m))).join('/'),
+                        [p.pkg3yrRtiPct('petrol'), p.pkg3yrRtiPct('diesel')].join('/'),
+                        [p.addonMaxAgeFor('rti','privateCar'), p.addonMaxAgeFor('rti','twoWheeler'), p.addonMaxAgeFor('rti','pccv')].join('/'),
+                        [6,30,42].map(m => f(p.rtiPct('twoWheeler', m))).join('/'),
+                        [run('odOnly','2022-03-01'), run('comprehensive','2024-11-01'), run('odOnly','2021-03-01')].join('/')].join('|'); } },
   { label:'Motor PDF labels (v167, INLIAS quote worksheet "PRIVATE CAR BUNDLED POLICY" / "TWO WHEELERS BUNDLED POLICY"): a new Private Car on the 3-year term is a Bundled Policy, OD 1 Year + TP 3 Years, file BUNDLED, with Engine Protect Cover and Nil Depreciation Cover in the add-ons; a new Two-Wheeler on 5 years the same; a 1-year car is a Package Policy; Standalone OD and a 3-year Liability Only keep their names', expect:'PRIVATE CAR BUNDLED POLICY|Bundled Policy|OD 1 Year + TP 3 Years|BUNDLED|true/true/false/false#TWO WHEELERS BUNDLED POLICY|Bundled Policy|OD 1 Year + TP 5 Years|BUNDLED#PRIVATE CAR QUOTE - PACKAGE POLICY|Package Policy|1 Year|PACKAGE#PRIVATE CAR QUOTE - STANDALONE OD POLICY (SAOD)|Standalone OD Policy (SAOD)|1 Year|SAOD#PRIVATE CAR QUOTE - LIABILITY ONLY POLICY|Liability Only Policy|3 Years|LIABILITY',
     check:()=>{ const out = [];
                 const one = (vt, slab, pt, term, extra) => {
@@ -28649,7 +28700,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v171 · Road Side Assistance per the RSA add-on documents</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v172 · Return to Invoice per the revised Private Car RTI documents</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
