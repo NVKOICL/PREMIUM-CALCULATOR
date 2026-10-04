@@ -18546,10 +18546,17 @@ function getYECCommissionPct(si, maxAge){
 
 /* CR-8811 §1 — chart health products. Overseas Mediclaim is a flat 30%,
    Group is 7.5%, and Individual/Retail follows the age of the senior-most
-   person covered (up to 45 = 30%, 46-60 = 20%, above 60 = 10%). */
+   person covered (up to 45 = 30%, 46-60 = 20%, above 60 = 10%).
+   CR-8828 (25.09.2026, w.e.f. 01.10.2026) amends this for Happy Family Floater
+   and Individual Mediclaim only: up to 35 = 30%, 36-40 = 20%, 41-50 = 15%,
+   51-60 = 7.5%, more than 60 = 5%, by the senior-most person covered.
+   Super Health Top-Up is not named there, so it stays on the CR-8811 bands. */
+const CR8828_HEALTH_BANDS = [ [35, 30], [40, 20], [50, 15], [60, 7.5], [Infinity, 5] ];
 function getOHCommissionPct(productKey, maxAge){
   if(productKey === 'OMI') return 30;
   if(productKey === 'GRP' || productKey === 'BSP') return 7.5;
+  if(productKey === 'HFF' || productKey === 'OMP')
+    return CR8828_HEALTH_BANDS.find(b => maxAge <= b[0])[1];
   if(maxAge <= 45) return 30;
   /* CR-8811 s1: '46 to 60 years - 20%', 'Above 60 years - 10%'. Was <=65. */
   if(maxAge <= 60) return 20;
@@ -23025,8 +23032,11 @@ const VERIFIED_CASES = [
 
   /* CR-8811 s1 health commission age bands: 'Up to 45' / '46 to 60' / 'Above 60'.
      All three engines previously used a 65 boundary, over-paying 61-65. */
-  { label:'CR-8811 health age band flips at 60, not 65 - retail 60/61',
-    check:()=>getOHCommissionPct('OMP',60)+'/'+getOHCommissionPct('OMP',61), expect:'20/10' },
+  { label:'CR-8811 health age band flips at 60, not 65 - retail 60/61 (Super Health Top-Up, not amended by CR-8828)',
+    check:()=>getOHCommissionPct('STU',45)+'/'+getOHCommissionPct('STU',60)+'/'+getOHCommissionPct('STU',61), expect:'30/20/10' },
+  { label:'CR-8828 w.e.f. 01.10.2026 - Happy Family Floater and Individual Mediclaim by senior-most age 35/36/40/41/50/51/60/61',
+    check:()=>['HFF','OMP'].map(k=>[35,36,40,41,50,51,60,61].map(a=>getOHCommissionPct(k,a)).join(',')).join(' '),
+    expect:'30,20,20,15,15,7.5,7.5,5 30,20,20,15,15,7.5,7.5,5' },
   { label:'CR-8811 Table A - OSSS Royal fresh SI>=10L, ages 45/46/61',
     check:()=>[45,46,61].map(a=>getOSSSCommissionPct('Royal',2500000,false,a)).join('/'),
     expect:'40/30/20' },
@@ -28784,7 +28794,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v173 · Bank Saathi Policy (Group) 2026 with GST and prospectus cover pages</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v174 · CR-8828 commission for Happy Family Floater and Individual Mediclaim</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
