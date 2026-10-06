@@ -1112,6 +1112,11 @@ body{
 .section-label{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin-bottom:14px;display:flex;align-items:center;gap:10px}
 .section-label::after{content:"";flex:1;height:1px;background:linear-gradient(to right,var(--border-soft),transparent)}
 .section-label + .section-label,.section-label.mt{margin-top:22px}
+.section-label.ncb-q{font-size:13px;font-weight:800;letter-spacing:.06em;color:var(--accent-dark);margin-bottom:10px}
+.section-label.ncb-q::after{height:2px;background:linear-gradient(to right,var(--accent),transparent)}
+.section-label.ncb-q.claim{color:#b45309}
+.section-label.ncb-q.claim::after{background:linear-gradient(to right,#f59e0b,transparent)}
+.section-label.ncb-q .sub{font-size:11px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-soft)}
 
 /* ── VEHICLE TABS — bigger touch targets ── */
 .vehicle-tabs{
@@ -2142,7 +2147,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 
       <!-- NCB: entered as printed on the expiring policy, with the claim answer; this policy's NCB is worked out (v175) -->
       <div style="margin-bottom:14px">
-        <div class="section-label">NCB on the expiring policy <span style="font-size:9.5px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--mute)">(as printed on the previous policy)</span></div>
+        <div class="section-label ncb-q">NCB on the expiring policy <span class="sub">(as printed on the previous policy)</span></div>
         <div class="chip-row" id="ncbPrevChips">
           <button class="chip active" type="button" data-value="-1">None</button>
           <button class="chip" type="button" data-value="0">0%</button>
@@ -2153,7 +2158,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
           <button class="chip" type="button" data-value="5">50%</button>
         </div>
         <div id="ncbClaimWrap" style="margin-top:12px;display:none">
-          <div class="section-label">Claim on the expiring policy?</div>
+          <div class="section-label ncb-q claim">Claim on the expiring policy?</div>
           <div class="chip-row" id="ncbClaimChips">
             <button class="chip active" type="button" data-value="no">No claim</button>
             <button class="chip" type="button" data-value="yes">Claim made</button>
@@ -28800,7 +28805,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v176 · Roll Over selector removed (no rating effect), NCB block re-laid</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v177 · NCB questions in bold colour</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
