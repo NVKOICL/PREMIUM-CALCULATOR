@@ -2152,17 +2152,26 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
         <div class="hint" id="ncbRolloverNote" style="display:none;color:var(--accent-dark);font-weight:600;margin-top:8px">⚠️ Roll Over with NCB — verify the NCB % from the previous insurer (renewal notice / NCB confirmation letter) before applying. A wrong NCB declaration can void the OD claim.</div>
       </div>
 
-      <!-- NCB -->
+      <!-- NCB: entered as printed on the expiring policy, with the claim answer; this policy's NCB is worked out (v175) -->
       <div style="margin-bottom:14px">
-        <div class="section-label">NCB (No Claim Bonus)</div>
-        <div class="chip-row" id="ncbChips">
-          <button class="chip active" type="button" data-value="0">0%</button>
+        <div class="section-label">NCB on the expiring policy <span style="font-size:9.5px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--mute)">(as printed on the previous policy)</span></div>
+        <div class="chip-row" id="ncbPrevChips">
+          <button class="chip active" type="button" data-value="-1">None</button>
+          <button class="chip" type="button" data-value="0">0%</button>
           <button class="chip" type="button" data-value="1">20%</button>
           <button class="chip" type="button" data-value="2">25%</button>
           <button class="chip" type="button" data-value="3">35%</button>
           <button class="chip" type="button" data-value="4">45%</button>
           <button class="chip" type="button" data-value="5">50%</button>
         </div>
+        <div class="hint" style="margin-top:6px">None = new vehicle, or no own damage cover on the previous policy.</div>
+        <div class="segmented cols-2" id="ncbClaimSeg" style="margin-top:8px">
+          <input type="radio" name="ncbClaim" id="ncbClaimNo" value="no" checked />
+          <label for="ncbClaimNo">No claim<small>on the expiring policy</small></label>
+          <input type="radio" name="ncbClaim" id="ncbClaimYes" value="yes" />
+          <label for="ncbClaimYes">Claim made<small>NCB becomes 0%</small></label>
+        </div>
+        <div class="hint" id="ncbResult" style="margin-top:8px;font-size:13px;font-weight:700;color:var(--accent-dark)">NCB on this policy: 0%</div>
       </div>
 
       <!-- OD Discount -->
@@ -11136,7 +11145,39 @@ function setupSingleSelectChips(containerId, onChange, opts={}){
   });
 }
 
-setupSingleSelectChips('ncbChips', v=>{ state.ncbYears = parseInt(v,10); renderAddons(); autoApplySipDiscount(); updateDiscountHint(); });
+/* v175: agents were picking the NCB printed on the expiring policy as this policy's NCB. The chips now take
+   the expiring policy's NCB as printed, plus whether a claim was made on it. This policy gets the next slab
+   (0 > 20 > 25 > 35 > 45 > 50, and 50 stays 50), or nil after a claim; None (new vehicle, or no own damage
+   cover last year) gives nil. state.ncbYears stays the slab APPLIED to this policy, so every rating path,
+   saved quote and snapshot reads it exactly as before. */
+const NCB_SLABS = [0, 20, 25, 35, 45, 50];
+const ncbInput = { prev: -1, claim: false };
+function ncbAppliedFrom(prev, claim){ return (claim || prev < 0) ? 0 : Math.min(prev + 1, 5); }
+function ncbSync(){
+  state.ncbYears = ncbAppliedFrom(ncbInput.prev, ncbInput.claim);
+  document.querySelectorAll('#ncbPrevChips .chip').forEach(c => c.classList.toggle('active', parseInt(c.dataset.value, 10) === ncbInput.prev));
+  const y = $('ncbClaimYes'), n = $('ncbClaimNo');
+  if(y && n){ y.checked = ncbInput.claim; n.checked = !ncbInput.claim; }
+  const r = $('ncbResult'); if(!r) return;
+  const now = NCB_SLABS[state.ncbYears], was = ncbInput.prev < 0 ? null : NCB_SLABS[ncbInput.prev];
+  const why = ncbInput.claim ? 'a claim was made on the expiring policy'
+            : was === null   ? 'no previous own damage policy'
+            : was === 50     ? 'expiring 50%, no claim - stays at the 50% maximum'
+            :                  'expiring ' + was + '%, no claim - next slab';
+  r.innerHTML = 'NCB on this policy: ' + now + '% <span style="font-weight:500;color:var(--mute)">(' + why + ')</span>' +
+    (now > 0 ? '<br><span style="font-size:11px;font-weight:500;color:var(--mute)">NCB is lost if the expiring policy ended more than 90 days ago.</span>' : '');
+}
+/* saved quotes and records carry the applied slab: put the chips back at the expiring slab that gives it */
+function ncbSetApplied(n){
+  n = Math.max(0, Math.min(5, parseInt(n, 10) || 0));
+  ncbInput.claim = false;
+  ncbInput.prev = n === 0 ? -1 : (n === 5 ? 5 : n - 1);
+  ncbSync();
+}
+function ncbChanged(){ ncbSync(); renderAddons(); autoApplySipDiscount(); updateDiscountHint(); }
+setupSingleSelectChips('ncbPrevChips', v=>{ ncbInput.prev = parseInt(v, 10); ncbChanged(); });
+['ncbClaimNo','ncbClaimYes'].forEach(id => { const el = $(id); if(el) el.addEventListener('change', ()=>{ ncbInput.claim = $('ncbClaimYes').checked; ncbChanged(); scheduleAutoCalc(); }); });
+ncbSync();
 
 // ── Own Renewal vs Roll Over toggle ──────────────────────────────────────
 (function(){
@@ -11163,8 +11204,10 @@ setupSingleSelectChips('ncbChips', v=>{ state.ncbYears = parseInt(v,10); renderA
   rtOwn.addEventListener('change', sync);
   rtRoll.addEventListener('change', sync);
   // Re-check note whenever NCB chip is clicked
-  var ncbChips = document.getElementById('ncbChips');
-  if(ncbChips) ncbChips.addEventListener('click', function(){ setTimeout(syncNote, 0); });
+  ['ncbPrevChips','ncbClaimSeg'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el){ el.addEventListener('click', function(){ setTimeout(syncNote, 0); }); el.addEventListener('change', function(){ setTimeout(syncNote, 0); }); }
+  });
   setTimeout(sync, 0);
 })();
 setupSingleSelectChips('paUnSiChips', v=>{ state.paUnSI = parseInt(v,10); updatePaUnPreview(); });
@@ -16632,7 +16675,8 @@ function motorQuoteChecks(){
   facts.push(['Zone / Fuel', 'Zone ' + state.zone + ' \u00b7 ' + state.fuel]);
   facts.push(['Policy', (polType === 'comprehensive' ? 'Package' : polType === 'odOnly' ? 'Standalone OD' : 'Liability only') + ' \u00b7 ' + (state.policyTerm || '1yr')]);
   if(hasOD) facts.push(['IDV', 'Rs. ' + Math.round(idv).toLocaleString('en-IN')]);
-  facts.push(['NCB', (state.ncbYears || 0) > 0 ? state.ncbYears + ' year' + (state.ncbYears > 1 ? 's' : '') : 'Nil']);
+  facts.push(['NCB', NCB_SLABS[state.ncbYears || 0] + '% on this policy' + (ncbInput.claim ? ' (claim on the expiring policy)'
+    : ncbInput.prev < 0 ? ' (no previous own damage policy)' : ' (expiring ' + NCB_SLABS[ncbInput.prev] + '%, no claim)')]);
 
   /* Dates left at their defaults. The NCB-longer-than-the-vehicle's-age line (v164, v168) was taken
      out at the user's request (v170): "Dont pop up For NCB and Nil dep Add ons". */
@@ -16876,13 +16920,13 @@ $('resetBtn').addEventListener('click', ()=>{
   $('paxCount').value = '1'; $('paUnPax').value = '1'; $('odDiscCustom').value = '';
   document.querySelectorAll('#addonsGrid input:checked').forEach(i=>i.checked=false);
 
-  ['ncbChips','odDiscChips','nilDepDiscChips','loadingChips'].forEach(id=>{
+  ['ncbPrevChips','odDiscChips','nilDepDiscChips','loadingChips'].forEach(id=>{
     const el = $(id); if(!el) return;
     const chips = el.querySelectorAll('.chip');
     chips.forEach(c=>c.classList.remove('active'));
     if(chips[0]) chips[0].classList.add('active');
   });
-  state.ncbYears = 0; state.odDiscount = 0; _sipManualOverride = false; _sipClamp = null; state.nilDepDiscount = 0; _nilDepManual = false; _imt23ManualOff = false;
+  ncbSetApplied(0); state.odDiscount = 0; _sipManualOverride = false; _sipClamp = null; state.nilDepDiscount = 0; _nilDepManual = false; _imt23ManualOff = false;
   _addonsDropped = [];
   state.loadingPct = 0;
   if($('loadingCustom')) $('loadingCustom').value = '';
@@ -17054,15 +17098,8 @@ function loadDraft(){
     if(d.exactCC && $('exactCC')){ $('exactCC').value = d.exactCC; updateExactCCField(); }
     if(d.tyreInvoice && $('tyreInvoiceInput')){ $('tyreInvoiceInput').value = d.tyreInvoice; }
 
-    // NCB
-    if(typeof d.ncbYears === 'number'){
-      const c = document.querySelector(`#ncbChips .chip[data-value="${d.ncbYears}"]`);
-      if(c){
-        document.querySelectorAll('#ncbChips .chip').forEach(x=>x.classList.remove('active'));
-        c.classList.add('active');
-        state.ncbYears = d.ncbYears;
-      }
-    }
+    // NCB (the record holds the slab applied; the chips show the expiring slab that gives it)
+    if(typeof d.ncbYears === 'number') ncbSetApplied(d.ncbYears);
     // OD Discount
     if(typeof d.odDiscount === 'number'){
       state.odDiscount = d.odDiscount;
@@ -21882,10 +21919,8 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
     document.querySelectorAll('#fuelChips .chip').forEach(c => {
       c.classList.toggle('active', c.dataset.value === state.fuel);
     });
-    // NCB chips
-    document.querySelectorAll('#ncbChips .chip').forEach(c => {
-      c.classList.toggle('active', parseInt(c.dataset.value,10) === state.ncbYears);
-    });
+    // NCB chips (expiring slab that gives the applied one)
+    ncbSetApplied(state.ncbYears);
 
     /* The covers and switches the agent had chosen are in the record; without putting them back
        the quote reprices without them. The manual flags are set so the saved OD and Nil Dep
@@ -23037,6 +23072,17 @@ const VERIFIED_CASES = [
   { label:'CR-8828 w.e.f. 01.10.2026 - Happy Family Floater and Individual Mediclaim by senior-most age 35/36/40/41/50/51/60/61',
     check:()=>['HFF','OMP'].map(k=>[35,36,40,41,50,51,60,61].map(a=>getOHCommissionPct(k,a)).join(',')).join(' '),
     expect:'30,20,20,15,15,7.5,7.5,5 30,20,20,15,15,7.5,7.5,5' },
+  { label:'v175 NCB from the expiring policy: None/0/20/25/35/45/50 no claim -> 0/20/25/35/45/50/50; any claim -> 0; chip 20% sets the 25% slab; a saved 25% quote shows 20% expiring',
+    check:()=>{ const keep = { p:ncbInput.prev, c:ncbInput.claim };
+      try{
+        const a = [-1,0,1,2,3,4,5].map(p=>NCB_SLABS[ncbAppliedFrom(p,false)]).join(',');
+        const b = [-1,0,1,2,3,4,5].map(p=>ncbAppliedFrom(p,true)).join('');
+        document.querySelector('#ncbPrevChips .chip[data-value="1"]').click(); const c = state.ncbYears;
+        $('ncbClaimYes').checked = true; $('ncbClaimYes').dispatchEvent(new Event('change')); const d = state.ncbYears;
+        ncbSetApplied(2); const e = document.querySelector('#ncbPrevChips .chip.active').dataset.value + ($('ncbClaimNo').checked ? 'n' : 'y');
+        return [a, b, c, d, e].join('/');
+      } finally { ncbInput.prev = keep.p; ncbInput.claim = keep.c; ncbChanged(); } },
+    expect:'0,20,25,35,45,50,50/0000000/2/0/1n' },
   { label:'CR-8811 Table A - OSSS Royal fresh SI>=10L, ages 45/46/61',
     check:()=>[45,46,61].map(a=>getOSSSCommissionPct('Royal',2500000,false,a)).join('/'),
     expect:'40/30/20' },
@@ -28794,7 +28840,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v174 · CR-8828 commission for Happy Family Floater and Individual Mediclaim</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v175 · NCB entered as on the expiring policy, with claim yes/no</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
