@@ -15491,6 +15491,12 @@ function buildWhatsAppText(q){
 /* "Seating Capacity" on the quote used to print the hidden passenger-count field, which
    defaults to 1 for every class that does not use it - so a GCCV rated for 3 persons under
    LL Paid Driver / Cleaner still printed "1". Each class now shows the count it is rated on. */
+/* GCCV: gross vehicle weight as entered on the form, for the quote PDF; blank for other classes */
+function gvwLabel(q){
+  const d = q.data || {};
+  const g = parseInt(d.gcvActualGVW, 10) || 0;
+  return d.vehicleType === 'commercial' && g > 0 ? g.toLocaleString('en-IN') + ' kg' : '';
+}
 function seatingCapacityLabel(q){
   const d = q.data || {};
   const vt = d.vehicleType;
@@ -15729,7 +15735,10 @@ function generatePDF(q, docOverride){
     ly=row(LX,ly,colW,'Make, Model & Variant', q.data.vehicleModel, {zebra:z}); z=!z;
     ly=row(LX,ly,colW,'RTO Location', rtoLoc, {zebra:z}); z=!z;
     ly=row(LX,ly,colW,'Invoice / Registration Date', fmtRegDate(q.data.regDate), {zebra:z}); z=!z;
-    ly=row(LX,ly,colW,'Cubic Capacity/KW', ccKw, {zebra:z}); z=!z;
+    /* GCCV: the GVW entered takes this row in place of the weight-slab text (an extra row pushed the footer off the page);
+       a 3-wheeler keeps that word - public / private carrier is already in the heading */
+    if(gvwLabel(q)){ ly=row(LX,ly,colW,'Gross Vehicle Weight', gvwLabel(q)+(/^gcv3w/.test(q.data.slab)?' (3-Wheeler)':''), {zebra:z}); z=!z; }
+    else { ly=row(LX,ly,colW,'Cubic Capacity/KW', ccKw, {zebra:z}); z=!z; }
     ly=row(LX,ly,colW,'Seating Capacity', seatingCapacityLabel(q), {zebra:z}); z=!z;
     ly=row(LX,ly,colW,'Fuel Type', q.fuelCfg.label, {zebra:z}); z=!z;
     ly+=Math.round(6*VS);
@@ -22738,6 +22747,8 @@ const GOLDEN_BUILD = 'v141 (re-baselined 16-Sep-2026, approved: the runner had b
 /* Cases whose expected figure comes from an EXTERNAL document, not from this
    calculator. These are correctness proofs and must never be re-baselined. */
 const VERIFIED_CASES = [
+  { label:'Quote PDF GVW: GCCV prints the GVW entered (16,200 kg) in the Cubic Capacity/KW row, which stays for a blank GVW or a PCCV', expect:'16,200 kg||',
+    check:()=>[gvwLabel({data:{vehicleType:'commercial',gcvActualGVW:16200}}),gvwLabel({data:{vehicleType:'commercial',gcvActualGVW:0}}),gvwLabel({data:{vehicleType:'pccv',gcvActualGVW:16200}})].join('|') },
   { label:'Quote PDF Seating Capacity: GCCV shows the LL driver/cleaner count (3), PCCV the passenger count, Pvt Car not the hidden pax field', expect:'3 (driver + 2 cleaners)|3 passengers (excl. driver)|',
     check:()=>[seatingCapacityLabel({data:{vehicleType:'commercial',llGccvCount:3,paxCount:1}}),seatingCapacityLabel({data:{vehicleType:'pccv',paxCount:3}}),seatingCapacityLabel({data:{vehicleType:'privateCar',paxCount:1,switches:{}}})].join('|') },
   { label:'In-built CNG (Pvt Car 1001-1500cc, Zone B, 6-10y, IDV 3L): OD 10,053 − SIP 80% 8,042 → CNG 5% of net = 101; CNG TP load Rs.60 (INLIAS sheet 432702/31/2027/639)', expect:'8042/101/60/10053',
@@ -28810,7 +28821,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v178 · CPM matches INLIAS: STFI 0.30, zone IV on first load</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v179 · GVW on the GCCV quote PDF</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
