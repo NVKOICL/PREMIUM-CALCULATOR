@@ -10379,6 +10379,7 @@ const RATES = {
     towing10k:    { name:'Towing Charges (≤Rs. 10,000)',type:'towing', towingLimit:10000, towingPremium:500, },
     towing20k:    { name:'Towing Charges (≤Rs. 20,000)',type:'towing', towingLimit:20000, towingPremium:1500, },
     imt47:        { name:'IMT-47 Overturning Cover (Tool of Trade)', type:'percent', rate:0.005, idvBased:true, vehicleOnly:['misc'] },
+    imt34:        { name:'IMT-34 Use for Commercial and Private Purposes', type:'percent', rate:0.25, vehicleOnly:['misc'] },   // 25% of Basic OD + IMT-47 (INLIAS)
     rsa:          { name:'Road Side Assistance', type:'rsa', vehicleOnly:['privateCar','twoWheeler','twoWheelerHire','pccv','commercial'] }   // flat per policy - RSA_PREMIUM (v171)
   },
 
@@ -12262,6 +12263,7 @@ const ADDON_ICONS = {
   towing10k:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 17l3-8h10l2 5H3z"/><circle cx="7" cy="17" r="1.5"/><circle cx="17" cy="17" r="1.5"/><path d="M18 12l3-3M21 9h-4v4"/></svg>`,
   towing20k:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 17l3-8h10l2 5H3z"/><circle cx="7" cy="17" r="1.5"/><circle cx="17" cy="17" r="1.5"/><path d="M18 12l3-3M21 9h-4v4"/></svg>`,
   towingMax:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 17l3-8h10l2 5H3z"/><circle cx="7" cy="17" r="1.5"/><circle cx="17" cy="17" r="1.5"/><path d="M18 12l3-3M21 9h-4v4"/></svg>`,
+  imt34:         `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3"/><path d="M20 16H7l3 3"/></svg>`,
   imt47:         `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v4h-4"/></svg>`
 };
 
@@ -12512,6 +12514,8 @@ function renderAddons(){
       note = `Rs. ${a.rate} flat`;
     } else if(key === 'imt47'){
       note = `${(a.rate*100).toFixed(2)}% on IDV · used as tool of trade`;
+    } else if(key === 'imt34'){
+      note = `${(a.rate*100).toFixed(0)}% on Basic OD + IMT-47 · no discount`;
     }
 
     const icon = ADDON_ICONS[key] || '';
@@ -13280,7 +13284,7 @@ function presetAddonKeys(p){
   return keys;
 }
 function presetShortName(k){
-  const n = { nilDep:'Nil Dep', engineProtect:'Engine', rti:'RTI', consumables:'Consumables', keyReplace:'Key', tyreProtect:'Tyre', batteryProtect:'Battery', batteryProtectCoPay:'Battery (co-pay)', emiProtect:'EMI', altCar:'Alt Car', personalEffects:'Personal Effects', imt47:'IMT-47' };
+  const n = { nilDep:'Nil Dep', engineProtect:'Engine', rti:'RTI', consumables:'Consumables', keyReplace:'Key', tyreProtect:'Tyre', batteryProtect:'Battery', batteryProtectCoPay:'Battery (co-pay)', emiProtect:'EMI', altCar:'Alt Car', personalEffects:'Personal Effects', imt47:'IMT-47', imt34:'IMT-34' };
   if(/^towing/.test(k)) return 'Towing';
   return n[k] || k;
 }
@@ -13936,12 +13940,12 @@ function formatODRateConfig(cfg, mult=1){
      Basic OD + Electrical + CNG kit + Towing   (+ Overturning for Misc Class D).
    One helper for every class so the charged premium, the Nil-Dep base and the
    NCB base can never carry three different IMT-23 figures. */
-function imt23BaseFor(vehicleType, odBase, elec, cng, towing, imt47){
+function imt23BaseFor(vehicleType, odBase, elec, cng, towing, imt47, imt34){
   const base = (odBase || 0) + (elec || 0) + (cng || 0) + (towing || 0);
-  return vehicleType === 'misc' ? base + (imt47 || 0) : base;
+  return vehicleType === 'misc' ? base + (imt47 || 0) + (imt34 || 0) : base;   // + IMT-34 (INLIAS R/161996/31/2027/382)
 }
-function miscImt23BaseFor(odBase, elec, cng, towing, imt47){
-  return imt23BaseFor('misc', odBase, elec, cng, towing, imt47);
+function miscImt23BaseFor(odBase, elec, cng, towing, imt47, imt34){
+  return imt23BaseFor('misc', odBase, elec, cng, towing, imt47, imt34);
 }
 
 function paUnnamedMaxSIFor(vehicleType){ return RATES.optional.paUnnamedMaxSI[vehicleType]; }
@@ -14194,6 +14198,7 @@ function calculate(silent=false){
   let basicODBeforeDiscount=0, odDiscountAmt=0, antiTheftDiscount=0, ncbDiscount=0;
   let netMotorOD=0, odCNGFuel=0, odTotal=0;
   let imt47Amt=0;  // IMT-47 Overturning Cover (Misc Class D) — part of Basic OD
+  let imt34Amt=0;  // IMT-34 Use for Commercial and Private Purposes (Misc Class D) — OD, not discounted
   let gcvGVWSurcharge = 0;  // Rs. 27/100 kg for GVW > 12,000 kg (GCV public/private carriers)
   let odBaseVehicle = 0;    // IDV-based OD before GVW surcharge (for display)
   let gccvTowingPremium = 0;  // hoisted: needed in GCCV NCB correction (after addon loop)
@@ -14322,8 +14327,17 @@ function calculate(silent=false){
       if(a47) imt47Amt = Math.round(idv * a47.rate);
     }
 
-    // basicODBeforeDiscount includes adjusted EP and IMT-47 overturning (for actual premium charged)
-    basicODBeforeDiscount = odBase + engineProtectAmt + imt47Amt + odCNGKit + odElecAcc + odNonElecAcc;
+    // ── IMT-34 Use for Commercial and Private Purposes (Misc Class D) ──
+    // 25% of Basic OD + IMT-47. INLIAS R/161996/31/2027/382 (07/10/2026): 25% of 1,09,850 = 27,462.50.
+    // The SIP discount there is taken on Basic OD + IMT-47 + IMT-23 only, so IMT-34 is not
+    // discounted; it is inside the IMT-23 base (15% of 1,37,312.50) and the NCB base.
+    if(Array.isArray(data.selectedAddons) && data.selectedAddons.includes('imt34') && data.vehicleType === 'misc'){
+      const a34 = RATES.addons.imt34;
+      if(a34) imt34Amt = Math.round((odBase + imt47Amt) * a34.rate);
+    }
+
+    // basicODBeforeDiscount includes adjusted EP, IMT-47 overturning and IMT-34 (for actual premium charged)
+    basicODBeforeDiscount = odBase + engineProtectAmt + imt47Amt + imt34Amt + odCNGKit + odElecAcc + odNonElecAcc;
 
     // Accessories included in the OD-discount & NCB base for Pvt Car and GCCV
     // (Excel: car G33 = G14 × %, where G14 = Basic OD + Elec Acc + CNG Kit;
@@ -14382,7 +14396,7 @@ function calculate(silent=false){
     //   Gross EP = rate × IDV before any +/− loading/discount factor
     const epGrossForNCB = engineProtectAddon ? (engineProtectAddon.grossAmount || engineProtectAmt) : 0;
     const ncbCore = (odBase + imt47Amt + accInDiscBase - odDiscountAmt - antiTheftDiscount)
-                  + epGrossForNCB + gccvTowingPremium;
+                  + epGrossForNCB + gccvTowingPremium + imt34Amt;
     ncbDiscount = Math.round(ncbCore * (RATES.ncb[data.ncbYears] || 0));
 
     // Net OD: Basic OD − Discount + EP + Accessories + CNG kit − Anti-theft − NCB
@@ -14431,7 +14445,7 @@ function calculate(silent=false){
         // + Overturning). The Nil-Dep base must use the SAME gross figure the
         // policy actually charges — previously this used 15% × Basic OD alone,
         // so the quote carried two different IMT-23 numbers.
-        imt23NetForNilDep = Math.round(miscImt23BaseFor(odBase, odElecAcc, odCNGKit, gccvTowingPremium, imt47Amt) * 0.15);
+        imt23NetForNilDep = Math.round(miscImt23BaseFor(odBase, odElecAcc, odCNGKit, gccvTowingPremium, imt47Amt, imt34Amt) * 0.15);
       } else if(pccvAbove6Seats){
         // PCCV (ODS AZ90): IMT-23 GROSS = 15% × (Basic OD + Electrical + CNG + Towing)
         imt23NetForNilDep = Math.round(imt23BaseFor('pccv', odBase, odElecAcc, odCNGKit, gccvTowingPremium, 0) * 0.15);
@@ -14453,6 +14467,7 @@ function calculate(silent=false){
     for(const key of data.selectedAddons){
       if(key === 'engineProtect') continue;
       if(key === 'imt47') continue;   // priced inside Basic OD, not as a separate add-on
+      if(key === 'imt34') continue;   // priced in the OD block above
       const a = RATES.addons[key];
       // Unknown key (e.g. a withdrawn cover sitting in an old saved draft) — skip
       if(!a) continue;
@@ -14860,10 +14875,10 @@ function calculate(silent=false){
       const ndItemMisc = addons.items.find(a => a.key === 'nilDep');
       const netNilDepMisc = (ndItemMisc && ndItemMisc.amount) || 0;       // Net Nil Dep after discounts
       const miscImt23Gross = (data.switches.imt23 && hasOD)
-        ? Math.round(miscImt23BaseFor(odBase, odElecAcc, odCNGKit, gccvTowingPremium, imt47Amt) * 0.15) : 0;
+        ? Math.round(miscImt23BaseFor(odBase, odElecAcc, odCNGKit, gccvTowingPremium, imt47Amt, imt34Amt) * 0.15) : 0;
       const miscImt23Disc  = (miscImt23Gross > 0 && data.odDiscount > 0) ? Math.round(miscImt23Gross * (data.odDiscount / 100)) : 0;
       const miscImt23P     = miscImt23Gross - miscImt23Disc;   // NET IMT 23 (after discount)
-      const miscNCBBase = netODMisc + miscImt23P + netNilDepMisc + gccvTowingPremium;
+      const miscNCBBase = netODMisc + miscImt23P + netNilDepMisc + gccvTowingPremium + imt34Amt;   // IMT-34 undiscounted
       const newNCBDiscount = Math.round(miscNCBBase * ncbRate);
       const ncbDelta = newNCBDiscount - ncbDiscount;
       ncbDiscount = newNCBDiscount;
@@ -15027,7 +15042,7 @@ function calculate(silent=false){
     // accessories or a kit were declared — and the Nil-Dep and NCB bases, which
     // both contain IMT-23, inherited the shortfall.
     const imt23Base = (data.vehicleType === 'misc' || isGCCV || data.vehicleType === 'pccv')
-      ? imt23BaseFor(data.vehicleType, odBase, odElecAcc, odCNGKit, gccvTowingPremium, imt47Amt)
+      ? imt23BaseFor(data.vehicleType, odBase, odElecAcc, odCNGKit, gccvTowingPremium, imt47Amt, imt34Amt)
       : odBase;
     const imt23Gross   = Math.round(imt23Base * 0.15);
     const imt23DiscAmt = (data.odDiscount > 0) ? Math.round(imt23Gross * (data.odDiscount / 100)) : 0;  // Fixed: was isGCCV only
@@ -15038,6 +15053,7 @@ function calculate(silent=false){
       if(odElecAcc > 0 || odCNGKit > 0) _imt23Parts.push('Acc');
       if(gccvTowingPremium > 0)         _imt23Parts.push('Towing');
       if(data.vehicleType === 'misc' && imt47Amt > 0) _imt23Parts.push('Overturning');
+      if(data.vehicleType === 'misc' && imt34Amt > 0) _imt23Parts.push('IMT-34');
     }
     const imt23Name = 'IMT 23 — Coverage for IMT 21 Exclusions (15% on '
                     + _imt23Parts.join(' + ') + ')';
@@ -15202,7 +15218,7 @@ function calculate(silent=false){
     gcvGVWSurcharge,
     basicODBeforeDiscount, odDiscountAmt, antiTheftDiscount, ncbDiscount,
     netMotorOD, odCNGFuel, netOD, odTotal, ncbCarry, odBeforeNCB,
-    imt47Amt,
+    imt47Amt, imt34Amt,
     tpBase, fuelTPLoad, kitTPLoad, tpPremium,
     trailerCoverOD, trailerCoverTP,
     addons, extras, vintageDiscount, subtotal,
@@ -15281,6 +15297,9 @@ function renderResult(q, silent=false){
         : `Discount on OD (${q.data.odDiscount}% on Basic OD)`;
       lines.push({k: discLabel, v:'− '+fmt(q.odDiscountAmt), discount:true});
     }
+    if(q.imt34Amt > 0){
+      lines.push({k:`Add: Use for Commercial and Private Purposes — IMT-34 (25% on Basic OD${q.imt47Amt > 0 ? ' + IMT-47' : ''}, no discount)`, v: fmt(q.imt34Amt)});
+    }
     if(q.odCNGKit>0)     lines.push({k: q.odCNGInbuilt
                             ? `CNG/LPG OD Premium (5% on Basic OD \u2014 in-built kit)`
                             : `CNG/LPG OD Premium (4% on Declared Kit Value)`, v:fmt(q.odCNGKit)});
@@ -15299,7 +15318,7 @@ function renderResult(q, silent=false){
       } else if(q.data.vehicleType === 'misc'){
         // NCB base for Misc = Net OD (Basic OD + IMT-47 − disc) + IMT 23 gross + Net Nil Dep
         const imt23Part = (q.data.switches && q.data.switches.imt23) ? ' + IMT 23' : '';
-        ncbLabel = `No Claim Bonus (${ncbPct}% on Net OD${imt23Part} + Net Nil Dep)`;
+        ncbLabel = `No Claim Bonus (${ncbPct}% on Net OD${q.imt34Amt > 0 ? ' + IMT-34' : ''}${imt23Part} + Net Nil Dep)`;
       } else {
         ncbLabel = `No Claim Bonus (${ncbPct}% on Basic OD after Disc + EP)`;
       }
@@ -15432,6 +15451,7 @@ function buildWhatsAppText(q){
         : `OD Discount (${q.data.odDiscount}%)`;
       t += `• ${waDiscLabel}: − Rs. ${fmt(q.odDiscountAmt)}\n`;
     }
+    if(q.imt34Amt > 0) t += `• Add: Use for Commercial and Private Purposes — IMT-34 (25%, no discount): Rs. ${fmt(q.imt34Amt)}\n`;
     if(q.antiTheftDiscount>0) t += `• Anti-Theft: − Rs. ${fmt(q.antiTheftDiscount)}\n`;
     if(q.ncbDiscount>0)  t += `• NCB: − Rs. ${fmt(q.ncbDiscount)}\n`;
     t += `• Net Motor OD: Rs. ${fmt(q.netMotorOD)}\n`;
@@ -15777,12 +15797,14 @@ function generatePDF(q, docOverride){
         const _imt47Net = (q.imt47Amt||0) > 0 ? Math.round(q.imt47Amt * (1 - _pct47)) : 0;
         ry=row(RX,ry,colW, _hasAcc ? 'OD Premium (vehicle & accessories)' : 'Own Damage Premium', R(_odParts - q.odDiscountAmt - _imt47Net), {zebra:rz}); rz=!rz;
         if(_imt47Net>0){ ry=row(RX,ry,colW,'Add: Overturning Cover (IMT-47)', R(_imt47Net), {zebra:rz}); rz=!rz; }
+        if((q.imt34Amt||0)>0){ ry=row(RX,ry,colW,'Add: Commercial and Private Use (IMT-34)', R(q.imt34Amt), {zebra:rz}); rz=!rz; }
       } else {
       ry=row(RX,ry,colW,'Basic OD Premium', R(_basicPure), {zebra:rz}); rz=!rz;
       if(_nonElP>0){ ry=row(RX,ry,colW,'Non-Electrical Accessories', R(_nonElP), {zebra:rz}); rz=!rz; }
       if(_gvwSur>0){ ry=row(RX,ry,colW,'GVW Surcharge (above 12,000 kg)', R(_gvwSur), {zebra:rz}); rz=!rz; }
       if(q.odCNGKit>0){ ry=row(RX,ry,colW, q.odCNGInbuilt ? 'In-built Bi-Fuel CNG/LPG Cover (OD)' : 'CNG/LPG Kit OD Premium', R(q.odCNGKit), {zebra:rz}); rz=!rz; }
       if(q.imt47Amt>0){ ry=row(RX,ry,colW,'Add: Overturning Cover (IMT-47)', R(q.imt47Amt), {zebra:rz}); rz=!rz; }
+      if((q.imt34Amt||0)>0){ ry=row(RX,ry,colW,'Add: Commercial and Private Use (IMT-34)', R(q.imt34Amt), {zebra:rz}); rz=!rz; }
       if(q.odElecAcc>0){ ry=row(RX,ry,colW,'Electrical Accessories', R(q.odElecAcc), {zebra:rz}); rz=!rz; }
       }
       if(q.antiTheftDiscount>0){ ry=row(RX,ry,colW,'Less: Anti-Theft Discount', '- '+R(q.antiTheftDiscount), {zebra:rz}); rz=!rz; }
@@ -22883,6 +22905,13 @@ const VERIFIED_CASES = [
                 try { window.calculate(true); const q = state.lastQuote, x = n => ((q.extras.items.find(i => i.name.indexOf(n) === 0) || {}).amount);
                   return [q.odBase, q.odDiscountAmt, q.ncbDiscount, x('IMT 23'), q.tpPremium, q.trailerCoverOD, q.trailerCoverTP, x('Compulsory PA'), x('LL to Paid Driver'), q.subtotal, q.gst, q.total].join('/'); }
                 finally { $('trailerCoverType').value = ''; $('trailerCoverIDV').value = ''; } } },
+  { label:'Misc D IMT-34 use for commercial and private purposes (INLIAS R/161996/31/2027/382, 07-10-2026, excavator MH 44): Zone C, 0-5 yrs, IDV 65,00,000, IMT-47, IMT 23, SIP 90%, NCB 25%, CPA, LL paid driver: basic OD 77,350 (1.19%), IMT-47 32,500, IMT-34 27,463 (25% of 1,09,850 = 27,462.50, not discounted), SIP 98,865 + 18,537 on IMT 23 = 1,17,402 as on the sheet, IMT 23 net 2,060 (15% of Basic OD + IMT-47 + IMT-34 = 20,597), NCB 10,127 (INLIAS 10,126.85), motor OD 30,381, basic TP 7,267, total premium 38,018, GST 6,844, total 44,862 as on the sheet', expect:'77350/32500/27463/98865/2060/10127/30381/7267/38018/6844/44862',
+    check:()=>{ window._stRun(['misc','miscOther','C',1,6500000,'diesel','comprehensive',2,1,0,0,1]);
+                _sipManualOverride = true; state.odDiscount = 90;
+                state.switches.cpa = true; state.switches.llDrv = true; renderAddons();   /* the Misc cards (IMT-47, IMT-34) */
+                document.querySelectorAll('#addonsGrid input').forEach(i => i.checked = (i.dataset.addon === 'imt47' || i.dataset.addon === 'imt34'));
+                window.calculate(true); const q = state.lastQuote, x = n => ((q.extras.items.find(i => i.name.indexOf(n) === 0) || {}).amount || 0);
+                return [q.odBase, q.imt47Amt, q.imt34Amt, q.odDiscountAmt, x('IMT 23'), q.ncbDiscount, q.netOD + x('IMT 23'), q.tpPremium, q.subtotal, q.gst, q.total].join('/'); } },
   { label:'Invoice / Ex-Showroom field (v162): shown for GCCV, PCCV and Misc-D on an own-damage policy and for a Private Car only on the 3-year package; never on Liability Only or for a two-wheeler', expect:'false/true/false/true/true/true/false/false',
     check:()=>[invoiceFieldApplies('privateCar','comprehensive','1yr'), invoiceFieldApplies('privateCar','comprehensive','3yr'), invoiceFieldApplies('privateCar','odOnly','1yr'),
                invoiceFieldApplies('pccv','comprehensive','1yr'), invoiceFieldApplies('commercial','comprehensive','1yr'), invoiceFieldApplies('misc','comprehensive','1yr'),
@@ -28816,7 +28845,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v180 · CPM STFI / EQ zone back as before (v178 undone)</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v181 · IMT-34 commercial and private use for Misc Class D</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
