@@ -6742,7 +6742,7 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
       <div class="field" style="position:relative"><label class="lbl" for="cpmSite">Project site / location <span style="font-weight:400;color:var(--mute)">&mdash; type the district or city and the earthquake zone picks itself</span></label>
         <input type="text" id="cpmSite" placeholder="e.g. Hyderabad, Bhuj, Guwahati" autocomplete="off" />
         <div id="cpmLocResults" style="display:none;position:absolute;left:0;right:0;z-index:20;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:var(--shadow-md);max-height:220px;overflow:auto"></div>
-        <div class="hint" id="cpmZoneHint"></div>
+        <div class="hint" id="cpmZoneHint">Type the site to set the earthquake zone (Zone IV until then)</div>
       </div>
       <div class="field-row">
         <div class="field">
@@ -6756,7 +6756,7 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
         </div>
         <div class="field">
           <label class="lbl" for="cpmZone">Earthquake Zone</label>
-          <select id="cpmZone"><option value="1">Zone I &middot; 0.50&permil;</option><option value="2">Zone II &middot; 0.25&permil;</option><option value="3">Zone III &middot; 0.10&permil;</option><option value="4">Zone IV &middot; 0.05&permil;</option></select>
+          <select id="cpmZone"><option value="1">Zone I &middot; 0.50&permil;</option><option value="2">Zone II &middot; 0.25&permil;</option><option value="3">Zone III &middot; 0.10&permil;</option><option value="4" selected>Zone IV &middot; 0.05&permil;</option></select>
         </div>
       </div>
       <div class="field">
@@ -6776,7 +6776,7 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">
         <label class="addon" for="cpmFloater"><input type="checkbox" id="cpmFloater" /><span class="addon-name">Floater cover</span><small>Anywhere in India &middot; +10% on the machinery rate</small></label>
         <label class="addon" for="cpmUnderground"><input type="checkbox" id="cpmUnderground" /><span class="addon-name">Underground / tunnel works</span><small>Exception K deleted &middot; +50% loading &middot; referred to Head Office</small></label>
-        <label class="addon" for="cpmStfi"><input type="checkbox" id="cpmStfi" checked /><span class="addon-name">STFI</span><small>0.40&permil; on total Sum Insured &middot; no discount</small></label>
+        <label class="addon" for="cpmStfi"><input type="checkbox" id="cpmStfi" checked /><span class="addon-name">STFI</span><small>0.30&permil; on total Sum Insured &middot; no discount</small></label>
         <label class="addon" for="cpmEq"><input type="checkbox" id="cpmEq" checked /><span class="addon-name">Earthquake (fire &amp; shock)</span><small>Zone rate on total Sum Insured &middot; no discount</small></label>
         <label class="addon" for="cpmTerror"><input type="checkbox" id="cpmTerror" checked /><span class="addon-name">Terrorism</span><small>0.23&permil; on total Sum Insured &middot; no discount</small></label>
         <label class="addon" for="cpmEsc"><input type="checkbox" id="cpmEsc" checked /><span class="addon-name">Escalation</span><small>50% of the machinery rate on the escalation amount</small></label>
@@ -8329,7 +8329,8 @@ window.PAPS = { compute: psCompute, checks: psChecks, calculate, buildPDF, gener
    CONTRACTOR'S PLANT & MACHINERY (CPM) — All India CPM Tariff (TAC, CPM/1-1-01)
    Practice per the KBO Hyderabad "CPM CALCULATOR.ODS" (10-Sep-2026):
      basic rate by group (% p.a.), floater +10% of the rate, underground +50% of
-     (basic + floater) rate, STFI 0.40‰, EQ by zone 0.50 / 0.25 / 0.10 / 0.05‰,
+     (basic + floater) rate, STFI 0.30‰ as INLIAS rates it (the KBO sheet has 0.40‰),
+     EQ by zone 0.50 / 0.25 / 0.10 / 0.05‰,
      terrorism 0.23‰, escalation at 50% of the basic rate on the escalation amount,
      TPL / OSP 0.25% on min(10% SI, Rs.25 lakh), debris 0.25% on Rs.1 lakh,
      discount on everything except STFI / EQ / terrorism, GST 18%.
@@ -8337,7 +8338,7 @@ window.PAPS = { compute: psCompute, checks: psChecks, calculate, buildPDF, gener
 const $ = id => document.getElementById(id);
 const CPM_GROUP_RATE = { I:0.60, II:0.80, III:1.00, IV:2.00, V:0.20 };   /* % p.a. */
 const CPM_EQ = { 1:0.50, 2:0.25, 3:0.10, 4:0.05 };                       /* per mille */
-const CPM_STFI = 0.40, CPM_TERROR = 0.23;                                 /* per mille */
+const CPM_STFI = 0.30, CPM_TERROR = 0.23;                                 /* per mille */
 const CPM_SHORT = { 0.25:10, 1:25, 2:35, 3:50, 4:60, 6:75, 8:85, 12:100 }; /* % of annual */
 const CPM_EQUIPMENT = [
   ['101','I','Chain blocks and pulley blocks'],['102','I','Compressor, air tools'],['103','I','Conveyor belts, site hoists, jacks, screws'],
@@ -8483,7 +8484,7 @@ function cpmCompute(inp){
   const debrisSI = inp.debris ? (inp.debrisSi || 0) : 0;
   const p = {
     basic: sum('basic'), floater: sum('floater'), ug: sum('ug'), esc: sum('esc'),
-    stfi: inp.stfi ? totalSI * CPM_STFI / 1000 : 0, eq: inp.eq ? totalSI * zoneRate / 1000 : 0, terror: inp.terror ? totalSI * CPM_TERROR / 1000 : 0,
+    stfi: inp.stfi ? totalSI * (inp.stfiRate || CPM_STFI) / 1000 : 0, eq: inp.eq ? totalSI * zoneRate / 1000 : 0, terror: inp.terror ? totalSI * CPM_TERROR / 1000 : 0,
     tpl: tplLimit * 0.25 / 100, osp: ospLimit * 0.25 / 100, debris: debrisSI * 0.25 / 100
   };
   const subtotal = Object.values(p).reduce((a, b) => a + b, 0);
@@ -8566,7 +8567,7 @@ function calculate(){
     if(r.floater) h += line('&nbsp;&nbsp;incl. floater loading 10%', 'Rs. ' + fmt(r.floater), 'sub');
     if(r.ug) h += line('&nbsp;&nbsp;incl. underground works loading 50%', 'Rs. ' + fmt(r.ug), 'sub');
   });
-  if(q.p.stfi) h += line('STFI &middot; 0.40&permil;', 'Rs. ' + fmt(q.p.stfi));
+  if(q.p.stfi) h += line('STFI &middot; ' + CPM_STFI.toFixed(2) + '&permil;', 'Rs. ' + fmt(q.p.stfi));
   if(q.p.eq) h += line('Earthquake &middot; ' + q.zoneRate.toFixed(2) + '&permil;', 'Rs. ' + fmt(q.p.eq));
   if(q.p.terror) h += line('Terrorism &middot; 0.23&permil;', 'Rs. ' + fmt(q.p.terror));
   if(q.p.esc) h += line('Escalation ' + inp.escPct + '% &middot; 50% of basic rate on Rs. ' + fmt(q.escSI), 'Rs. ' + fmt(q.p.esc));
@@ -8617,7 +8618,7 @@ function buildPDF(returnBlob){
   mach.push({ label:'Machinery Premium (A)', value:R(netOf(q.p.basic + q.p.floater + q.p.ug)), total:true });
   right.push({ sub:'Section A \u2013 Machinery', rows:mach });
   const nat = [];
-  if(q.p.stfi) nat.push({ label:'STFI @ 0.40 per mille', value:R(q.p.stfi) });
+  if(q.p.stfi) nat.push({ label:'STFI @ ' + CPM_STFI.toFixed(2) + ' per mille', value:R(q.p.stfi) });
   if(q.p.eq) nat.push({ label:'Earthquake ' + eqName + ' @ ' + q.zoneRate.toFixed(2) + ' per mille', value:R(q.p.eq) });
   if(q.p.terror) nat.push({ label:'Terrorism @ 0.23 per mille', value:R(q.p.terror) });
   let keys = ['A'];
@@ -8780,9 +8781,13 @@ addItem();
 window.CPM = { compute: cpmCompute, calculate, buildPDF, newQuote, addItem, items, excessFor, EQUIPMENT: CPM_EQUIPMENT };
 window.CPM.VERIFIED = [
   { label:'CPM (KBO calculator): SI 1,26,85,000 group III, zone I, floater + underground + STFI + EQ + terrorism + escalation 10% + TPL + OSP + debris 1L, discount 90% -> net 36,558 / total 43,138', expect:'36558/43138',
-    check:()=>{ const q = cpmCompute({ items:[{ id:1, code:'314', group:'III', si:12685000 }], months:12, zone:1, discPct:90, floater:true, underground:true, stfi:true, eq:true, terror:true, esc:true, escPct:10, tpl:true, tplLimit:0, osp:true, ospLimit:0, debris:true, debrisSi:100000 }); return Math.round(q.net) + '/' + q.grand; } },
+    check:()=>{ const q = cpmCompute({ items:[{ id:1, code:'314', group:'III', si:12685000 }], months:12, zone:1, discPct:90, floater:true, underground:true, stfi:true, stfiRate:0.40, eq:true, terror:true, esc:true, escPct:10, tpl:true, tplLimit:0, osp:true, ospLimit:0, debris:true, debrisSi:100000 }); return Math.round(q.net) + '/' + q.grand; } },
   { label:'CPM (KBO calculator) cover lines: basic 1,26,850 / floater 12,685 / underground 69,768 / STFI 5,074 / EQ 6,343 / terrorism 2,918 / escalation 6,343 / TPL 3,171 / OSP 3,171 / debris 250 / subtotal 2,36,572', expect:'126850/12685/69768/5074/6343/2918/6343/3171/3171/250/236572',
-    check:()=>{ const q = cpmCompute({ items:[{ id:1, code:'314', group:'III', si:12685000 }], months:12, zone:1, discPct:90, floater:true, underground:true, stfi:true, eq:true, terror:true, esc:true, escPct:10, tpl:true, tplLimit:0, osp:true, ospLimit:0, debris:true, debrisSi:100000 }); const p = q.p; return [p.basic,p.floater,p.ug,p.stfi,p.eq,p.terror,p.esc,p.tpl,p.osp,p.debris,q.subtotal].map(v=>Math.round(v)).join('/'); } },
+    check:()=>{ const q = cpmCompute({ items:[{ id:1, code:'314', group:'III', si:12685000 }], months:12, zone:1, discPct:90, floater:true, underground:true, stfi:true, stfiRate:0.40, eq:true, terror:true, esc:true, escPct:10, tpl:true, tplLimit:0, osp:true, ospLimit:0, debris:true, debrisSi:100000 }); const p = q.p; return [p.basic,p.floater,p.ug,p.stfi,p.eq,p.terror,p.esc,p.tpl,p.osp,p.debris,q.subtotal].map(v=>Math.round(v)).join('/'); } },
+  { label:'CPM INLIAS R/433702/44/2027/384 (06.10.2026): SI 2,15,71,580 group II + floater, STFI 0.30, EQ 0.05 (zone IV), escalation 10%, TPL 10 lakh, OSP + debris 21,35,800, DO/BO 50% + RO 58.8% = 79.4% -> covers 1,72,573 / 17,257 / 6,471 / 8,629 / 1,079 / 2,500 / 5,340 / 5,340; net 51,147 (INLIAS 51,148 after rounding each cover to the rupee)', expect:'172573/17257/6471/8629/1079/2500/5340/5340/51147',
+    check:()=>{ const q = cpmCompute({ items:[{ id:1, code:'205', group:'II', si:21571580 }], months:12, zone:4, discPct:79.4, floater:true, underground:false, stfi:true, eq:true, terror:false, esc:true, escPct:10, tpl:true, tplLimit:1000000, osp:true, ospLimit:2135800, debris:true, debrisSi:2135800 }); const p = q.p; return [p.basic,p.floater,p.stfi,p.esc,p.eq,p.tpl,p.osp,p.debris,q.net].map(v=>Math.round(v)).join('/'); } },
+  { label:'CPM first load: earthquake zone starts at IV, as New Quote does', expect:'4',
+    check:()=>$('cpmZone').querySelector('option[selected]').value },
   { label:'CPM short period 3 months: covers at 50% of annual, earthquake extra pro-rata 3/12 (SI 10 lakh group I + EQ zone I -> 3,125)', expect:'3125',
     check:()=>{ const q = cpmCompute({ items:[{ id:1, code:'101', group:'I', si:1000000 }], months:3, zone:1, discPct:0, floater:false, underground:false, stfi:false, eq:true, terror:false, esc:false, escPct:0, tpl:false, osp:false, debris:false, debrisSi:0 }); return String(Math.round(q.net)); } },
   { label:'CPM cover pages: 5 sections incl. 18 policy exceptions and wording for every extension', expect:'5/18/9',
@@ -28805,7 +28810,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v177 · NCB questions in bold colour</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v178 · CPM matches INLIAS: STFI 0.30, zone IV on first load</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
