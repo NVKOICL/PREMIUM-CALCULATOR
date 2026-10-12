@@ -2175,7 +2175,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
         <div class="switch-row" id="hoDiscRow" style="margin-top:8px">
           <div class="info">
             <div class="t">Additional discount approved by HO / RO</div>
-            <div class="s">Allows OD and Nil Dep discount above the maximum. Keep the approval on record.</div>
+            <div class="s">Allows an OD discount above the maximum. Keep the approval on record.</div>
           </div>
           <div class="switch" data-key="hoDisc"><input type="checkbox"></div>
         </div>
@@ -10777,7 +10777,7 @@ function towingPremiumFor(vehicleType, slab, limit){
    type 25 on a GCCV and the quote used 20 with nothing on screen to say so.
    Now the entered figure is still capped, but the reduction is stated. */
 function nilDepDiscInput(el){
-  const cap = nilDepDiscMaxFor(state.vehicleType);
+  const cap = nilDepDiscCapFor(state.vehicleType);
   const typed = parseFloat(el.value);
   const v = Math.min(Math.max(isNaN(typed) ? 0 : typed, 0), cap);
   state.nilDepDiscount = v;
@@ -10845,11 +10845,10 @@ function nilDepDiscCapFor(vt){
   if(vt === 'commercial' || vt === 'twoWheelerHire' || vt === 'pccv') return 20;
   return 40;
 }
-/* v184: an additional discount approved by HO / RO (switch hoDisc) lifts the OD discount maximum and
-   the Nil Dep class figure as ceilings. The automatic figures are unchanged: anything above them is
-   typed or picked by the agent. */
+/* v184: an additional discount approved by HO / RO (switch hoDisc) lifts the OD discount maximum as a
+   ceiling. The automatic figure is unchanged: anything above it is typed or picked by the agent.
+   v185 (user, 12-Oct-2026): no additional Nil Dep discount - it stays at the class figure. */
 function discHOApproved(){ return !!(state.switches && state.switches.hoDisc); }
-function nilDepDiscMaxFor(vt){ return discHOApproved() ? 100 : nilDepDiscCapFor(vt); }
 /* The Nil Dep discount is applied automatically at the class figure whenever the Nil Depreciation
    add-on is opted; a chip clicked or a figure typed by the user sticks until New Quote / a quick quote. */
 let _nilDepManual = false;
@@ -11196,7 +11195,7 @@ setupSingleSelectChips('paUnSiChips', v=>{ state.paUnSI = parseInt(v,10); update
 setupSingleSelectChips('fuelChips', v=>{ state.fuel = v; updateFuelHint(); renderAddons(); scheduleAutoCalc(); });
 setupSingleSelectChips('nilDepDiscChips', v=>{
   _nilDepManual = true;
-  state.nilDepDiscount = Math.min(parseFloat(v) || 0, nilDepDiscMaxFor(state.vehicleType));
+  state.nilDepDiscount = Math.min(parseFloat(v) || 0, nilDepDiscCapFor(state.vehicleType));
   const ci = $('nilDepDiscCustom'); if(ci) ci.value = state.nilDepDiscount || '';
 });
 
@@ -13038,12 +13037,12 @@ function updateNilDepGccvRenewalRow(){
     row.style.display = 'none';
     return;
   }
-  const cap = nilDepDiscMaxFor(state.vehicleType);
+  const cap = nilDepDiscCapFor(state.vehicleType);
   document.querySelectorAll('#nilDepDiscChips .chip').forEach(c=>{
     c.style.display = (parseFloat(c.dataset.value) > cap) ? 'none' : '';
   });
   const capLbl = $('nilDepDiscCapLbl');
-  if(capLbl) capLbl.textContent = discHOApproved() ? `(${nilDepDiscCapFor(state.vehicleType)}% · above it with HO / RO approval)` : `(up to ${cap}%)`;
+  if(capLbl) capLbl.textContent = `(up to ${cap}%)`;
   const ci = $('nilDepDiscCustom');
   if(ci) ci.max = cap;
   if((parseFloat(state.nilDepDiscount) || 0) > cap){
@@ -13398,7 +13397,7 @@ document.querySelectorAll('#sectionMotor .switch').forEach(s=>{
     // Nil Depreciation eligibility for Misc/GCCV depends on IMT-23, so the
     // add-on cards have to be redrawn when the user toggles it by hand.
     if(key==='imt23' && typeof renderAddons === 'function') renderAddons();
-    if(key==='hoDisc'){ autoApplySipDiscount(); updateNilDepGccvRenewalRow(); updateDiscountHint(); }
+    if(key==='hoDisc'){ autoApplySipDiscount(); updateDiscountHint(); }
     if(key==='rsaTp'){
       const b = document.querySelector('#addonsGrid input[data-addon="rsa"]');
       if(b && !b.disabled) b.checked = state.switches.rsaTp;
@@ -14121,7 +14120,7 @@ function calculate(silent=false){
     odDiscount:   state.odDiscount,
     twBody:       ($('twBodyScooter') && $('twBodyScooter').checked) ? 'scooter' : 'bike',
     loadingPct:   Math.min(Math.max(parseFloat(state.loadingPct) || 0, 0), 400),
-    nilDepDiscount: Math.min(Math.max(parseFloat(state.nilDepDiscount) || 0, 0), nilDepDiscMaxFor(state.vehicleType)),
+    nilDepDiscount: Math.min(Math.max(parseFloat(state.nilDepDiscount) || 0, 0), nilDepDiscCapFor(state.vehicleType)),
     paUnPax:      parseInt($('paUnPax').value,10) || 0,
     paUnSI:       state.paUnSI,
     llNFPPCount:  parseInt($('llNFPPCount').value, 10) || 0,
@@ -14628,7 +14627,7 @@ function calculate(silent=false){
             base = idv;
           }
           const grossAmt = Math.round(base * rate);
-          const nilDepDiscCap = (data.switches && data.switches.hoDisc) ? 100 : nilDepDiscCapFor(data.vehicleType);  // GCCV/2W-Hire 20%, PCCV 25%, rest 40%; v184 HO / RO approval lifts it
+          const nilDepDiscCap = nilDepDiscCapFor(data.vehicleType);  // GCCV/2W-Hire 20%, PCCV 25%, rest 40%
           const stdDiscPct = Math.min(Math.max(data.nilDepDiscount || 0, 0), nilDepDiscCap);
           const stdDiscAmt = Math.round(grossAmt * (stdDiscPct / 100));
           const gccvRenewalApplies = !!data.switches.nilDepGccvRenewal && nilDepRenewalClass(data.vehicleType);
@@ -17149,7 +17148,7 @@ function loadDraft(){
     }
     // Nil Dep Discount
     if(typeof d.nilDepDiscount === 'number'){
-      state.nilDepDiscount = Math.min(Math.max(d.nilDepDiscount, 0), (d.switches && d.switches.hoDisc) ? 100 : nilDepDiscCapFor(state.vehicleType));
+      state.nilDepDiscount = Math.min(Math.max(d.nilDepDiscount, 0), nilDepDiscCapFor(state.vehicleType));
       document.querySelectorAll('#nilDepDiscChips .chip').forEach(x=>x.classList.toggle('active', parseFloat(x.dataset.value)===state.nilDepDiscount));
     }
 
@@ -21435,7 +21434,7 @@ function _trendComputeAt(idv){
     invoiceValue: parseFloat($$('invoiceValue').value) || 0,
     ncbYears:     state.ncbYears,
     odDiscount:   state.odDiscount,
-    nilDepDiscount: Math.min(Math.max(parseFloat(state.nilDepDiscount) || 0, 0), nilDepDiscMaxFor(state.vehicleType)),
+    nilDepDiscount: Math.min(Math.max(parseFloat(state.nilDepDiscount) || 0, 0), nilDepDiscCapFor(state.vehicleType)),
     paUnPax:      parseInt($$('paUnPax').value,10) || 0,
     paUnSI:       state.paUnSI,
     llNFPPCount:  parseInt($$('llNFPPCount').value, 10) || 0,
@@ -22847,8 +22846,8 @@ const VERIFIED_CASES = [
                         run(['twoWheeler','s2','B',1,100000,'petrol','odOnly',1,0,0,0,0], '2025-10-01', '2026-09-26'),
                         run(['privateCar','s2','B',1,500000,'petrol','comprehensive',0,0,0,0,0], '2025-10-01', '2026-09-26'),
                         run(['privateCar','s2','B',1,500000,'petrol','comprehensive',0,0,0,0,0], '2026-09-26', '2026-09-26')].join('/'); } },
-  { label:'HO / RO approved additional discount (v184): Private Car SAOD without NCB (maximum 75%) - with the switch on, a manual 90% stays 90, a custom 95% stays 95 and is rated at 95%, the Nil Dep discount ceiling is 100 (40 without); switched off, the OD discount goes back to 75',
-    expect:'90|95|95|100|75|40',
+  { label:'HO / RO approved additional discount (v184): Private Car SAOD without NCB (maximum 75%) - with the switch on, a manual 90% stays 90, a custom 95% stays 95 and is rated at 95%, a Nil Dep discount of 50% is still held at 40% (no additional Nil Dep discount, v185); switched off, the OD discount goes back to 75',
+    expect:'90|95|95|40|75',
     check:()=>{ const out = [], keepToast = window.toast, keepCalc = window.calculate;
                 window.toast = () => {}; window.calculate = () => keepCalc(true);
                 try{
@@ -22858,9 +22857,8 @@ const VERIFIED_CASES = [
                   _sipManualOverride = true; _sipClamp = null; state.odDiscount = 90; state.ncbYears = 0; autoApplySipDiscount(); out.push(state.odDiscount);
                   renderSipChips(); const ci = $('odDiscCustom'); ci.value = '95'; ci.dispatchEvent(new Event('input')); ci.dispatchEvent(new Event('change')); out.push(state.odDiscount);
                   keepCalc(true); out.push(state.lastQuote.data.odDiscount);
-                  out.push(nilDepDiscMaxFor('privateCar'));
+                  const nd = $('nilDepDiscCustom'); nd.value = '50'; nilDepDiscInput(nd); out.push(state.nilDepDiscount); nd.value = '';
                   state.switches.hoDisc = false; state.ncbYears = 0; autoApplySipDiscount(); out.push(state.odDiscount);
-                  out.push(nilDepDiscMaxFor('privateCar'));
                 } finally { window.toast = keepToast; window.calculate = keepCalc; state.switches.hoDisc = false; _sipClamp = null; }
                 return out.join('|'); } },
   { label:'OD discount ceiling (v164): a manual discount above the maximum is held at the maximum when NCB is removed and goes back to the agent\'s value when NCB returns; one within it stays; a chip or custom value above it is set to the maximum; the target solver stops at the maximum (was 90%)', expect:'75/true|90|60/true|75|75|capped/75',
@@ -28941,7 +28939,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v184 · HO / RO approved discount above the maximum</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v185 · HO / RO approval lifts the OD discount only; Nil Dep discount stays at the class figure</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
