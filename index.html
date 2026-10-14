@@ -11551,6 +11551,24 @@ function cngInbuiltLoading(odBase, discPct){
   const cng  = Math.round((odBase - disc) * RATES.optional.cngInbuiltODRate);
   return { disc, cng };
 }
+/* Brand New for the OD discount (v186, user rule 14-Oct-2026): only while the policy start date is not more
+   than 6 months after registration (registered 14/04: brand new up to a start date of 14/10, 2nd year from
+   15/10). Past that it takes the 2nd-year band (1-5 yrs) and, without NCB, the No NCB column. Was: anything
+   under a year. Private Car / Two-Wheeler Package keeps its own, stricter first-month rule (v164); SAOD is
+   never brand new. */
+const DISC_BRAND_NEW_MONTHS = 6;
+function discBrandNew(){
+  const d = ($('regDate') || {}).value || '';
+  if(!d) return false;
+  const inc = ($('incDate') || {}).value || '';
+  let ref;
+  if(inc){ const [iy, im, idd] = inc.split('-').map(Number); ref = new Date(iy, im - 1, idd); }
+  else   { const n = new Date(); ref = new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+  const [ry, rm, rd] = d.split('-').map(Number);
+  const last = new Date(ry, rm - 1 + DISC_BRAND_NEW_MONTHS + 1, 0).getDate();   /* 31/08 + 6 months = 28/02 */
+  const limit = new Date(ry, rm - 1 + DISC_BRAND_NEW_MONTHS, Math.min(rd, last));
+  return ref <= limit;
+}
 function lookupMaxDiscount2026(){
   const vt = state.vehicleType;
   const bucket = getDiscountPolicyBucket();
@@ -11559,12 +11577,12 @@ function lookupMaxDiscount2026(){
   const months = getAgeMonths();
   const years  = months !== null ? months / 12 : null;
   const hasNCB = (state.ncbYears || 0) > 0;
-  // A brand-new vehicle (first policy year, age < 1 yr) has no NCB simply because
+  // Brand-new vehicle (registered not more than 6 months before the policy start, v186) has no NCB simply because
   // none has been earned yet — NOT because the customer lost it. The "No NCB" (nn)
   // column is a penalty for broken/rolled-over NCB chains and must NOT apply here.
   // So a first-year brand-new vehicle takes the "With NCB" (wn) = MAX discount.
   // (GCCV & Taxi already do this via their dedicated `new` age band.)
-  const isBrandNew = (years !== null && years <= 1);  /* band-months: <=1 = before 1st birthday */
+  const isBrandNew = discBrandNew();   /* v186: not more than 6 months from registration */
   // Per the 01/06/2026 circular, the discount column depends ONLY on whether the
   // expiring policy carried NCB. Own-renewal and roll-over WITH NCB share the same
   // "With NCB" cap; renewal type does not change the cap.
@@ -11650,7 +11668,7 @@ function lookupMaxDiscount2026(){
     // completed 5 years is already in its 6th year and takes the lower cap. Reported from
     // the field 15-09-2026: a 5.1 year GCV of 3,501-7,500 kg with no NCB was being offered
     // 70% when only 50% is allowed.
-    const ageKey = years <= 1 ? 'new'   /* band-months: <=1 flips exactly ON the 1st birthday */ : (years <= 5 ? 'a15' : 'a6plus');
+    const ageKey = isBrandNew ? 'new' : (years <= 5 ? 'a15' : 'a6plus');   /* v186: brand new up to 6 months */
 
     // GCCV column rule — aligned with the global circular directive:
     //   Column 1 (wn) = expiring policy carried NCB (own renewal OR roll-over WITH NCB)
@@ -11715,7 +11733,7 @@ function lookupMaxDiscount2026(){
         ? Math.max(seatEnteredTx - 1, 0)                                  /* seats include the driver */
         : (parseInt(($('paxCount') || {}).value, 10) || 0);
       if(paxTx <= 6){
-        const ageKey = years <= 1 ? 'new'   /* band-months: <=1 flips exactly ON the 1st birthday */ : (years <= 10 ? 'le10' : 'gt10');
+        const ageKey = isBrandNew ? 'new' : (years <= 10 ? 'le10' : 'gt10');   /* v186: brand new up to 6 months */
         const row = DISC_2026.pccv.taxi6[ageKey];
         const max = row[col];
         if(max === null) return { max: row.wn, col:'wn', label:`4W Taxi · Brand New (NCB-N/A)` };
@@ -11763,7 +11781,7 @@ function lookupMaxDiscount2026(){
     // (Brand New 80% · 1-5 yr 80/70 · 6th year onwards 70/60). They are neither
     // "Agriculture Tractor" nor "Other than Above Categories" of Misc Class D.
     if(slab === 'trailerAgri' || slab === 'trailerOthers'){
-      const ageKey = years <= 1 ? 'new'   /* band-months: <=1 flips exactly ON the 1st birthday */ : (years <= 5 ? 'a15' : 'a6plus');
+      const ageKey = isBrandNew ? 'new' : (years <= 5 ? 'a15' : 'a6plus');   /* v186: brand new up to 6 months */
       const row = DISC_2026.gccv.trailers[ageKey];
       const max = row[col];
       if(max === null) return { max: row.wn, col:'wn', label:'Trailer · Brand New (NCB-N/A)' };
@@ -11806,10 +11824,10 @@ function updateDiscountHint(){
   // With-NCB (max) cap applies whenever the expiring policy carried NCB — for ALL
   // vehicle classes including GCCV, and for both own-renewal AND roll-over with NCB.
   // Renewal type does not change the cap; only the presence of NCB does.
-  // Brand-new (first policy year, age < 1 yr): no NCB by nature → use the With-NCB (max) column.
+  // Brand-new (not more than 6 months from registration, v186): no NCB by nature → use the With-NCB (max) column.
   const months = getAgeMonths();
   const years  = months !== null ? months / 12 : null;
-  const isBrandNew = (years !== null && years <= 1);  /* band-months: <=1 = before 1st birthday */
+  const isBrandNew = discBrandNew();   /* v186: not more than 6 months from registration */
   let useNNcol = isBrandNew ? false : !hasNCB;
   const idv    = parseFloat(($('idv') || {}).value) || 0;
   const idvL   = idv / 100000;
@@ -11971,7 +11989,7 @@ function updateDiscountHint(){
       'gt50000':'>50000 kg', 'trailers':'Trailers'
     };
     const ageLabel = { new:'Brand New', a15:'1-5 yrs', a6plus:'6+ yrs' };
-    const activeAge = (years !== null) ? (years <= 1 ? 'new'   /* band-months: <=1 flips exactly ON the 1st birthday */ : (years <= 5 ? 'a15' : 'a6plus')) : null;
+    const activeAge = (years !== null) ? (isBrandNew ? 'new' : (years <= 5 ? 'a15' : 'a6plus')) : null;
     // Resolve current GVW key (mirror lookup logic)
     const gvw = parseFloat(($('gcvActualGVW') || {}).value) || parseFloat(($('gvw') || {}).value) || 0;
     const activeGVW = gccvGvwBand(gvw, slab);
@@ -11996,7 +12014,7 @@ function updateDiscountHint(){
     } else if(slab === 'staffBus'){
       if(years !== null) activeKey = years <= 15 ? 'stb:le15' : 'stb:gt15';
     } else if(slab === 'taxiLt1000' || slab === 'taxi1000to1500' || slab === 'taxiOver1500'){
-      if(years !== null) activeKey = years <= 1 ? 'tx:new' : (years <= 10 ? 'tx:le10' : 'tx:gt10');
+      if(years !== null) activeKey = isBrandNew ? 'tx:new' : (years <= 10 ? 'tx:le10' : 'tx:gt10');
     } else if(slab === 'autoLt6' || slab === 'auto7to17' || slab === 'threeWheelOver17'){
       if(years !== null) activeKey = `3w:${slab}:${years<=10?'le10':'gt10'}`;
     } else {
@@ -22838,6 +22856,18 @@ const VERIFIED_CASES = [
                         agentSig(' · ', { name:'Ravi', phone:'98480 12345' }),
                         f({ name:oldN, phone:oldP }), f({ name:'Ravi', phone:oldP }), f({ name:oldN, phone:'98480' }),
                         f({ name:oldN, phone:oldP, v:2 }), f({ name:'', phone:'', v:2 })].join('|'); } },
+  { label:'Brand New OD discount only up to 6 months (v186, user rule 14-Oct-2026): GCCV 3,500 kg no NCB, start 14-10-2026 - registered 13-04-2026 (more than 6 months) takes the 1-6y No NCB cap, registered 14-04-2026 (6 months) is Brand New; Misc D no NCB 8 months = No NCB column, 3 months = With NCB column',
+    expect:'a15/nn|new/wn|nn|wn',
+    check:()=>{ const out = [];
+                const at = (reg) => { $('regDate').value = reg; $('incDate').value = '2026-10-14'; return lookupMaxDiscount2026(); };
+                const band = r => /1-6y/.test(r.label) ? 'a15' : /Brand New/.test(r.label) ? 'new' : r.label;
+                window._stRun(['commercial','s2','A',1,500000,'diesel','comprehensive',0,0,0,0,0]);
+                if($('gcvActualGVW')) $('gcvActualGVW').value = '3500';
+                let r = at('2026-04-13'); out.push(band(r) + '/' + r.col);
+                r = at('2026-04-14'); out.push(band(r) + '/' + r.col);
+                window._stRun(['misc','miscOther','C',1,1000000,'diesel','comprehensive',0,0,0,0,0]);
+                out.push(at('2026-02-14').col); out.push(at('2026-07-14').col);
+                return out.join('|'); } },
   { label:'OD discount column (v164): Private Car / Two-Wheeler Standalone OD without NCB takes No NCB even under a year old (Private Car 75, with NCB 90; Two-Wheeler 60, with NCB 85); a Package policy is brand new only when it starts in the first month (70 at 12 months, 90 at registration)', expect:'75/90/60/85/70/90',
     check:()=>{ const run = (c, reg, inc) => { window._stRun(c); $('regDate').value = reg; $('incDate').value = inc; window.calculate(true); return state.odDiscount; };
                 return [run(['privateCar','s2','B',1,500000,'petrol','odOnly',0,0,0,0,0], '2025-10-01', '2026-09-26'),
@@ -28939,7 +28969,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v185 · HO / RO approval lifts the OD discount only; Nil Dep discount stays at the class figure</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v186 · Brand New OD discount only up to 6 months from registration</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
