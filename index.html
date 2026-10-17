@@ -1624,6 +1624,46 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 .idv-suggest-chip-val{font-size:13px;font-weight:700;color:var(--ink)}
 .idv-suggest-hint{font-size:10.5px;color:var(--ink-soft);margin-top:5px;line-height:1.4}
 .idv-suggest-need{font-size:11px;color:var(--mute);font-style:italic}
+/* Find IDV (v188) */
+.idv-finder{margin-top:8px;border:1.5px solid var(--border);border-radius:10px;background:var(--card)}
+.idv-finder>summary{list-style:none;cursor:pointer;padding:9px 12px;font-size:12px;font-weight:700;color:var(--accent-dark);display:flex;align-items:center;gap:8px;user-select:none}
+.idv-finder>summary::-webkit-details-marker{display:none}
+.idv-finder>summary::before{content:"+";font-size:17px;font-weight:400;color:var(--accent);line-height:1;width:12px}
+.idv-finder[open]>summary::before{content:"\2212"}
+.idv-finder>summary span{font-weight:500;color:var(--mute);font-size:11px}
+.idv-finder>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.idvf-body{padding:2px 12px 12px;display:flex;flex-direction:column;gap:8px}
+.idvf-body .field{margin:0}
+.idvf-out{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-soft);line-height:1.45}
+.idvf-out:empty{display:none}
+.idvf-band{padding:7px 9px;background:var(--accent-soft);border-radius:7px;color:var(--ink)}
+.idvf-line{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:7px 9px;border:1.5px solid var(--border-soft);border-radius:7px}
+.idvf-line>span{flex:1 1 170px;min-width:0}
+.idvf-use{padding:7px 10px;border:0;border-radius:7px;background:var(--accent);color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums}
+.idvf-use:hover{background:var(--accent-dark)}
+.idvf-use:focus-visible,.idvf-book button:focus-visible{outline:2px solid var(--accent-dark);outline-offset:2px}
+.idvf-chips{display:flex;gap:6px;flex-wrap:wrap;width:100%}
+.idvf-chips .idvf-use{flex:1 1 auto;background:var(--card);color:var(--ink);border:1.5px solid var(--border)}
+.idvf-chips .idvf-use:hover{border-color:var(--accent);background:var(--accent-soft)}
+.idvf-need{font-style:italic;color:var(--mute)}
+.idvf-saved{color:var(--success);font-weight:600}
+.idvf-book{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px;color:var(--mute)}
+.idvf-book button{padding:6px 9px;border:1.5px solid var(--border);border-radius:7px;background:var(--card);color:var(--ink-soft);font:inherit;font-size:11px;font-weight:600;cursor:pointer}
+.idvf-book button:hover{border-color:var(--accent);color:var(--accent-dark)}
+/* Find IDV built-in price list (v189) */
+.idvf-sug{display:flex;flex-direction:column;margin-top:4px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);overflow:hidden}
+.idvf-sug:empty{display:none}
+.idvf-sug button{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 10px;align-items:baseline;width:100%;padding:7px 9px;border:0;border-top:1px solid var(--border-soft);background:none;color:var(--ink);font:inherit;font-size:12px;text-align:left;cursor:pointer}
+.idvf-sug button:first-child{border-top:0}
+.idvf-sug button:hover,.idvf-sug button.on{background:var(--accent-soft)}
+.idvf-sug button:focus-visible{outline:2px solid var(--accent-dark);outline-offset:-2px}
+.idvf-sug .n{min-width:0;overflow-wrap:anywhere}
+.idvf-sug .p{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.idvf-sug small{grid-column:1/-1;color:var(--mute);font-size:10.5px;line-height:1.35}
+.idvf-sug .none{padding:7px 9px;font-size:11px;color:var(--mute);font-style:italic}
+.idvf-list{color:var(--accent-dark);font-weight:600}
+.idvf-list-warn{color:#b45309}
+#idvfPriceNote a{color:var(--accent-dark)}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:translateY(0)}}
 
 /* ────────────────────────────────────────────────────────────────
@@ -2095,6 +2135,47 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
           <div class="idv-suggest-chips" id="idvSuggestChips"></div>
           <div class="idv-suggest-hint" id="idvSuggestHint"></div>
         </div>
+
+        <!-- Find IDV (v188): make & model + year -> IDV by the depreciation schedule, from the ex-showroom
+             price today or from the expiring policy's IDV; model prices are remembered on this device -->
+        <details class="idv-finder" id="idvFinder">
+          <summary>Find IDV <span>make &amp; model + year</span></summary>
+          <div class="idvf-body">
+            <div class="field">
+              <label for="idvfModel">Make, Model &amp; Variant</label>
+              <input type="text" id="idvfModel" placeholder="Type make or model: Ace Gold, 3DX, 855 FE" autocomplete="off"
+                     role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="idvfSug" />
+              <div class="idvf-sug" id="idvfSug" role="listbox" aria-label="Matching models and prices"></div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="idvfYear">Year of registration</label>
+                <input type="number" id="idvfYear" inputmode="numeric" min="1980" max="2100" placeholder="2022" />
+              </div>
+              <div class="field">
+                <label for="idvfPrice">Ex-showroom price today</label>
+                <div class="input-prefix" data-prefix="Rs.">
+                  <input type="number" id="idvfPrice" inputmode="numeric" min="0" placeholder="750000" />
+                </div>
+                <div class="hint" id="idvfPriceNote">Invoice, dealer price list or INLIAS</div>
+              </div>
+            </div>
+            <div class="field">
+              <label for="idvfPrevIdv">Or IDV on the expiring policy (renewal)</label>
+              <div class="input-prefix" data-prefix="Rs.">
+                <input type="number" id="idvfPrevIdv" inputmode="numeric" min="0" placeholder="480000" />
+              </div>
+            </div>
+            <div class="idvf-out" id="idvfOut" aria-live="polite"></div>
+            <div class="idvf-book">
+              <button type="button" id="idvfSave">Save price for this model</button>
+              <button type="button" id="idvfExport">Export list</button>
+              <button type="button" id="idvfImportBtn">Import list</button>
+              <input type="file" id="idvfImport" accept=".csv,.txt,text/csv" hidden />
+              <span id="idvfBookInfo"></span>
+            </div>
+          </div>
+        </details>
       </div>
       <div class="field" id="invoiceValueField" style="display:none">
         <label for="invoiceValue">Invoice / Ex-Showroom Value</label>
@@ -21359,7 +21440,10 @@ function updateIdvSuggest(){
     if(ageMonths <= 24){
       wrap.classList.add('show');
       chipsEl.innerHTML = '';
-      hintEl.innerHTML = '<span class="idv-suggest-need">Enter <strong>Invoice / Ex-Showroom Value</strong> in Customer Details to see suggested IDV (' + depInfo.label + ' · ' + Math.round(depInfo.dep*100) + '% dep).</span>';
+      const invShown = document.getElementById('invoiceValueField').style.display !== 'none';
+      hintEl.innerHTML = '<span class="idv-suggest-need">' + (invShown
+        ? 'Enter <strong>Invoice / Ex-Showroom Value</strong> in Customer Details to see suggested IDV ('
+        : 'Use <strong>Find IDV</strong> below for the IDV (') + depInfo.label + ' · ' + Math.round(depInfo.dep*100) + '% dep).</span>';
     } else {
       wrap.classList.remove('show');
     }
@@ -21421,6 +21505,322 @@ function updateIdvSuggest(){
 document.getElementById('regDate').addEventListener('change', updateIdvSuggest);
 // Initial check (e.g. if a draft is restored)
 setTimeout(updateIdvSuggest, 200);
+
+/* ════════════════════════════════════════════════════════════════════════════
+   FIND IDV (v188) - make & model + year -> IDV by the depreciation schedule above.
+   No price master exists in the project, so no price is built in: the agent gives the ex-showroom
+   price today (invoice / dealer list / INLIAS) or the IDV on the expiring policy, and every price
+   used is remembered per model on this device (Export / Import a CSV to share one office list).
+   IDV = listed selling price of the model today less the age depreciation; the band follows
+   getAgeMonths() (flips on the anniversary), as the suggest above does. Expiring IDV route:
+   ex-showroom = expiring IDV / (1 - last year's depreciation), price assumed unchanged.
+   Over 5 years the IDV is by mutual agreement: the 60 / 65 / 70% chips used above, and from the
+   expiring IDV less 5 / 10 / 15% - choices, not a rule.
+   ──────────────────────────────────────────────────────────────────────────── */
+const IDVF_KEY = 'oic_idv_pricebook_v1';
+const idvfFmt = n => 'Rs. ' + new Intl.NumberFormat('en-IN').format(Math.round(n));
+const idvfKey = s => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+function idvfDate(iso){ const [y, m, d] = String(iso).split('-').map(Number); return new Date(y, m - 1, d); }
+function idvfToday(){ const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }
+function idvfIso(dt){ return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); }
+function idvfDmy(dt){ return String(dt.getDate()).padStart(2, '0') + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + dt.getFullYear(); }
+function idvfBandMonths(reg, ref){   // getAgeMonths() for any two dates
+  let m = (ref.getFullYear() - reg.getFullYear()) * 12 + (ref.getMonth() - reg.getMonth());
+  if(ref.getDate() >= reg.getDate()) m += 1;
+  return Math.max(m, 1);
+}
+function idvfFigures(exShowroom, f){
+  if(!f.mutual) return { idv: Math.round(exShowroom * (1 - f.dep)) };
+  return { chips: [0.70, 0.65, 0.60].map(d => ({ label: Math.round(d * 100) + '% dep', idv: Math.round(exShowroom * (1 - d)) })) };
+}
+function idvfCompute(o){
+  const start = o.start ? idvfDate(o.start) : idvfToday();
+  const price = Math.round(+o.price || 0), prev = Math.round(+o.prevIdv || 0);
+  const r = { start, price, prev, band: null, ranges: [], priceFig: null, renewal: null };
+  if(o.reg){
+    r.reg = idvfDate(o.reg);
+    r.band = idvDepFactor(idvfBandMonths(r.reg, start));
+    if(price) r.priceFig = idvfFigures(price, r.band);
+    if(prev){
+      const pb = idvDepFactor(idvfBandMonths(r.reg, new Date(start.getFullYear() - 1, start.getMonth(), start.getDate())));
+      r.renewal = { band: pb };
+      if(!pb.mutual){
+        r.renewal.exShowroom = prev / (1 - pb.dep);
+        r.renewal.fig = idvfFigures(r.renewal.exShowroom, r.band);
+      } else {
+        r.renewal.fig = { chips: [5, 10, 15].map(p => ({ label: 'less ' + p + '%', idv: Math.round(prev * (1 - p / 100)) })) };
+      }
+    }
+  } else if(+o.year >= 1900){
+    // Year only: every registration date in that year, grouped into runs with the same band
+    const y = +o.year, last = new Date(Math.min(new Date(y, 11, 31), start));
+    for(let d = new Date(y, 0, 1); d <= last; d.setDate(d.getDate() + 1)){
+      const f = idvDepFactor(idvfBandMonths(d, start)), cur = r.ranges[r.ranges.length - 1];
+      if(cur && cur.band.dep === f.dep && cur.band.mutual === f.mutual) cur.to = new Date(d);
+      else r.ranges.push({ from: new Date(d), to: new Date(d), band: f });
+    }
+    if(price) r.ranges.forEach(g => { g.fig = idvfFigures(price, g.band); });
+  }
+  return r;
+}
+window._idvFind = idvfCompute;   // self-test hook
+
+const idvfBandTxt = b => b.mutual ? 'over 5 yr, IDV by mutual agreement' : b.label + ', depreciation ' + Math.round(b.dep * 100) + '%';
+const idvfUse = (idv, text) => '<button type="button" class="idvf-use" data-idv="' + idv + '">' + (text || 'Use ' + idvfFmt(idv)) + '</button>';
+const idvfFigHtml = fig => fig.chips
+  ? '<div class="idvf-chips">' + fig.chips.map(c => idvfUse(c.idv, c.label + ' · ' + idvfFmt(c.idv))).join('') + '</div>'
+  : idvfUse(fig.idv);
+
+function idvfRender(){
+  const g = id => document.getElementById(id), out = g('idvfOut');
+  if(!out) return;
+  const regIso = g('regDate').value, yearEl = g('idvfYear');
+  if(regIso){ yearEl.value = regIso.slice(0, 4); yearEl.readOnly = true; yearEl.title = 'From the registration date'; }
+  else if(yearEl.readOnly){ yearEl.readOnly = false; yearEl.value = ''; yearEl.title = ''; }
+  const r = idvfCompute({ reg: regIso, year: yearEl.value, start: (g('incDate') || {}).value || '',
+                          price: g('idvfPrice').value, prevIdv: g('idvfPrevIdv').value });
+  const pct = b => Math.round(b.dep * 100) + '%';
+  let h = '';
+  if(r.band){
+    h += '<div class="idvf-band">Registered ' + idvfDmy(r.reg) + ', policy start ' + idvfDmy(r.start) + ': <b>' + idvfBandTxt(r.band) + '</b></div>';
+    if(r.priceFig) h += '<div class="idvf-line"><span>Ex-showroom ' + idvfFmt(r.price) + (r.band.mutual ? '' : ' less ' + pct(r.band)) + '</span>' + idvfFigHtml(r.priceFig) + '</div>';
+    if(r.renewal){
+      const rb = r.renewal.band;
+      h += '<div class="idvf-line"><span>Expiring IDV ' + idvfFmt(r.prev) + (rb.mutual ? ', already over 5 yr'
+        : ' was at ' + pct(rb) + ' (' + rb.label + '), so ex-showroom ' + idvfFmt(r.renewal.exShowroom) + (r.band.mutual ? '' : '; now less ' + pct(r.band)))
+        + '</span>' + idvfFigHtml(r.renewal.fig) + '</div>';
+    }
+    if(!r.price && !r.prev) h += '<div class="idvf-need">Enter the ex-showroom price today, or the IDV on the expiring policy.</div>';
+  } else if(r.ranges.length){
+    h += '<div class="idvf-band">Registered in ' + yearEl.value + ', policy start ' + idvfDmy(r.start)
+      + (r.ranges.length > 1 ? ': the band depends on the registration date' : '') + '</div>';
+    r.ranges.forEach(x => {
+      h += '<div class="idvf-line"><span>' + (r.ranges.length > 1 ? idvfDmy(x.from) + ' to ' + idvfDmy(x.to) + ': ' : '')
+        + '<b>' + idvfBandTxt(x.band) + '</b></span>' + (x.fig ? idvfFigHtml(x.fig) : '') + '</div>';
+    });
+    if(!r.price) h += '<div class="idvf-need">Enter the ex-showroom price today.</div>';
+    if(r.prev)   h += '<div class="idvf-need">The expiring IDV route needs the full registration date above.</div>';
+  } else if(+yearEl.value >= 1900){
+    h += '<div class="idvf-need">That year is after the policy start date.</div>';
+  } else {
+    h += '<div class="idvf-need">Enter the registration date above, or the year here.</div>';
+  }
+  out.innerHTML = h;
+}
+
+/* Built-in price lists (v189): idv/prices-<list>.json, fetched when Find IDV opens; the service worker keeps the
+   copy for offline use after the first online open. Each file: { read, src:[{name,type,base}], places, ptypes, kinds,
+   rows:[[cls, kind, make, model, variant, low, high, src, place, ptype, url]] }.
+   cls: G GCCV, P PCCV, M Misc D, C private car, T two-wheeler. Aggregator figures are labelled as such; every
+   figure was displayed on the cited page when read, and the agent confirms it with the invoice or dealer. */
+const IDVF_LISTS = ['cv'];
+const IDVF_CLS = { G: 'commercial', P: 'pccv', M: 'misc', C: 'privateCar', T: 'twoWheeler' };
+const IDVF_CLS_LABEL = { G: 'GCCV', P: 'PCCV', M: 'Misc D', C: 'Private car', T: 'Two-wheeler' };
+const idvfLib = { rows: [], state: {} };
+let idvfPicked = null;
+const idvfNorm = s => String(s || '').toLowerCase().replace(/[^a-z0-9.+]+/g, ' ').trim();
+function idvfRow(r, j){
+  const src = j.src[r[7]] || {}, name = [r[2], r[3], r[4]].filter(Boolean).join(' '), n = idvfNorm(name + ' ' + (j.kinds[r[1]] || ''));
+  return { cls: r[0], kind: j.kinds[r[1]] || '', make: r[2], rest: [r[3], r[4]].filter(Boolean).join(' '), name,
+           lo: r[5], hi: r[6] || r[5], src: src.name || '', srcType: src.type || '', place: j.places[r[8]] || '',
+           ptype: j.ptypes[r[9]] || '', url: r[10] ? (src.base || '') + r[10] : '', read: src.read || j.read || '',
+           hay: ' ' + n + ' ' + n.replace(/ /g, '') };
+}
+function idvfLoadLists(){
+  IDVF_LISTS.forEach(k => {
+    if(idvfLib.state[k]) return;
+    idvfLib.state[k] = 'loading';
+    fetch('idv/prices-' + k + '.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(j => { j.rows.forEach(r => idvfLib.rows.push(idvfRow(r, j))); idvfLib.state[k] = 'ok'; idvfList(); idvfSuggest(); })
+      .catch(() => { idvfLib.state[k] = ''; });   // offline before the first load: the price can still be typed in
+  });
+}
+// rows whose text holds every word typed; the class being quoted first, then word-start matches, then shorter names
+function idvfSearch(rows, q, vtype, max){
+  const words = idvfNorm(q).split(' ').filter(Boolean);
+  if(!words.length || idvfNorm(q).length < 2) return [];
+  const vt = vtype === 'twoWheelerHire' ? 'twoWheeler' : vtype, hits = [];
+  rows.forEach(r => {
+    if(!words.every(w => r.hay.includes(w))) return;
+    let score = r.name.length / 1000;
+    if(r.saved) score -= 1000;
+    if(IDVF_CLS[r.cls] === vt) score -= 100;
+    words.forEach(w => { if(r.hay.includes(' ' + w)) score -= 10; });
+    hits.push([score, r]);
+  });
+  return hits.sort((a, b) => a[0] - b[0]).slice(0, max || 8).map(h => h[1]);
+}
+window._idvfSearch = (rows, j, q, vtype) => idvfSearch(rows.map(r => idvfRow(r, j)), q, vtype).map(r => r.name);   // self-test hook
+window._idvfRow = idvfRow;
+function idvfBookRows(){
+  const book = idvfBook();
+  return Object.keys(book).map(k => { const n = idvfNorm(book[k].name);
+    return { saved: true, name: book[k].name, make: book[k].name, rest: '', lo: book[k].price, hi: book[k].price, on: book[k].on,
+             hay: ' ' + n + ' ' + n.replace(/ /g, '') }; });
+}
+function idvfPriceText(r){ return r.hi > r.lo ? idvfFmt(r.lo) + ' – ' + new Intl.NumberFormat('en-IN').format(r.hi) : idvfFmt(r.lo); }
+function idvfSuggest(){
+  const box = document.getElementById('idvfSug'), inp = document.getElementById('idvfModel');
+  if(!box) return;
+  const close = () => { box.innerHTML = ''; box._hits = []; inp.setAttribute('aria-expanded', 'false'); };
+  if(document.activeElement !== inp || (idvfPicked && idvfPicked.name === inp.value)) return close();
+  const hits = idvfSearch(idvfBookRows().concat(idvfLib.rows), inp.value, state.vehicleType, 8);
+  if(!hits.length){
+    if(idvfNorm(inp.value).length < 2) return close();
+    box.innerHTML = '<div class="none">' + (idvfLib.rows.length ? 'Not in the price list: type the price from the invoice or dealer'
+      : 'Price list not loaded (offline?): type the price from the invoice or dealer') + '</div>';
+    box._hits = []; inp.setAttribute('aria-expanded', 'false'); return;
+  }
+  box._hits = hits; inp.setAttribute('aria-expanded', 'true');
+  box.innerHTML = hits.map((r, i) => {
+    const tag = r.saved ? 'Saved on this device, ' + idvfDmy(idvfDate(r.on))
+      : [IDVF_CLS_LABEL[r.cls], r.kind, r.src + (r.place ? ', ' + r.place : ''), r.ptype].filter(Boolean).join(' · ');
+    return '<button type="button" role="option" data-i="' + i + '"><span class="n"><b>' + _escapeHtml(r.make) + '</b> ' + _escapeHtml(r.rest)
+      + '</span><span class="p">' + idvfPriceText(r) + '</span><small>' + _escapeHtml(tag) + '</small></button>';
+  }).join('');
+}
+function idvfPick(r){
+  const inp = document.getElementById('idvfModel'), p = document.getElementById('idvfPrice');
+  inp.value = r.name; idvfPicked = r;
+  idvfModelChanged();                     // same Make & Model on the PDF; a price saved on this device fills in
+  if(!r.saved){ p.value = r.lo; p.dataset.auto = 'L'; }
+  idvfNote(); idvfRender(); idvfSuggest();
+}
+
+// Model price book: { key: { name, price, on: 'YYYY-MM-DD' } } in this device's storage
+function idvfBook(){ try { const o = JSON.parse(safeLS.getItem(IDVF_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch(e){ return {}; } }
+function idvfList(){
+  const book = idvfBook(), keys = Object.keys(book).sort(), n = idvfLib.rows.length;
+  document.getElementById('idvfBookInfo').textContent = (keys.length
+    ? keys.length + ' model price' + (keys.length > 1 ? 's' : '') + ' on this device' : 'No model prices saved yet')
+    + (n ? ' · ' + new Intl.NumberFormat('en-IN').format(n) + ' list prices built in' : '');
+}
+function idvfPut(book){ safeLS.setItem(IDVF_KEY, JSON.stringify(book)); idvfList(); }
+function idvfNote(){
+  const p = document.getElementById('idvfPrice'), e = idvfBook()[idvfKey(document.getElementById('idvfModel').value)], r = idvfPicked;
+  if(r && !r.saved && p.dataset.auto === 'L' && +p.value === r.lo){
+    const where = r.place ? 'ex-showroom ' + r.place : 'ex-showroom, place not stated';
+    document.getElementById('idvfPriceNote').innerHTML = '<span class="idvf-list">List price: ' + _escapeHtml(r.src) + ', ' + _escapeHtml(where)
+      + (r.read ? ', read ' + idvfDmy(idvfDate(r.read)) : '') + '</span>'
+      + (r.hi > r.lo ? ' · <span class="idvf-list-warn">range up to ' + idvfFmt(r.hi) + ', lower figure filled</span>' : '')
+      + (r.ptype ? ' · ' + _escapeHtml(r.ptype) : '')
+      + ' · confirm with the invoice or dealer' + (r.url ? ' (<a href="' + _escapeHtml(r.url) + '" target="_blank" rel="noopener">source page</a>)' : '');
+    return;
+  }
+  document.getElementById('idvfPriceNote').innerHTML = (e && p.dataset.auto === '1' && +p.value === e.price)
+    ? '<span class="idvf-saved">Saved price, ' + idvfDmy(idvfDate(e.on)) + '</span>' : 'Invoice, dealer price list or INLIAS';
+}
+function idvfModelChanged(){
+  const m = document.getElementById('idvfModel').value, p = document.getElementById('idvfPrice'), vm = document.getElementById('vehicleModel');
+  if(vm && vm.value !== m){ vm.value = m; vm.dispatchEvent(new Event('input', { bubbles: true })); }   // same Make & Model as the PDF
+  if(idvfPicked && idvfPicked.name !== m){ idvfPicked = null; if(p.dataset.auto === 'L'){ p.value = ''; p.dataset.auto = ''; } }
+  const e = idvfBook()[idvfKey(m)];
+  if(e){ if(!p.value || p.dataset.auto === '1'){ p.value = e.price; p.dataset.auto = '1'; } }
+  else if(p.dataset.auto === '1'){ p.value = ''; p.dataset.auto = ''; }
+  idvfNote(); idvfRender();
+}
+function idvfSave(quiet){
+  const m = document.getElementById('idvfModel').value.trim().replace(/\s+/g, ' '), p = Math.round(+document.getElementById('idvfPrice').value || 0);
+  if(!m || !p){ if(!quiet) showSavedToast('Enter the model and its ex-showroom price', 'err'); return false; }
+  const book = idvfBook(), k = idvfKey(m);
+  if(book[k] && book[k].price === p && quiet) return false;
+  book[k] = { name: m, price: p, on: idvfIso(idvfToday()) };
+  idvfPut(book); document.getElementById('idvfPrice').dataset.auto = '1'; idvfNote();
+  if(!quiet) showSavedToast('Price saved for ' + m, 'ok');
+  return true;
+}
+function idvfCsvRow(line){
+  const out = []; let cur = '', q = false;
+  for(let i = 0; i < line.length; i++){
+    const c = line[i];
+    if(q){ if(c === '"'){ if(line[i + 1] === '"'){ cur += '"'; i++; } else q = false; } else cur += c; }
+    else if(c === '"') q = true;
+    else if(c === ',' || c === '\t'){ out.push(cur); cur = ''; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out.map(x => x.trim());
+}
+function idvfImport(text){
+  const book = idvfBook(); let n = 0;
+  String(text).replace(/^\uFEFF/, '').split(/\r?\n/).forEach(line => {
+    const f = idvfCsvRow(line), name = (f[0] || '').replace(/\s+/g, ' ').trim();
+    const price = Math.round(parseFloat(String(f[1] || '').replace(/rs\.?|inr|₹/gi, '').replace(/[^\d.]/g, '')) || 0);
+    if(!name || !price) return;   // header and blank rows
+    const on = String(f[2] || ''), dm = on.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);
+    book[idvfKey(name)] = { name, price,
+      on: dm ? dm[3] + '-' + dm[2].padStart(2, '0') + '-' + dm[1].padStart(2, '0') : /^\d{4}-\d{2}-\d{2}$/.test(on) ? on : idvfIso(idvfToday()) };
+    n++;
+  });
+  idvfPut(book); idvfModelChanged();
+  showSavedToast(n ? n + ' model price' + (n > 1 ? 's' : '') + ' imported' : 'No prices found in that file', n ? 'ok' : 'err');
+}
+function idvfExport(){
+  const book = idvfBook(), keys = Object.keys(book).sort();
+  if(!keys.length){ showSavedToast('No model prices saved yet', 'err'); return; }
+  const q = x => '"' + String(x).replace(/"/g, '""') + '"';
+  const csv = ['Make & Model,Ex-showroom price (Rs.),Saved on']
+    .concat(keys.map(k => q(book[k].name) + ',' + book[k].price + ',' + idvfDmy(idvfDate(book[k].on)))).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'IDV price list ' + idvfDmy(idvfToday()) + '.csv';
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+(function idvfInit(){
+  const g = id => document.getElementById(id);
+  if(!g('idvFinder')) return;
+  g('idvfModel').addEventListener('input', () => { idvfModelChanged(); idvfSuggest(); });
+  g('idvfModel').addEventListener('focus', () => { idvfLoadLists(); idvfSuggest(); });
+  g('idvfModel').addEventListener('blur', () => setTimeout(() => { if(!g('idvfSug').contains(document.activeElement)) { g('idvfSug').innerHTML = ''; g('idvfModel').setAttribute('aria-expanded', 'false'); } }, 150));
+  g('idvfModel').addEventListener('keydown', ev => {
+    const box = g('idvfSug'), btns = [...box.querySelectorAll('button')]; if(!btns.length) return;
+    let i = btns.findIndex(b => b.classList.contains('on'));
+    if(ev.key === 'ArrowDown' || ev.key === 'ArrowUp'){
+      ev.preventDefault(); i = ev.key === 'ArrowDown' ? (i + 1) % btns.length : (i <= 0 ? btns.length - 1 : i - 1);
+      btns.forEach((b, k) => b.classList.toggle('on', k === i)); btns[i].scrollIntoView({ block: 'nearest' });
+    } else if(ev.key === 'Enter' && i >= 0){ ev.preventDefault(); idvfPick(box._hits[i]); }
+    else if(ev.key === 'Escape'){ box.innerHTML = ''; g('idvfModel').setAttribute('aria-expanded', 'false'); }
+  });
+  g('idvfSug').addEventListener('mousedown', ev => ev.preventDefault());   // keep focus in the field while picking
+  g('idvfSug').addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-i]'); if(b && g('idvfSug')._hits) idvfPick(g('idvfSug')._hits[+b.dataset.i]);
+  });
+  g('vehicleModel').addEventListener('input', () => {
+    if(g('idvfModel').value !== g('vehicleModel').value){ g('idvfModel').value = g('vehicleModel').value; idvfModelChanged(); }
+  });
+  g('idvfPrice').addEventListener('input', () => { g('idvfPrice').dataset.auto = ''; idvfNote(); idvfRender(); });
+  ['idvfYear', 'idvfPrevIdv'].forEach(id => g(id).addEventListener('input', idvfRender));
+  ['regDate', 'regDateText', 'incDate', 'incDateText'].forEach(id => {
+    const el = g(id); if(el){ el.addEventListener('input', idvfRender); el.addEventListener('change', idvfRender); }
+  });
+  g('idvFinder').addEventListener('toggle', () => {
+    if(!g('idvFinder').open) return;
+    idvfLoadLists();
+    if(!g('idvfModel').value && g('vehicleModel').value){ g('idvfModel').value = g('vehicleModel').value; idvfModelChanged(); }
+    else idvfRender();
+  });
+  g('idvfOut').addEventListener('click', ev => {
+    const b = ev.target.closest('.idvf-use'); if(!b) return;
+    const val = +b.dataset.idv, idvIn = g('idv');
+    idvIn.value = val;
+    idvIn.dispatchEvent(new Event('input', { bubbles: true }));
+    if(typeof updateDiscountHint === 'function') updateDiscountHint();
+    idvIn.style.transition = 'background .25s'; idvIn.style.background = '#dbe6ff';
+    setTimeout(() => { idvIn.style.background = ''; }, 350);
+    const saved = g('idvfPrice').dataset.auto === 'L' ? false : idvfSave(true);   // remember a typed price; list prices stay in the list
+    showSavedToast('IDV set to ' + idvfFmt(val) + (saved ? ' · price saved for ' + g('idvfModel').value.trim() : ''), 'ok');
+  });
+  g('idvfSave').addEventListener('click', () => idvfSave(false));
+  g('idvfExport').addEventListener('click', idvfExport);
+  g('idvfImportBtn').addEventListener('click', () => g('idvfImport').click());
+  g('idvfImport').addEventListener('change', ev => {
+    const file = ev.target.files && ev.target.files[0]; if(!file) return;
+    const rd = new FileReader(); rd.onload = () => idvfImport(rd.result); rd.readAsText(file);
+    ev.target.value = '';
+  });
+  idvfList(); idvfRender();
+})();
 
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -22845,6 +23245,20 @@ const VERIFIED_CASES = [
     check:()=>[gvwLabel({data:{vehicleType:'commercial',gcvActualGVW:16200}}),gvwLabel({data:{vehicleType:'commercial',gcvActualGVW:0}}),gvwLabel({data:{vehicleType:'pccv',gcvActualGVW:16200}})].join('|') },
   { label:'Quote PDF Seating Capacity: GCCV shows the LL driver/cleaner count (3), PCCV the passenger count, Pvt Car not the hidden pax field', expect:'3 (driver + 2 cleaners)|3 passengers (excl. driver)|',
     check:()=>[seatingCapacityLabel({data:{vehicleType:'commercial',llGccvCount:3,paxCount:1}}),seatingCapacityLabel({data:{vehicleType:'pccv',paxCount:3}}),seatingCapacityLabel({data:{vehicleType:'privateCar',paxCount:1,switches:{}}})].join('|') },
+  { label:'Find IDV (v188, depreciation schedule): A reg 15-03-2022, start 16-10-2026 = 4-5 yr 50%: ex-showroom 8,00,000 -> 4,00,000; expiring IDV 4,80,000 was at 3-4 yr 40% -> ex-showroom 8,00,000 -> 4,00,000. B year 2022 only: registered up to 16-10-2022 = 50% (4,00,000), 17-10 to 31-12 = 40% (4,80,000). C reg 01-05-2019 (over 5 yr both years): expiring 3,00,000 less 5/10/15% = 2,85,000 / 2,70,000 / 2,55,000; ex-showroom 9,00,000 at 70/65/60% = 2,70,000 / 3,15,000 / 3,60,000', expect:'400000/40/800000/400000|16-10:50:400000,31-12:40:480000|285000,270000,255000;270000,315000,360000',
+    check:()=>{ const a = window._idvFind({ reg:'2022-03-15', start:'2026-10-16', price:800000, prevIdv:480000 });
+                const b = window._idvFind({ year:2022, start:'2026-10-16', price:800000 });
+                const c = window._idvFind({ reg:'2019-05-01', start:'2026-10-16', price:900000, prevIdv:300000 });
+                return [a.priceFig.idv, Math.round(a.renewal.band.dep * 100), Math.round(a.renewal.exShowroom), a.renewal.fig.idv].join('/')
+                  + '|' + b.ranges.map(g => g.to.getDate() + '-' + (g.to.getMonth() + 1) + ':' + Math.round(g.band.dep * 100) + ':' + g.fig.idv).join(',')
+                  + '|' + c.renewal.fig.chips.map(x => x.idv).join(',') + ';' + c.priceFig.chips.map(x => x.idv).join(','); } },
+  { label:'Find IDV price list (v189): words match in any order and across hyphens (AX 124 / ax124 = ACE AX-124); the class being quoted comes first (ace on Misc D: ACE backhoe before Tata Ace Gold; on GCCV: Tata Ace Gold first); a range row keeps its low and high', expect:'ACE AX-124|ACE AX-124|ACE AX-124,Tata Ace Gold Diesel Plus|Tata Ace Gold Diesel Plus,ACE AX-124|Swaraj 855 FE 49.3 HP:787000-837000',
+    check:()=>{ const j = { read:'2026-10-17', src:[{ name:'Test', type:'aggregator', base:'' }], places:[''], ptypes:[''], kinds:['Mini Truck','Backhoe Loader','Tractor'] };
+                const rows = [['G',0,'Tata','Ace Gold','Diesel Plus',602519,0,0,0,0,''], ['M',1,'ACE','AX-124','',2300000,0,0,0,0,''], ['M',2,'Swaraj','855 FE','49.3 HP',787000,837000,0,0,0,'']];
+                const r = window._idvfRow(rows[2], j);
+                return [window._idvfSearch(rows, j, 'AX 124', 'misc'), window._idvfSearch(rows, j, 'ax124', 'commercial'),
+                        window._idvfSearch(rows, j, 'ace', 'misc'), window._idvfSearch(rows, j, 'ace', 'commercial')].map(x => x.join(',')).join('|')
+                       + '|' + r.name + ':' + r.lo + '-' + r.hi; } },
   { label:'In-built CNG with Engine Protect (v187, INLIAS R/171303/31/2027/1238, 16-10-2026): Private Car Standalone OD 1001-1500cc, Zone B, reg 30-10-2025, start 30-10-2026, IDV 9,83,606, Petrol + CNG, SIP 80%, NCB 20%: basic OD 31,387, SIP 25,110, Engine Protect 1,770 less 212 (15% x 0.80, rounded once) = 1,558, in-built CNG 5% of (6,277 + Engine Protect after its 15% 1,504.5) = 389, NCB 1,687, Nil Dep 5,803, total premium 15,199, total 17,935 (was 1,557 / 314 / 17,862)', expect:'31387/25110/1558/389/1687/5803/15199/17935',
     check:()=>{ window._stRun(['privateCar','s2','B',1,983606,'cng','odOnly',1,0,0,0,0]);
                 $('regDate').value = '2025-10-30'; $('incDate').value = '2026-10-30';
@@ -28982,7 +29396,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v187 · In-built CNG 5% on Basic OD + Engine Protect; Engine Protect discount rounded once (INLIAS)</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v189 · Find IDV: built-in CV / 3-wheeler / tractor / construction-equipment price list (maker sites, TrucksDekho, TractorJunction, 91infra)</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
