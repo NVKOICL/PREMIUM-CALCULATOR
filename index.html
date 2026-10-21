@@ -14444,9 +14444,11 @@ function calculate(silent=false){
         // signed loading/discount, rounded as its own line in whole-% arithmetic as INLIAS prints it
         // (15% of 1,410 = 211.5 -> 212; 1,410 x 0.85 in floating point rounded the other way) (v166),
         // rounded ONCE after the NCB netting: 15% of 1,770 x 0.80 = 212.4 -> 212 (INLIAS R/171303/31/2027/1238;
-        // rounding 265.5 to 266 first gave 213) (v187)
+        // rounding 265.5 to 266 first gave 213) (v187).
+        // Stand-alone OD only (v196): a Package policy takes the full 15%, NCB still on gross EP -
+        // INLIAS R/171303/31/2027/1263 (Package, NCB 35%): 15% of 1,305 = 196, not 1,305 x 15% x 0.65 = 127.
         const epPct     = Math.round((epFactor - 1) * 100);
-        const epNcbRate = RATES.ncb[data.ncbYears] || 0;
+        const epNcbRate = data.policyType === 'odOnly' ? (RATES.ncb[data.ncbYears] || 0) : 0;
         const epAdjNet  = Math.sign(epPct) * Math.round(baseEpAmt * Math.abs(epPct) / 100 * (1 - epNcbRate));
         engineProtectAmt = baseEpAmt + epAdjNet + idvLoadAmt;
         epForCngBase     = baseEpAmt + Math.sign(epPct) * baseEpAmt * Math.abs(epPct) / 100;   // 1,770 - 265.5 = 1,504.5
@@ -23374,6 +23376,13 @@ const VERIFIED_CASES = [
                 _sipManualOverride = true; state.odDiscount = 80; state.nilDepDiscount = 0; window.calculate(true);
                 const q = state.lastQuote, it = k => (q.addons.items || []).find(a => a.key === k) || {};
                 return [q.odBase, q.odDiscountAmt, it('engineProtect').amount, q.odCNGKit, q.ncbDiscount, it('nilDep').amount, q.subtotal, q.total].join('/'); } },
+  { label:'Engine Protect on a Package policy (v196, INLIAS R/171303/31/2027/1263, 21-10-2026): Private Car Package 1001-1500cc, Zone B, reg 02-11-2023, start 02-11-2026, IDV 5,22,000, Petrol + CNG, SIP 90%, NCB 35%, Nil Dep less 40%: basic OD 16,657, SIP 14,991, Engine Protect 1,305 less the full 15% 196 = 1,109 (stand-alone OD nets it by NCB, row above), in-built CNG 139, NCB 35% of 3,110 = 1,089, Nil Dep 5,742 less 40% = 3,445, Consumables 731 (was Engine Protect 1,178)', expect:'16657/14991/1109/139/1089/3445/731',
+    check:()=>{ window._stRun(['privateCar','s2','B',3,522000,'cng','comprehensive',3,0,0,0,0]);
+                $('regDate').value = '2023-11-02'; $('incDate').value = '2026-11-02';
+                document.querySelectorAll('#addonsGrid input').forEach(i => i.checked = ['engineProtect','nilDep','consumables','rsa'].includes(i.dataset.addon));
+                _sipManualOverride = true; state.odDiscount = 90; state.nilDepDiscount = 40; window.calculate(true);
+                const q = state.lastQuote, it = k => (q.addons.items || []).find(a => a.key === k) || {};
+                return [q.odBase, q.odDiscountAmt, it('engineProtect').amount, q.odCNGKit, q.ncbDiscount, it('nilDep').amount, it('consumables').amount].join('/'); } },
   { label:'In-built CNG (Pvt Car 1001-1500cc, Zone B, 6-10y, IDV 3L): OD 10,053 − SIP 80% 8,042 → CNG 5% of net = 101; CNG TP load Rs.60 (INLIAS sheet 432702/31/2027/639)', expect:'8042/101/60/10053',
     check:()=>{ const r=cngInbuiltLoading(10053,80); return r.disc+'/'+r.cng+'/'+RATES.fuelConfig.cng.tpAdd+'/'+Math.round(300000*RATES.od.privateCar.s2['6-10'].B/100); } },
   { label:'PCCV taxi 1001-1500cc, Zone A, IDV 9,10,000, Petrol + in-built CNG, SIP 75%, Nil Dep 20% less 20% (INLIAS R/433703/31/2027/913, 21-09-2026): basic OD 31,377, SIP 23,533, in-built CNG 392 on the net, Nil Dep 6,275 on the basic OD alone less 1,255 = 5,020, basic TP 13,808, total premium 27,444, GST 4,940, total 32,384', expect:'31377/23533/392/6275/5020/13808/27444/4940/32384',
@@ -29504,7 +29513,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v195 · Find IDV: cc · fuel · kW (and battery kWh) on every list row the sources cover; electric warning: the slab is the motor kW on the RC, never the battery kWh</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v196 · Engine Protect: a Package policy takes the full 15% CC/IDV discount (stand-alone OD still nets it by NCB)</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
