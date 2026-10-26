@@ -5607,7 +5607,7 @@ onblur="setTimeout(CAR.closeEQLoc,180)">
 <!-- 7b. Terrorism -->
 <div class="sw-row">
 <div class="sw-info">
-<div class="sw-t">Terrorism Cover <span class="rate-pill" id="ce-terror-pill">CAR: 0.50&#8240;/yr &nbsp;|&nbsp; EAR: 0.21&#8240;/yr (cap Rs. 500 Cr)</span></div>
+<div class="sw-t">Terrorism Cover <span class="rate-pill" id="ce-terror-pill">CAR &amp; EAR: 0.21&#8240;/yr (EAR cap Rs. 500 Cr)</span></div>
 <div class="sw-s">Delete Terrorism Damage Exclusion Warranty &mdash; CAR: max Rs.200 Cr | EAR: max Rs.500 Cr per location. Deductible: 0.5% of TSI min Rs.1 lakh</div>
 </div>
 <div class="sw-toggle" id="ce-sw-terror" onclick="CAR.toggleExt('terror')"></div>
@@ -5928,7 +5928,7 @@ if(EXT_STATE.sp){const spSI=parseFloat($('sp-si').value)||0;const spOvr=parseFlo
 if(EXT_STATE.dr){const drSI=parseFloat($('dr-si').value)||0;const drOvr=parseFloat(($('rate-dr')||{}).value)||0;if(drSI>0||drOvr>0){const drGross=drOvr>0?(si/1000)*drOvr:(drSI/si)*_grossSecI;const r=applyExtDisc(drGross,`Debris Removal — ${drOvr>0?`@ ${drOvr}‰ on Sum Insured${drSI>0?` (limit ${fmtR(drSI)})`:''}`:`limit ${fmtR(drSI)} @ same base rate`}`,'disc-dr');lines.push({label:r.label,amt:r.net,grossAmt:r.gross,discAmt:r.discAmt,discLine:r.discLine});total+=r.net;}}
 if(EXT_STATE.esc){const escPct=Math.min(50,parseFloat($('esc-pct').value)||0);if(escPct>0){const escAmt=si*(escPct/100);const chargeableSI=escAmt*0.50;const escOvr=parseFloat(($('rate-esc')||{}).value)||0;const escGross=escOvr>0?(escAmt/1000)*escOvr:(chargeableSI/si)*_grossSecI;const r=applyExtDisc(escGross,`Escalation ${escPct}% (SI=${fmtR(escAmt)}${escOvr>0?` @ ${escOvr}‰`:` → chargeable on 50%=${fmtR(chargeableSI)}`})`,'disc-esc');lines.push({label:r.label,amt:r.net,grossAmt:r.gross,discAmt:r.discAmt,discLine:r.discLine});total+=r.net;}}
 if(EXT_STATE.af){const afLimit=parseFloat($('af-si').value)||0;if(afLimit>0){const afOvr=parseFloat(($('rate-af')||{}).value)||0;const afGross=afOvr>0?(si/1000)*afOvr:afLimit*0.05;const r=applyExtDisc(afGross,`Air Freight / Expediting Cost — limit ${fmtR(afLimit)}${afOvr>0?` @ ${afOvr}‰ on Sum Insured`:' @ 5% flat rate'}`,'disc-af');lines.push({label:r.label,amt:r.net,grossAmt:r.gross,discAmt:r.discAmt,discLine:r.discLine});total+=r.net;}}
-if(EXT_STATE.terror){if(currentMode==='car'){const terrorGross=(si/1000)*0.50*(months/12);const r=applyExtDisc(terrorGross,`Terrorism Cover — 0.50‰/yr × ${months}m prorata`,'disc-terror');lines.push({label:r.label,amt:r.net,grossAmt:r.gross,discAmt:r.discAmt,discLine:r.discLine});total+=r.net;}else{const EAR_TERROR_CAP=5000000000;const siTerror=Math.min(si,EAR_TERROR_CAP);const terrorGross=(siTerror/1000)*0.21*(months/12);const capNote=si>EAR_TERROR_CAP?` [SI capped at Rs. 500 Cr]`:'';const r=applyExtDisc(terrorGross,`Terrorism Cover — EAR: 0.21‰/yr × ${months}m prorata${capNote}`,'disc-terror');lines.push({label:r.label,amt:r.net,grossAmt:r.gross,discAmt:r.discAmt,discLine:r.discLine});total+=r.net;}}
+if(EXT_STATE.terror){if(currentMode==='car'){const terrorGross=(si/1000)*0.21*(months/12);/* 0.21 per mille, same as EAR (user, 26-Oct-2026, v198); was 0.50 from the standalone CAR calculator, never sourced */const r=applyExtDisc(terrorGross,`Terrorism Cover — 0.21‰/yr × ${months}m prorata`,'disc-terror');lines.push({label:r.label,amt:r.net,grossAmt:r.gross,discAmt:r.discAmt,discLine:r.discLine});total+=r.net;}else{const EAR_TERROR_CAP=5000000000;const siTerror=Math.min(si,EAR_TERROR_CAP);const terrorGross=(siTerror/1000)*0.21*(months/12);const capNote=si>EAR_TERROR_CAP?` [SI capped at Rs. 500 Cr]`:'';const r=applyExtDisc(terrorGross,`Terrorism Cover — EAR: 0.21‰/yr × ${months}m prorata${capNote}`,'disc-terror');lines.push({label:r.label,amt:r.net,grossAmt:r.gross,discAmt:r.discAmt,discLine:r.discLine});total+=r.net;}}
 if(EXT_STATE.cpm){const cpmSI=parseFloat($('cpm-si').value)||0;if(cpmSI>0){const cpmOvr=parseFloat(($('rate-cpm')||{}).value)||0;const cpmGross=(cpmSI/1000)*(cpmOvr>0?cpmOvr:1.00);const r=applyExtDisc(cpmGross,`CPM — SI ${fmtR(cpmSI)} @ ${cpmOvr>0?cpmOvr:'1.00'}‰`,'disc-cpm');lines.push({label:r.label,amt:r.net,grossAmt:r.gross,discAmt:r.discAmt,discLine:r.discLine});total+=r.net;}}
 if(EXT_STATE.os){const osR=parseFloat(($('rate-os')||{}).value)||0;if(osR>0){const r=applyExtDisc((si/1000)*osR,`Offsite Storage & Fabrication — ${osR}‰ on Sum Insured`,'disc-os');lines.push({label:r.label,amt:r.net,grossAmt:r.gross,discAmt:r.discAmt,discLine:r.discLine});total+=r.net;}}
 if(EXT_STATE.wos){const wR=parseFloat(($('rate-wos')||{}).value)||0;if(wR>0){const r=applyExtDisc((si/1000)*wR,`Waiver of Subrogation — ${wR}‰ on Sum Insured`,'disc-wos');lines.push({label:r.label,amt:r.net,grossAmt:r.gross,discAmt:r.discAmt,discLine:r.discLine});total+=r.net;}}
@@ -6344,7 +6344,13 @@ function drawCarCoverPages(doc, q){
     {label:'EAR 010102 SI 1 Cr, 24 months, 3 testing: 2.25 + 0.5 + 0.025x10 + 0.30x2 = 3.60 per mille', expect:36000,
      check:()=>Math.round(computeEARPremium(1e7,24,3,EAR_DATA.find(r=>r.c==='010102')).grossPrem*100)/100},
     {label:'EAR SI 1 Cr, 2 months: Col. 4 flat', expect:22500,
-     check:()=>Math.round(computeEARPremium(1e7,2,1,EAR_DATA.find(r=>r.c==='010102')).grossPrem*100)/100}
+     check:()=>Math.round(computeEARPremium(1e7,2,1,EAR_DATA.find(r=>r.c==='010102')).grossPrem*100)/100},
+    {label:'Terrorism cover at 0.21 per mille a year for CAR as for EAR (v198, user; CAR was 0.50): SI 1 Cr, 12 months = 2,100 gross on both', expect:'2100/2100',
+     check:()=>{const keepExt=Object.assign({},EXT_STATE),keepMode=currentMode,out=[];
+       try{Object.keys(EXT_STATE).forEach(k=>EXT_STATE[k]=false);EXT_STATE.terror=true;
+         ['car','ear'].forEach(m=>{currentMode=m;const l=computeExtensions(1e7,12,0,0,0).lines.find(x=>/Terrorism/.test(x.label));out.push(l?Math.round(l.grossAmt):'none');});}
+       finally{Object.assign(EXT_STATE,keepExt);currentMode=keepMode;}
+       return out.join('/');}}
   ];
 window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSearch,updateDiscSummary,onEARSearch,clearEARSelection,clearCARSelection,updateTestingHint,updateDiscSummaryEAR,toggleSplit,addSplitSegment,toggleALOP,calcALOP,toggleExt,onEQLoc,closeEQLoc,onEQZone,generatePDF,shareWA,renderInstallments,calculate,selectCAR,selectEAR,applyEQLocation,removeSplitSegment,onSegSearch,selectSegRisk,clearSegSelection,buildPDF,computeCARPremium,computeEARPremium,computeExtensions,VERIFIED,get lastQuote(){return lastQuote;},CAR_DATA,EAR_DATA};
 })();
@@ -29527,7 +29533,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v197 · Revised discount structure 24-10-2026: Two-Wheeler, Private Car and GCCV No NCB caps raised (GCCV 3,501-7,500 kg 6th year With NCB 80)</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v198 · CAR terrorism 0.21 per mille a year, same as EAR (was 0.50)</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
