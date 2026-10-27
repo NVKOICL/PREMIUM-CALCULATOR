@@ -11080,6 +11080,7 @@ let _sipClamp = null;   /* {from, to}: a manual OD discount held down at the max
 let _regDateTouched = false, _incDateTouched = false;
 const _dateTextErr = { reg:'', inc:'' };
 let _imt23ManualOff = false;   /* user switched IMT 23 off on an auto-applying class (GCCV / PCCV > 6 / Misc) */
+let _rsaManualOff = false;     /* agent unticked Road Side Assistance; it is otherwise ticked by itself wherever the class can have it (v199) */
 /* covers the agent had ticked that the last redraw could not keep, because they are still
    offered for the class but are no longer eligible (age, IMT-23 switched off, policy type).
    Surfaced by motorQuoteChecks so the cover never just disappears from the quote. */
@@ -12714,7 +12715,7 @@ function renderAddons(){
       updateTyreHint();
     }
     if(i.dataset.addon === 'nilDep' && i.checked) applyAutoNilDepDisc();
-    if(i.dataset.addon === 'rsa') updateRsaTpRow();
+    if(i.dataset.addon === 'rsa'){ _rsaManualOff = !i.checked; updateRsaTpRow(); }
     syncEpCcWrap(); scheduleAutoCalc();
   }));
 
@@ -12737,9 +12738,13 @@ function renderAddons(){
   new Set(_wasTicked.concat(_carry)).forEach(k => {
     const el = grid.querySelector('input[data-addon="' + k + '"]');
     if(!el) return;                                     /* the class does not offer it at all */
-    if(el.disabled){ _addonsDropped.push(k); return; }   /* offered but not eligible - keep it pending */
+    if(el.disabled){ if(k !== 'rsa') _addonsDropped.push(k); return; }   /* offered but not eligible - keep it pending; RSA comes back by itself below */
     if(!el.checked){ el.checked = true; el.dispatchEvent(new Event('change', { bubbles:true })); }
   });
+  /* Road Side Assistance is on every quote the vehicle can have it on, liability only included (user, 27-Oct-2026, v199);
+     an agent's untick holds until New Quote, a class change or a quick-quote preset. */
+  const _rsaBox = grid.querySelector('input[data-addon="rsa"]');
+  if(_rsaBox && !_rsaBox.disabled && !_rsaBox.checked && !_rsaManualOff){ _rsaBox.checked = true; _rsaBox.dispatchEvent(new Event('change', { bubbles:true })); }
   updateRsaTpRow();
 }
 
@@ -12916,6 +12921,7 @@ document.querySelectorAll('.vehicle-tab').forEach(btn=>{
        set meant an agent who returned to this class later got a quote with IMT-23 silently off
        and Nil Depreciation refused, with nothing on screen to say why. */
     _imt23ManualOff = false;
+    _rsaManualOff = false;
     _addonsDropped = [];     /* a different class is a different set of covers */
     updatePassengerField();
     updateAll();
@@ -13417,7 +13423,9 @@ function presetAddonKeys(p){
   const isVisible = i => i.offsetParent !== null || (i.closest('label') && i.closest('label').offsetParent !== null);
   const keys = []; let towingDone = false;
   document.querySelectorAll('#addonsGrid input').forEach(i => {
-    const k = i.dataset.addon || ''; if(!(isVisible(i) && !i.disabled)) return;
+    const k = i.dataset.addon || '';
+    if(k === 'rsa'){ if(!i.disabled) keys.push(k); return; }   /* on every preset (v199) */
+    if(!(isVisible(i) && !i.disabled)) return;
     if(/^towing/.test(k)){ if((p.addons === 'all' || p.addons.includes('towing')) && !towingDone){ keys.push(k); towingDone = true; } }
     else if(p.addons === 'all'){ if(k !== 'batteryProtectCoPay') keys.push(k); }
     else if(p.addons.includes(k)) keys.push(k);
@@ -13425,7 +13433,7 @@ function presetAddonKeys(p){
   return keys;
 }
 function presetShortName(k){
-  const n = { nilDep:'Nil Dep', engineProtect:'Engine', rti:'RTI', consumables:'Consumables', keyReplace:'Key', tyreProtect:'Tyre', batteryProtect:'Battery', batteryProtectCoPay:'Battery (co-pay)', emiProtect:'EMI', altCar:'Alt Car', personalEffects:'Personal Effects', imt47:'IMT-47', imt34:'IMT-34' };
+  const n = { nilDep:'Nil Dep', engineProtect:'Engine', rti:'RTI', consumables:'Consumables', keyReplace:'Key', tyreProtect:'Tyre', batteryProtect:'Battery', batteryProtectCoPay:'Battery (co-pay)', emiProtect:'EMI', altCar:'Alt Car', personalEffects:'Personal Effects', imt47:'IMT-47', imt34:'IMT-34', rsa:'RSA' };
   if(/^towing/.test(k)) return 'Towing';
   return n[k] || k;
 }
@@ -13443,7 +13451,8 @@ function renderMotorPresets(){
       const keys = presetAddonKeys(p);
       desc = (keys.length ? keys.map(presetShortName).join(' \u00b7 ') : 'no add-ons') + tpBits;
     } else {
-      desc = 'Liability only' + tpBits;
+      const rsaBox = document.querySelector('#addonsGrid input[data-addon="rsa"]');
+      desc = 'Liability only' + (rsaBox && !rsaBox.disabled ? ' · RSA' : '') + tpBits;
     }
     return '<button type="button" class="preset-chip' + (state.motorPreset === p.key ? ' active' : '') + '" data-preset="'+p.key+'" title="for this ' + cls + (state.fuel ? ', ' + state.fuel : '') + '"><b>'+p.name+'</b><small>'+desc+'</small></button>';
   }).join('');
@@ -13453,6 +13462,7 @@ function renderMotorPresets(){
 (function(){ const grid = $('addonsGrid'); if(grid && window.MutationObserver){ let t = null; new MutationObserver(() => { clearTimeout(t); t = setTimeout(renderMotorPresets, 30); }).observe(grid, { childList:true }); } })();
 function applyMotorPreset(key){
   const p = MOTOR_PRESETS.find(x => x.key === key); if(!p) return;
+  _rsaManualOff = false;
   if(typeof syncSeatDefault === 'function') syncSeatDefault();
   const radio = document.querySelector('input[name="policy"][value="'+p.policy+'"]');
   if(radio && !radio.checked){ radio.checked = true; radio.dispatchEvent(new Event('change', { bubbles:true })); }
@@ -13490,7 +13500,8 @@ function applyMotorPreset(key){
   let towingDone = false;
   document.querySelectorAll('#addonsGrid input').forEach(i => {
     const k = i.dataset.addon || ''; const avail = isVisible(i) && !i.disabled; let want = false;
-    if(avail){
+    if(k === 'rsa') want = !i.disabled;   /* RSA on every preset, liability only included (v199) */
+    else if(avail){
       if(/^towing/.test(k)){ want = (p.addons === 'all' || p.addons.includes('towing')) && !towingDone; if(want) towingDone = true; }
       else if(p.addons === 'all') want = (k !== 'batteryProtectCoPay');
       else want = p.addons.includes(k);
@@ -13520,6 +13531,7 @@ document.querySelectorAll('#sectionMotor .switch').forEach(s=>{
     if(key==='imt23' && typeof renderAddons === 'function') renderAddons();
     if(key==='hoDisc'){ autoApplySipDiscount(); updateDiscountHint(); }
     if(key==='rsaTp'){
+      _rsaManualOff = !state.switches.rsaTp;
       const b = document.querySelector('#addonsGrid input[data-addon="rsa"]');
       if(b && !b.disabled) b.checked = state.switches.rsaTp;
       updateRsaTpRow();
@@ -17080,7 +17092,7 @@ $('resetBtn').addEventListener('click', ()=>{
     chips.forEach(c=>c.classList.remove('active'));
     if(chips[0]) chips[0].classList.add('active');
   });
-  ncbSetApplied(0); state.odDiscount = 0; _sipManualOverride = false; _sipClamp = null; state.nilDepDiscount = 0; _nilDepManual = false; _imt23ManualOff = false;
+  ncbSetApplied(0); state.odDiscount = 0; _sipManualOverride = false; _sipClamp = null; state.nilDepDiscount = 0; _nilDepManual = false; _imt23ManualOff = false; _rsaManualOff = false;
   _addonsDropped = [];
   state.loadingPct = 0;
   if($('loadingCustom')) $('loadingCustom').value = '';
@@ -22489,6 +22501,7 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
     });
     if(typeof renderAddons === 'function'){ try{ renderAddons(); }catch(e){} }
     if(Array.isArray(d.selectedAddons)){
+      _rsaManualOff = d.selectedAddons.indexOf('rsa') < 0;   /* a saved quote without RSA reprices without it */
       document.querySelectorAll('#addonsGrid input').forEach(i => {
         i.checked = d.selectedAddons.indexOf(i.dataset.addon) >= 0 && !i.disabled;
       });
@@ -23622,6 +23635,19 @@ const VERIFIED_CASES = [
                 renderAddons();   /* the harness switches class without redrawing the grid; the screen redraws on a tab click */
                 const onPccv = !!document.querySelector('#addonsGrid input[data-addon="rsa"]');
                 return [it.amount, onPccv].join('/'); } },
+  { label:'Road Side Assistance ticked by itself (v199, user): a private car package redraw ticks it and charges Rs.100, a liability-only redraw ticks it too, an agent\'s untick survives the next redraw, and a goods carrier on the 5,000 kg default GVW has the card disabled, unticked and not reported as removed', expect:'true/100/true/false/true/false/false',
+    check:()=>{ const box = () => document.querySelector('#addonsGrid input[data-addon="rsa"]');
+                window._stRun(['privateCar','s2','A',0.5,500000,'petrol','comprehensive',0,0,0,0,0]);
+                renderAddons(); const auto = !!(box() && box().checked); window.calculate(true);
+                const amt = ((state.lastQuote.addons.items || []).find(a => a.key === 'rsa') || {}).amount || 0;
+                window._stRun(['privateCar','s2','A',0.5,500000,'petrol','thirdParty',0,0,0,0,0]);
+                renderAddons(); const tp = !!(box() && box().checked);
+                box().checked = false; box().dispatchEvent(new Event('change', { bubbles:true })); renderAddons();
+                const kept = !!(box() && box().checked);
+                window._stRun(['commercial','s1','A',2,600000,'diesel','comprehensive',0,0,0,0,1]);
+                box().checked = true; renderAddons();   /* the grid still holds the car's cards until this redraw */
+                const b = box();
+                return [auto, amt, tp, kept, !!(b && b.disabled), !!(b && b.checked), _addonsDropped.includes('rsa')].join('/'); } },
   { label:'Motor add-on schedule: wordings present for every add-on key (Nil Dep, Engine Protect, RTI, Consumables, Key, Tyre, Battery, EMI, Alt Car, Personal Effects, Towing, IMT-47, IMT-23, Road Side Assistance)', expect:'14/towing/batteryProtect',
     check:()=>Object.keys(MOTOR_ADDON_WORDINGS).length+'/'+motorAddonWordingKey('towing10k')+'/'+motorAddonWordingKey('batteryProtectCoPay') },
   // ── INLIAS worksheet R/161600/31/2027/453 (GCCV KA22D9540, 19/08/2026) ──
@@ -23890,7 +23916,7 @@ const VERIFIED_CASES = [
    — otherwise leftover switches or terms produce failures that look like
    rating regressions but are only stale UI state. */
 function _stBaseline(){
-  _sipManualOverride = false; _imt23ManualOff = false;   /* golden cases carry the auto-applied discount; a chip clicked in the UI must not suppress it */
+  _sipManualOverride = false; _imt23ManualOff = false; _rsaManualOff = false;   /* golden cases carry the auto-applied discount; a chip clicked in the UI must not suppress it */
   state.switches = { cpa:true, atd:false, paUn:false, llDrv:false, llNFPP:false,
     imt23:false, vintage:false, transfer:false, nilDepGccvRenewal:false,
     geoExt:false, tppd:false, rsaTp:false };
@@ -23956,7 +23982,7 @@ function runSelfTest(){
       switches: Object.assign({}, state.switches),
       addons: Array.from(document.querySelectorAll('#addonsGrid input:checked')).map(i => i.dataset.addon),
       nilDepDiscount: state.nilDepDiscount, nilDepManual: _nilDepManual,
-      imt23ManualOff: _imt23ManualOff, sipManual: _sipManualOverride,
+      imt23ManualOff: _imt23ManualOff, rsaManualOff: _rsaManualOff, sipManual: _sipManualOverride,
       term: state.policyTerm, loadingPct: state.loadingPct };
     const FIELDS=['odBase','odDisc','ncb','netOD','tp','nilDep','subtotal','gst','total'];
     let pass=0; const fails=[];
@@ -24008,6 +24034,7 @@ function runSelfTest(){
       state.nilDepDiscount = snapshot.nilDepDiscount;
       _nilDepManual = snapshot.nilDepManual;
       _imt23ManualOff = snapshot.imt23ManualOff;
+      _rsaManualOff = snapshot.rsaManualOff;
       _sipManualOverride = snapshot.sipManual;
       state.policyTerm = snapshot.term;
       state.loadingPct = snapshot.loadingPct;
@@ -29533,7 +29560,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v198 · CAR terrorism 0.21 per mille a year, same as EAR (was 0.50)</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v199 · Road Side Assistance ticked by itself wherever the vehicle can have it</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
