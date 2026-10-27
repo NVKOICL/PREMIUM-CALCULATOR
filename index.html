@@ -28407,7 +28407,8 @@ function bgrApplyLayout(on){
   const keep = ['#pol-sookshma', '#insured-name', '#result-card'];
   sec.querySelectorAll('.card').forEach(card => {
     if(card.id === 'bgr-card'){ card.style.display = on ? '' : 'none'; return; }
-    const isKeep = keep.some(sel => card.matches(sel) || card.querySelector(sel));
+    /* closest(): the premium breakdown is a .card inside #result-card and was hidden with the input cards (v201) */
+    const isKeep = keep.some(sel => card.matches(sel) || card.querySelector(sel) || card.closest(sel));
     card.style.display = (on && !isKeep) ? 'none' : '';
   });
   const pp = document.getElementById('policy-period'); const pf = pp && pp.closest('.field'); if(pf) pf.style.display = on ? 'none' : '';
@@ -28907,6 +28908,14 @@ window.FIRE_VERIFIED = [
     check:()=>{ const q = bgrCompute({occ:'dwelling', years:5, months:12, zone:4, terror:true, si:1000000}); return [q.rates.flexa, q.rates.stfi, q.rates.eq, q.rates.terror, q.rates.lor].map(v=>v.toFixed(3)).concat([q.rates.pa]).join('/'); } },
   { label:'BGR: co-operative society annual FLEXA 0.121, STFI 0.15, EQ Zone I 0.25, add-ons 0.102; 3-month short period = 29% of annual', expect:'0.121/0.150/0.250/0.102/29',
     check:()=>{ const q = bgrCompute({occ:'coop', years:1, months:3, zone:1, terror:true, si:1000000}); return [q.rates.flexa, q.rates.stfi, q.rates.eq, q.rates.lor].map(v=>v.toFixed(3)).join('/') + '/' + q.shortPct; } },
+  { label:'BGR layout: the Griha Raksha card shows and the premium breakdown inside the result card is not hidden with the other Fire cards (v201)', expect:'true/true',
+    check:()=>{ const els = [...document.querySelectorAll('#sectionFire .card')], pf = (document.getElementById('policy-period') || {closest:()=>null}).closest('.field');
+                const was = els.map(c => c.style.display), pfWas = pf ? pf.style.display : '', rc = document.getElementById('result-card'), rcVis = rc.classList.contains('visible');
+                bgrApplyLayout(true);
+                const shown = document.getElementById('bgr-card').style.display !== 'none';
+                const inner = [...document.querySelectorAll('#result-card .card')].every(c => c.style.display !== 'none');
+                els.forEach((c, i) => { c.style.display = was[i]; }); if(pf) pf.style.display = pfWas; rc.classList.toggle('visible', rcVis);
+                return shown + '/' + inner; } },
   { label:'Fire: Sookshma list carries Dish Antenna 0.228 and Cloth Processing 1.077 (OICL Fire calculator w.e.f. 01-01-2025)', expect:'0.228/1.077',
     check:()=>RATES.sookshma['Dish Antenna'] + '/' + RATES.sookshma['Cloth Processing units outside textile mills compound'] },
   { label:'Fire add-on schedule (Addon_Revised Rating.xlsx, 18-Sep-2026): 31 rated covers for SFSP, 29 for IAR (the same list without Brands and Trademarks and Pair and Set), 5 for a Declaration or Floater policy, and 11 granted free of premium', expect:'31/29/5/11/42',
@@ -29572,7 +29581,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v200 · Road Side Assistance not ticked by itself on liability only</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v201 · Griha Raksha premium breakdown shown</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
