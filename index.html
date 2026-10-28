@@ -18495,7 +18495,7 @@ function renderHMembers() {
     return `<div class="member-item ${showEldestBadge ? 'eldest' : ''}" data-idx="${i}">
       <span class="member-badge">${showEldestBadge ? 'Eldest' : `M${i+1}`}</span>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <input class="member-age-input" type="number" inputmode="numeric" min="0" max="99" value="${m.age}" placeholder="Age" data-idx="${i}" />
+        <input class="member-age-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="${(m.age == null || isNaN(m.age)) ? '' : m.age}" placeholder="Age" data-idx="${i}" />
         <span style="font-size:12px;color:var(--mute)">yrs</span>
         ${loading > 0 && !entryAgeWaived ? `<span style="font-size:10px;font-weight:700;color:var(--accent-dark);background:var(--accent-soft);padding:2px 7px;border-radius:999px">+${Math.round(loading*100)}% age loading</span>` : ''}
         ${entryAgeWaived ? `<span style="font-size:10px;font-weight:700;color:var(--success);background:var(--success-soft);padding:2px 7px;border-radius:999px">Loading waived (entry age ${m.entryAge})</span>` : ''}
@@ -18544,6 +18544,9 @@ function renderHMembers() {
       // empty box price as a new-born — the cheapest band — so clearing an age
       // silently slashed the premium instead of stopping the quote. Keeping it
       // null lets the guard in hCalcAndShow() do its job.
+      /* A text box (v202): a number box cannot report or set its caret, so after the rebuild
+         below a phone put it in front of the first digit and 45 went in as 54. Digits only. */
+      if(/\D/.test(input.value)) input.value = input.value.replace(/\D/g, '');
       const _raw = String(input.value).trim();
       hState.members[idx].age = (_raw === '')
         ? null
@@ -29001,6 +29004,17 @@ window.FIRE_VERIFIED = [
                 const chunk = onChange.slice(0, onChange.indexOf('member-entry-age-input'));
                 return [/addEventListener\('input'/.test(chunk), !/addEventListener\('change'[\s\S]{0,400}renderHMembers\(\)/.test(chunk),
                         /setSelectionRange/.test(String(hRenderMembersKeepingFocus))].join('/'); } },
+  { label:'Health (v202): typing 45 in the eldest member\'s age stays 45 - the first digit makes another member the eldest and rebuilds the list, and the caret comes back after the 4 (a number box could not report it, so a phone put it in front and 45 went in as 54)', expect:'text/4/1/45/45',
+    check:()=>{ const keep = JSON.parse(JSON.stringify(hState.members)), keepShape = _hShape, keepFocus = document.activeElement;
+                try{
+                  hState.members = [{ age:35, entryAge:null, si:null, ped:null }, { age:30, entryAge:null, si:null, ped:null }];
+                  renderHMembers(); _hShape = hMemberShape();
+                  const box = () => document.querySelector('#hMemberList .member-age-input[data-idx="0"]');
+                  box().focus(); box().value = '4'; box().setSelectionRange(1, 1); box().dispatchEvent(new Event('input', { bubbles:true }));
+                  const b = box(), back = (document.activeElement === b) ? b.selectionStart : -1, v4 = b.value;
+                  b.setRangeText('5', b.selectionStart, b.selectionEnd, 'end'); b.dispatchEvent(new Event('input', { bubbles:true }));
+                  return [b.type, v4, back, box().value, hState.members[0].age].join('/');
+                } finally { hState.members = keep; renderHMembers(); _hShape = keepShape; if(keepFocus && keepFocus.focus) keepFocus.focus(); } } },
   { label:'Fire: the two covers the sheet rates on a value the insured declares (Catalyst and Consumables on the catalyst value, Undamaged Foundation on the plinth and foundation Sum Insured) carry no percentage of the Sum Insured to fall back on, so the quote leaves them out of the premium until the value is entered and says so', expect:'true/true/0/0/true/true',
     check:()=>{ const c = FIRE_ADDONS.find(a => a.key === 'catalyst'), f = FIRE_ADDONS.find(a => a.key === 'foundation');
                 const src = String(updateFlags);
@@ -29581,7 +29595,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v201 · Griha Raksha premium breakdown shown</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v202 · Health member age typed in the right order</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
