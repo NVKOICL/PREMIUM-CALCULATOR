@@ -24062,15 +24062,14 @@ function ohCalc(){
       rows.push({label:'Add: Life Hardship Survival Benefit \u2014 Plan '+lh+' ('+pc+'% of Basic Premium)',amt:amt}); base+=amt; }
   }
 
-  /* GST: all health cover (Oriental Mediclaim Individual, Group Mediclaim,
-     Happy Family Floater, OSSS, Youth Eco Care) is treated as GST-exempt.
-     Only the Overseas Mediclaim (travel) policy remains taxable at 18%. */
-  /* The 22.09.2025 exemption covers INDIVIDUAL health cover only. GROUP health
-     policies stayed at 18%, and Overseas travel is taxable as before. GRP was
-     previously bundled with the exempt products, which under-charged every
-     group quote by 18% and printed "exempt" on the face of it. */
+  /* GST: individual health cover (Oriental Mediclaim Individual, Happy Family
+     Floater, Super Health Top-Up, OSSS, Youth Eco Care) is GST-exempt w.e.f. 22.09.2025.
+     Overseas Mediclaim (OMP) carries no GST either (v205, user instruction 10-Nov-2026). */
+  /* GROUP health policies stay at 18%. GRP was previously bundled with the
+     exempt products, which under-charged every group quote by 18% and printed
+     "exempt" on the face of it. */
   /* Bank Saathi is a group policy too: 18%, taken as the chart's GST-inclusive premium. */
-  const gstApplies = (prod==='OMI' || prod==='GRP' || prod==='BSP');
+  const gstApplies = (prod==='GRP' || prod==='BSP');
   const gst = !gstApplies ? 0 : (bspGross!=null ? bspGross-base : Math.round(base*0.18));
   let h='<table style="width:100%;font-size:13px;border-collapse:collapse">';
   rows.forEach(r=>{ h+='<tr style="border-bottom:1px solid var(--border-soft)"><td style="padding:5px 0">'+r.label
@@ -24082,9 +24081,10 @@ function ohCalc(){
     h+='<tr style="font-weight:800;font-size:15px"><td style="padding:7px 0">Total payable</td><td style="text-align:right">Rs. '+ohFmt(base+gst)+'</td></tr></table>';
   } else {
     h+='<tr style="font-weight:800;font-size:15px"><td style="padding:7px 0">Total premium</td><td style="text-align:right">Rs. '+ohFmt(base)+'</td></tr></table>';
-    /* Only reachable for the exempt products now - GRP and OMI take the
+    /* Only reachable for the GST-free products - GRP and BSP take the
        GST branch above and show an explicit 18% line instead. */
-    notes.push('No GST \u2014 individual health insurance premium is exempt w.e.f. 22.09.2025.');
+    notes.push(prod==='OMI' ? 'No GST is charged on this policy.'
+                            : 'No GST \u2014 individual health insurance premium is exempt w.e.f. 22.09.2025.');
   }
   if(notes.length) h+='<div class="hint" style="margin-top:8px">'+notes.map(n=>'\u2022 '+n).join('<br>')+'</div>';
   out.innerHTML=h;
@@ -24348,7 +24348,7 @@ function ohGeneratePDF(){
 
   // Agent cost code — commission is not printed in words or figures.
   try{
-    // commission is always on net premium before GST — for Group / Overseas the
+    // commission is always on net premium before GST — for Group / Bank Saathi the
     // last row is the GST-inclusive total, so prefer the explicit net row
     const netRow = rows.find(function(r){ return /net premium/i.test(r.label); });
     const netPrem = Number(String((netRow || lastTotal).value).replace(/Rs\.\s*/g,'').replace(/[^0-9.]/g,'')) || 0;
@@ -24405,9 +24405,11 @@ function ohGeneratePDF(){
   const notes = [];
   if(notesEl && notesEl.textContent.trim()) notes.push(notesEl.textContent.trim());
   notes.push('Rates are per the applicable OICL premium chart. This is an indicative quotation, subject to insurer underwriting and acceptance.');
-  notes.push((key === 'GRP' || key === 'OMI' || key === 'BSP')
+  notes.push((key === 'GRP' || key === 'BSP')
     ? 'GST at 18% is included in the total shown above, as applicable to this policy.'
-    : 'No GST is payable \u2014 individual health insurance is exempt from GST w.e.f. 22.09.2025. The amount shown is the full premium payable.');
+    : key === 'OMI'
+      ? 'No GST is payable on this policy. The amount shown is the full premium payable.'
+      : 'No GST is payable \u2014 individual health insurance is exempt from GST w.e.f. 22.09.2025. The amount shown is the full premium payable.');
   notes.push('Insurance is the subject matter of the solicitation. This is a system generated quote and does not require signature.');
 
   const safe = (PRODUCT[key] || 'Health').replace(/^\s*(Oriental|OICL)\s+/i,'').replace(/[^A-Za-z0-9]/g,'_').slice(0,40);
@@ -28550,6 +28552,12 @@ window.FIRE_VERIFIED = [
                 const inner = [...document.querySelectorAll('#result-card .card')].every(c => c.style.display !== 'none');
                 els.forEach((c, i) => { c.style.display = was[i]; }); if(pf) pf.style.display = pfWas; rc.classList.toggle('visible', rcVis);
                 return shown + '/' + inner; } },
+  { label:'Overseas Mediclaim (OMP) carries no GST; Group Mediclaim keeps GST at 18% (v205, user 10-Nov-2026)', expect:'false/true/true',
+    check:()=>{ const sel = document.getElementById('ohProduct'), was = sel.value, out = document.getElementById('ohOut'), html = out.innerHTML;
+                const run = p => { sel.value = p; ohSyncUI(); ohCalc(); return out.innerText; };
+                const omi = run('OMI'), grp = run('GRP');
+                sel.value = was; ohSyncUI(); out.innerHTML = html;
+                return /GST @ 18%/.test(omi) + '/' + /No GST is charged/.test(omi) + '/' + /GST @ 18%/.test(grp); } },
   { label:'Fire: Sookshma list carries Dish Antenna 0.228 and Cloth Processing 1.077 (OICL Fire calculator w.e.f. 01-01-2025)', expect:'0.228/1.077',
     check:()=>RATES.sookshma['Dish Antenna'] + '/' + RATES.sookshma['Cloth Processing units outside textile mills compound'] },
   { label:'Fire add-on schedule (Addon_Revised Rating.xlsx, 18-Sep-2026): 31 rated covers for SFSP, 29 for IAR (the same list without Brands and Trademarks and Pair and Set), 5 for a Declaration or Floater policy, and 11 granted free of premium', expect:'31/29/5/11/42',
@@ -29219,7 +29227,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v204 · instant opening (cached page, libraries in lib/)</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v205 · no GST on Overseas Mediclaim (OMP)</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
