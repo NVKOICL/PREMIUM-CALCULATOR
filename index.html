@@ -1023,6 +1023,10 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--grad-ink);color:#fff;padding:13px 22px;border-radius:999px;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(10,23,51,.35),0 16px 40px rgba(10,23,51,.2);transition:transform .35s cubic-bezier(.2,.8,.2,1);z-index:100;pointer-events:none;letter-spacing:.005em}
 .toast.show{transform:translateX(-50%) translateY(0)}
+/* v206: a quote that no longer matches the form is greyed; one-line message under a field */
+.quote-stale{opacity:.45 !important;filter:grayscale(1) !important}
+.oicl-stale-note{margin:0 0 10px;padding:10px 14px;border-radius:12px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;font-size:13px;font-weight:600;line-height:1.35}
+.oicl-fmsg{color:#dc2626;font-size:12px;font-weight:600;margin-top:5px;line-height:1.3}
 
 /* ── API KEY BANNER ── */
 
@@ -1389,6 +1393,92 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 .agent-comm-rule{font-size:10.5px;color:var(--ink-soft);margin-top:7px;line-height:1.5;text-align:center}
 .agent-comm-rule strong{color:var(--accent-dark);font-weight:700}
 </style>
+<script>
+/* v206: shared feedback helpers - a tap on Calculate always shows something (debug report B1-B11) */
+(function(){
+  function byId(el){ return typeof el === 'string' ? document.getElementById(el) : el; }
+  function say(msg){ try{ if(typeof window.toast === 'function') window.toast(msg); }catch(e){} }
+  window.oiclSay = say;
+  /* move to a result or a field */
+  window.oiclReveal = function(el, block){
+    el = byId(el); if(!el) return;
+    setTimeout(function(){ try{ el.scrollIntoView({ behavior:'smooth', block: block || 'start' }); }catch(e){ try{ el.scrollIntoView(); }catch(_){} } }, 60);
+  };
+  /* say what is missing: a toast, and a line under the field where the field has a wrapper */
+  window.oiclFieldMsg = function(el, msg){
+    el = byId(el); say(msg); if(!el) return;
+    el.style.borderColor = 'var(--danger, #dc2626)'; setTimeout(function(){ el.style.borderColor = ''; }, 2500);
+    var host = el.closest ? el.closest('.field') : null; if(!host) return;
+    var old = host.querySelector('.oicl-fmsg'); if(old) old.remove();
+    var d = document.createElement('div'); d.className = 'oicl-fmsg'; d.textContent = msg; host.appendChild(d);
+    var off = function(){ if(d.parentNode) d.remove(); host.removeEventListener('input', off, true); };
+    host.addEventListener('input', off, true); setTimeout(off, 6000);
+  };
+  /* the same, and take the agent to the field */
+  window.oiclNeed = function(el, msg){
+    el = byId(el); window.oiclFieldMsg(el, msg); if(!el) return;
+    try{ el.focus({ preventScroll:true }); }catch(e){}
+    window.oiclReveal(el, 'center');
+  };
+  /* a Calculate handler that never fails silently */
+  window.oiclGuard = function(fn){
+    return function(){ try{ return fn.apply(this, arguments); }catch(e){ console.error(e); alert('Could not calculate: ' + ((e && e.message) || e)); } };
+  };
+
+  /* B7: PDF / Share / Image are built from the stored quote, so once an entry is edited the
+     result on screen is greyed and its buttons are held until Calculate is tapped again. */
+  var disp = function(c){ return c.style.display !== 'none'; }, vis = function(c){ return c.classList.contains('visible'); };
+  var STALE = {
+    sectionWc:     { card:'wcResult',       on:function(c){ return !!c.querySelector('.quote-actions'); } },
+    sectionCpm:    { card:'cpmResultCard',  on:disp },
+    sectionShop:   { card:'shkResultCard',  on:disp },
+    sectionOffice: { card:'oumResultCard',  on:disp },
+    sectionCar:    { card:'ce-result-card', on:vis },
+    sectionFire:   { card:'result-card',    on:vis }
+  };
+  function cardOf(id){ return STALE[id] ? document.getElementById(STALE[id].card) : null; }
+  function secOf(t){ var s = t && t.closest ? t.closest('.product-section') : null; return s && STALE[s.id] ? s.id : null; }
+  function mark(id){
+    var c = cardOf(id); if(!c || !STALE[id].on(c) || c.classList.contains('quote-stale')) return;
+    c.classList.add('quote-stale');
+    var n = document.createElement('div'); n.className = 'oicl-stale-note'; n.setAttribute('data-for', id); n.setAttribute('role', 'status');
+    n.textContent = 'Inputs changed. Tap Calculate Premium to update the quote.';
+    c.parentNode.insertBefore(n, c);
+  }
+  window.oiclFresh = function(id){
+    var c = cardOf(id); if(c) c.classList.remove('quote-stale');
+    document.querySelectorAll('.oicl-stale-note[data-for="' + id + '"]').forEach(function(n){ n.remove(); });
+  };
+  /* a result that was cleared (New Quote, a failed check) takes its note with it */
+  function sync(id){ setTimeout(function(){ var c = cardOf(id); if(c && c.classList.contains('quote-stale') && !STALE[id].on(c)) window.oiclFresh(id); }, 0); }
+  function onEdit(e){
+    var t = e.target, id = secOf(t); if(!id) return;
+    var c = cardOf(id); if(c && c.contains(t)) return;
+    if(!t.matches || !t.matches('input,select,textarea')) return;
+    /* a select or tick box fires input and then change; where the tab recalculates on the first,
+       the second must not grey the fresh result again */
+    if(e.type === 'input') seen.set(t, Date.now());
+    else if(Date.now() - (seen.get(t) || 0) < 1000) return;
+    mark(id); sync(id);
+  }
+  var seen = new WeakMap();
+  document.addEventListener('input', onEdit, true);
+  document.addEventListener('change', onEdit, true);
+  document.addEventListener('click', function(e){
+    var t = e.target, id = secOf(t); if(!id) return;
+    var c = cardOf(id), b = t.closest('button,[onclick],.wc-item');
+    if(!b){ return; }
+    if(c && c.contains(b)){
+      if(c.classList.contains('quote-stale') && b.tagName === 'BUTTON' && b.closest('.quote-actions') && !/new/i.test(b.id || '')){
+        e.preventDefault(); e.stopPropagation(); say('Inputs changed. Tap Calculate Premium first.');
+      }
+      sync(id); return;
+    }
+    if(b.closest('.sticky-calc-wrap') || /calc/i.test(b.id || '')){ sync(id); return; }
+    mark(id); sync(id);
+  }, true);
+})();
+</script>
 </head>
 <body>
 
@@ -2602,10 +2692,10 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
       }
       #otherHealthCard .lbl{ display:flex; align-items:center; gap:0; font-weight:600; cursor:pointer; }
     </style>
-    <button type="button" class="btn btn-primary" onclick="ohCalc()" style="width:100%;margin-top:14px">Calculate Premium</button>
     <div class="quote-actions"><button type="button" class="btn btn-pdf" id="ohPdfBtn" onclick="ohGeneratePDF()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Download PDF</button><button type="button" class="btn btn-whatsapp" id="ohWaBtn" onclick="ohSharePDF()"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>Share PDF</button><button type="button" class="btn btn-image" id="ohImgBtn" onclick="ohShareImage()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Share Image</button><button type="button" class="btn btn-secondary" id="ohNewBtn" onclick="ohNewQuote()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>New Quote</button></div>
     <div id="ohOut" style="margin-top:12px"></div>
   </section>
+  <div class="sticky-calc-wrap"><button type="button" class="btn btn-primary" id="ohCalcBtn" onclick="ohCalcFromButton()">Calculate Premium</button></div>
   </div>
 
   <div id="osssWrap">
@@ -3573,7 +3663,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
 
       <div class="total-row">
         <div class="tk">Grand Total<small>incl. GST @ 18%</small></div>
-        <div class="tv"><em>Rs.</em><span id="grand-total">0.00</span></div>
+        <div class="tv"><em>Rs. </em><span id="grand-total">0.00</span></div>
       </div>
     </div>
     <!-- PDF action — outside .card so the button itself isn't captured -->
@@ -4682,7 +4772,7 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
       </div>
       <div class="hint" id="wcDiscMedWarn" style="display:none;color:var(--accent-dark)">Medical Extension discount is allowed within the same office authority as the basic premium. Beyond that authority a reference must be made to Head Office.</div>
 
-      <div class="sticky-calc-wrap" style="margin-top:20px"><button type="button" class="btn" id="wcCalcBtn" style="width:100%">Calculate Premium</button></div>
+      <div class="sticky-calc-wrap" style="margin-top:20px"><button type="button" class="btn btn-primary" id="wcCalcBtn" style="width:100%">Calculate Premium</button></div>
     </div>
 
     <div id="wcResult"></div>
@@ -5287,7 +5377,7 @@ Quote Date
 <div class="breakdown" id="ce-breakdown"></div>
 <div class="total-row">
 <div class="tk">Grand Total<small>incl. GST @ 18%</small></div>
-<div class="tv"><em>Rs.</em><span id="ce-grand-total">0.00</span></div>
+<div class="tv"><em>Rs. </em><span id="ce-grand-total">0.00</span></div>
 </div>
 </div>
 <!-- PDF buttons -->
@@ -5412,10 +5502,10 @@ function updateTestingHint(){const el=$('ear-testing-hint');if(!el)return;const 
 function fmt(n){return n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtR(n){return'Rs. '+fmt(n);}
 function computeCARPremium(si,months,risk){const extraMonths=Math.max(0,months-3);const grossRate=risk.r+(risk.a*extraMonths);const grossPrem=(si/1000)*grossRate;return{extraMonths,grossRate,grossPrem};}
-function calculate(){if($('policy-period').value==='custom'){const cm=parseInt($('custom-months').value);if(!(cm>=1&&cm<=120)){const el=$('custom-months');el.style.borderColor='var(--danger)';setTimeout(()=>el.style.borderColor='',2500);el.focus();return;}}
+function calculate(){if($('policy-period').value==='custom'){const cm=parseInt($('custom-months').value);if(!(cm>=1&&cm<=120)){const el=$('custom-months');el.style.borderColor='var(--danger)';setTimeout(()=>el.style.borderColor='',2500);el.focus();oiclFieldMsg(el,'Enter the period, 1 to 120 months');return;}}
 if(currentMode==='ear'){return calculateEAR();}
 if(!selectedCode){$('cat-error').classList.add('show');$('car-search-input').focus();return;}
-const si=parseFloat($('sum-insured').value);if(!si||si<=0){$('sum-insured').style.borderColor='var(--danger)';setTimeout(()=>$('sum-insured').style.borderColor='',2500);$('sum-insured').focus();return;}
+const si=parseFloat($('sum-insured').value);if(!si||si<=0){$('sum-insured').style.borderColor='var(--danger)';setTimeout(()=>$('sum-insured').style.borderColor='',2500);$('sum-insured').focus();oiclFieldMsg($('sum-insured'),'Enter the sum insured');return;}
 const months=getPeriodMonths();const insuredName=$('insured-name').value.trim()||'Valued Insured';const risk=CAR_DATA[selectedCode];const today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});const{extraMonths,grossRate,grossPrem}=computeCARPremium(si,months,risk);const discPct=getCombinedDisc();const discAmt=grossPrem*(discPct/100);const netPrem=grossPrem-discAmt;const periodLabel=months<12?months+' months':months===12?'12 months (1 year)':(months%12===0)?months+' months ('+(months/12)+' years)':months+' months';let rateExplain='';if(extraMonths===0){rateExplain=`Min. rate ${risk.r.toFixed(3)}‰ (covers first 3 months — period ≤ 3m)`;}else{rateExplain=`Min. rate ${risk.r.toFixed(3)}‰ + Addl. ${risk.a.toFixed(3)}‰ × ${extraMonths} months = ${grossRate.toFixed(4)}‰ effective`;}
 $('qd-box').innerHTML=`
 <div class="qd-row"><span class="k">Sum Insured</span><span class="v">${fmtR(si)}</span></div>
@@ -5430,9 +5520,9 @@ const totalNet=netPrem+extTotal;const gst=totalNet*0.18;const grand=totalNet+gst
 +String(now.getMonth()+1).padStart(2,'0')
 +String(now.getDate()).padStart(2,'0')
 +'-'+String(now.getHours()).padStart(2,'0')
-+String(now.getMinutes()).padStart(2,'0')};updateFlags(si,months,grossPrem);lastQuote.discPct=discPct;lastQuote.discAmt=discAmt;lastQuote.discInputs=readDiscInputs(currentMode);lastQuote.commPct=engProjectCommPct(lastQuote.si,currentMode==='car'&&lastQuote.risk?lastQuote.risk.n:'');lastQuote.commAmt=Math.round(lastQuote.totalNet*lastQuote.commPct/100);$('breakdown').insertAdjacentHTML('beforeend',agentCommBlock(lastQuote.commPct,lastQuote.totalNet,lastQuote.commAmt,'CR-8811 \u00a75 \u00b7 Project policies (CAR / EAR)',(currentMode==='car'&&lastQuote.risk&&carCommUplift(lastQuote.risk.n))?'Includes the 5% additional remuneration for this occupancy':(lastQuote.si>=2.5e11?'Sum Insured Rs.2,500 crore and above':'')));const card=$('result-card');card.classList.add('visible');$('install-card').style.display='block';renderInstallments();setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),100);}
++String(now.getMinutes()).padStart(2,'0')};updateFlags(si,months,grossPrem);lastQuote.discPct=discPct;lastQuote.discAmt=discAmt;lastQuote.discInputs=readDiscInputs(currentMode);lastQuote.commPct=engProjectCommPct(lastQuote.si,currentMode==='car'&&lastQuote.risk?lastQuote.risk.n:'');lastQuote.commAmt=Math.round(lastQuote.totalNet*lastQuote.commPct/100);$('breakdown').insertAdjacentHTML('beforeend',agentCommBlock(lastQuote.commPct,lastQuote.totalNet,lastQuote.commAmt,'CR-8811 \u00a75 \u00b7 Project policies (CAR / EAR)',(currentMode==='car'&&lastQuote.risk&&carCommUplift(lastQuote.risk.n))?'Includes the 5% additional remuneration for this occupancy':(lastQuote.si>=2.5e11?'Sum Insured Rs.2,500 crore and above':'')));const card=$('result-card');card.classList.add('visible');$('install-card').style.display='block';renderInstallments();oiclFresh('sectionCar');setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),100);}
 function calculateEAR(){const totalMonths=getPeriodMonths();const testingMonths=earTotalTesting();if(testingMonths>totalMonths){const el=$('ear-testing-months');el.style.borderColor='var(--danger)';setTimeout(()=>el.style.borderColor='',2500);el.focus();alert('Total testing period ('+testingMonths+' months including the base month) cannot exceed the policy period of '+totalMonths+' months.');return;}const erectMonths=Math.max(0,totalMonths-testingMonths);const insuredName=$('insured-name').value.trim()||'Valued Insured';const today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});const discPct=getCombinedDisc();if(splitActive&&splitSegments.length>0){if(!validateSplitSegments()){$('ear-split-card').scrollIntoView({behavior:'smooth',block:'start'});return;}
-const mainSI=parseFloat($('sum-insured').value);if(!mainSI||mainSI<=0){$('sum-insured').style.borderColor='var(--danger)';setTimeout(()=>$('sum-insured').style.borderColor='',2500);$('sum-insured').focus();return;}
+const mainSI=parseFloat($('sum-insured').value);if(!mainSI||mainSI<=0){$('sum-insured').style.borderColor='var(--danger)';setTimeout(()=>$('sum-insured').style.borderColor='',2500);$('sum-insured').focus();oiclFieldMsg($('sum-insured'),'Enter the sum insured');return;}
 const segSum=splitSegments.reduce((a,s)=>{const el=$('seg-si-'+s.id);return a+(el?(parseFloat(el.value)||0):0);},0);if(Math.abs(segSum-mainSI)>=1){updateSplitTotal();$('ear-split-card').scrollIntoView({behavior:'smooth',block:'start'});alert('The segment sums insured (Rs. '+segSum.toLocaleString('en-IN')+') must add up to the main Sum Insured (Rs. '+mainSI.toLocaleString('en-IN')+').');return;}
 const splitResult=computeEARSplitPremium(totalMonths,testingMonths);if(splitResult.segments.length===0){alert('Please fill in the Sum Insured for at least one segment.');return;}
 const grossPrem=splitResult.grossPrem;const discAmt=grossPrem*(discPct/100);const netPrem=grossPrem-discAmt;const periodLabel=totalMonths<12?totalMonths+' months':totalMonths===12?'12 months (1 year)':(totalMonths%12===0)?totalMonths+' months ('+(totalMonths/12)+' years)':totalMonths+' months';let qdHtml=`
@@ -5444,9 +5534,9 @@ const grossPrem=splitResult.grossPrem;const discAmt=grossPrem*(discPct/100);cons
 <span class="v" style="font-size:12px">${fmtR(seg.si)}${pct}</span>
 </div>`;});$('qd-box').innerHTML=qdHtml;let html='';html+=`<div class="line sdiv"><span class="k">Section I — Material Damage (EAR / SCE — Split Project)</span></div>`;splitResult.segments.forEach((seg,i)=>{const bd=seg.breakdown;const risk=seg.risk;html+=`<div class="line seg-head"><span class="k">▸ ${seg.label} — ${fmtR(seg.si)} @ ${risk.c4.toFixed(2)}‰ base (${risk.c})</span><span class="v" style="font-size:13px;color:var(--accent-dark)">${fmtR(seg.grossPrem)}</span></div>`;if(bd.col4only){html+=`<div class="line sub"><span class="k">Col. 4 flat — ${risk.c4.toFixed(2)}‰ (period ≤ 2m)</span><span class="v">${fmtR((seg.si/1000)*risk.c4)}</span></div>`;}else{html+=`<div class="line sub"><span class="k">Col. 4 base (1st erection + 1st testing) — ${risk.c4.toFixed(2)}‰</span><span class="v">${fmtR((seg.si/1000)*risk.c4)}</span></div>`;if(bd.col5M>0)html+=`<div class="line sub"><span class="k">Col. 5 — ${risk.c5.toFixed(3)}‰/month × ${bd.col5M}m</span><span class="v">${fmtR((seg.si/1000)*risk.c5*bd.col5M)}</span></div>`;if(bd.col6M>0)html+=`<div class="line sub"><span class="k">Col. 6 — ${risk.c6.toFixed(3)}‰/month × ${bd.col6M}m</span><span class="v">${fmtR((seg.si/1000)*risk.c6*bd.col6M)}</span></div>`;if(bd.testExtra>0)html+=`<div class="line sub"><span class="k">Col. 7 — ${risk.c7.toFixed(2)}‰/month × ${bd.testExtra} testing months</span><span class="v">${fmtR((seg.si/1000)*risk.c7*bd.testExtra)}</span></div>`;}});html+=`<div class="line"><span class="k">Combined Gross Premium (all segments)</span><span class="v">${fmtR(grossPrem)}</span></div>`;if(discPct>0){html+=`<div class="line sub"><span class="k">Higher Excess / Volume Discount (${discPct}%)</span><span class="v dc">− ${fmtR(discAmt)}</span></div>`;}
 html+=`<div class="line net"><span class="k">Net Section I Premium</span><span class="v">${fmtR(netPrem)}</span></div>`;const{lines:extLines,total:extTotal}=computeExtensions(mainSI,totalMonths,netPrem,grossPrem,discPct);if(extLines.length>0){html+=`<div class="line sdiv"><span class="k">Extensions (Section I Add-ons)</span></div>`;extLines.forEach(l=>{if(l.grossAmt&&l.discAmt>0){html+=`<div class="line"><span class="k">${l.label}</span><span class="v">${fmtR(l.grossAmt)}</span></div>`;html+=`<div class="line sub"><span class="k">${l.discLine}</span><span class="v dc">&#8722;&nbsp;${fmtR(l.discAmt)}</span></div>`;html+=`<div class="line sub"><span class="k">Net after discount</span><span class="v">${fmtR(l.amt)}</span></div>`;}else{html+=`<div class="line"><span class="k">${l.label}</span><span class="v">${fmtR(l.amt)}</span></div>`;}});}
-const totalNet=netPrem+extTotal;const gst=totalNet*0.18;const grand=totalNet+gst;html+=`<div class="line sdiv"><span class="k">Tax</span></div>`;html+=`<div class="line net"><span class="k">Total Net Premium</span><span class="v">${fmtR(totalNet)}</span></div>`;html+=`<div class="line gst"><span class="k">GST @ 18%</span><span class="v">${fmtR(gst)}</span></div>`;$('breakdown').innerHTML=html;$('res-insured').textContent=insuredName;$('res-policy').textContent="Erection All Risks — EAR Tariff (TAC) · Split Project";$('res-date').textContent=today;$('grand-total').textContent=fmt(grand);const maxTEx=Math.max(...splitResult.segments.map(s=>s.risk.tEx));const maxNEx=Math.max(...splitResult.segments.map(s=>s.risk.nEx));const ex=splitResult.segments.map(s=>excessFor(s.risk,mainSI,'ear')).reduce(pickHigherExcess);showExcess(ex,' (highest segment)');$('excess-panel').querySelector('.excess-title').textContent='Compulsory Excess (EAR Tariff — applies to highest risk segment)';$('excess-panel').querySelectorAll('.ek')[1].textContent='AOG / Major Peril Claims';const now=new Date();lastQuote={insuredName,si:mainSI,totalMonths,testingMonths,erectMonths,periodLabel,risk:splitResult.segments[0].risk,excess:ex,grossPrem,netPrem,extTotal,totalNet,gst,grand,extLines,dateStr:today,mode:'ear',splitSegments:splitResult.segments,quoteRef:'EAR-'+now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'-'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')};lastQuote.discPct=discPct;lastQuote.discAmt=discAmt;lastQuote.discInputs=readDiscInputs(currentMode);updateFlags(mainSI,totalMonths,grossPrem);const card=$('result-card');card.classList.add('visible');$('install-card').style.display='block';renderInstallments();setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),100);return;}
+const totalNet=netPrem+extTotal;const gst=totalNet*0.18;const grand=totalNet+gst;html+=`<div class="line sdiv"><span class="k">Tax</span></div>`;html+=`<div class="line net"><span class="k">Total Net Premium</span><span class="v">${fmtR(totalNet)}</span></div>`;html+=`<div class="line gst"><span class="k">GST @ 18%</span><span class="v">${fmtR(gst)}</span></div>`;$('breakdown').innerHTML=html;$('res-insured').textContent=insuredName;$('res-policy').textContent="Erection All Risks — EAR Tariff (TAC) · Split Project";$('res-date').textContent=today;$('grand-total').textContent=fmt(grand);const maxTEx=Math.max(...splitResult.segments.map(s=>s.risk.tEx));const maxNEx=Math.max(...splitResult.segments.map(s=>s.risk.nEx));const ex=splitResult.segments.map(s=>excessFor(s.risk,mainSI,'ear')).reduce(pickHigherExcess);showExcess(ex,' (highest segment)');$('excess-panel').querySelector('.excess-title').textContent='Compulsory Excess (EAR Tariff — applies to highest risk segment)';$('excess-panel').querySelectorAll('.ek')[1].textContent='AOG / Major Peril Claims';const now=new Date();lastQuote={insuredName,si:mainSI,totalMonths,testingMonths,erectMonths,periodLabel,risk:splitResult.segments[0].risk,excess:ex,grossPrem,netPrem,extTotal,totalNet,gst,grand,extLines,dateStr:today,mode:'ear',splitSegments:splitResult.segments,quoteRef:'EAR-'+now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'-'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')};lastQuote.discPct=discPct;lastQuote.discAmt=discAmt;lastQuote.discInputs=readDiscInputs(currentMode);updateFlags(mainSI,totalMonths,grossPrem);const card=$('result-card');card.classList.add('visible');$('install-card').style.display='block';renderInstallments();oiclFresh('sectionCar');setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),100);return;}
 if(!selectedEARCode){$('ear-cat-error').classList.add('show');$('ear-search-input').focus();return;}
-const si=parseFloat($('sum-insured').value);if(!si||si<=0){$('sum-insured').style.borderColor='var(--danger)';setTimeout(()=>$('sum-insured').style.borderColor='',2500);$('sum-insured').focus();return;}
+const si=parseFloat($('sum-insured').value);if(!si||si<=0){$('sum-insured').style.borderColor='var(--danger)';setTimeout(()=>$('sum-insured').style.borderColor='',2500);$('sum-insured').focus();oiclFieldMsg($('sum-insured'),'Enter the sum insured');return;}
 const risk=EAR_DATA.find(r=>r.c===selectedEARCode);const{grossPrem,breakdown}=computeEARPremium(si,totalMonths,testingMonths,risk);const discAmt=grossPrem*(discPct/100);const netPrem=grossPrem-discAmt;const periodLabel=totalMonths<12?totalMonths+' months':totalMonths===12?'12 months (1 year)':(totalMonths%12===0)?totalMonths+' months ('+(totalMonths/12)+' years)':totalMonths+' months';$('qd-box').innerHTML=`
 <div class="qd-row"><span class="k">Sum Insured</span><span class="v">${fmtR(si)}</span></div>
 <div class="qd-row"><span class="k">Risk</span><span class="v sm">${risk.n}</span></div>
@@ -5463,7 +5553,7 @@ const totalNet=netPrem+extTotal;const gst=totalNet*0.18;const grand=totalNet+gst
 +String(now.getMonth()+1).padStart(2,'0')
 +String(now.getDate()).padStart(2,'0')
 +'-'+String(now.getHours()).padStart(2,'0')
-+String(now.getMinutes()).padStart(2,'0')};updateFlags(si,totalMonths,grossPrem);lastQuote.discPct=discPct;lastQuote.discAmt=discAmt;lastQuote.discInputs=readDiscInputs(currentMode);lastQuote.commPct=engProjectCommPct(lastQuote.si,currentMode==='car'&&lastQuote.risk?lastQuote.risk.n:'');lastQuote.commAmt=Math.round(lastQuote.totalNet*lastQuote.commPct/100);$('breakdown').insertAdjacentHTML('beforeend',agentCommBlock(lastQuote.commPct,lastQuote.totalNet,lastQuote.commAmt,'CR-8811 \u00a75 \u00b7 Project policies (CAR / EAR)',(currentMode==='car'&&lastQuote.risk&&carCommUplift(lastQuote.risk.n))?'Includes the 5% additional remuneration for this occupancy':(lastQuote.si>=2.5e11?'Sum Insured Rs.2,500 crore and above':'')));const card=$('result-card');card.classList.add('visible');$('install-card').style.display='block';renderInstallments();setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),100);}
++String(now.getMinutes()).padStart(2,'0')};updateFlags(si,totalMonths,grossPrem);lastQuote.discPct=discPct;lastQuote.discAmt=discAmt;lastQuote.discInputs=readDiscInputs(currentMode);lastQuote.commPct=engProjectCommPct(lastQuote.si,currentMode==='car'&&lastQuote.risk?lastQuote.risk.n:'');lastQuote.commAmt=Math.round(lastQuote.totalNet*lastQuote.commPct/100);$('breakdown').insertAdjacentHTML('beforeend',agentCommBlock(lastQuote.commPct,lastQuote.totalNet,lastQuote.commAmt,'CR-8811 \u00a75 \u00b7 Project policies (CAR / EAR)',(currentMode==='car'&&lastQuote.risk&&carCommUplift(lastQuote.risk.n))?'Includes the 5% additional remuneration for this occupancy':(lastQuote.si>=2.5e11?'Sum Insured Rs.2,500 crore and above':'')));const card=$('result-card');card.classList.add('visible');$('install-card').style.display='block';renderInstallments();oiclFresh('sectionCar');setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),100);}
 const CAR_STFI_RATE={car:0.40,ear:0.30};   /* per mille per year; EAR 0.30 as rated by INLIAS on R/432706/44/2024/9 */
 const EXT_STATE={tpl:false,eq:false,sp:false,dr:false,esc:false,af:false,cpm:false,terror:false,stfi:false,maint:false,os:false,wos:false,de3:false};function toggleExt(id){EXT_STATE[id]=!EXT_STATE[id];const sw=$('sw-'+id);sw.classList.toggle('on',EXT_STATE[id]);const exp=$('exp-'+id);if(exp)exp.classList.toggle('open',EXT_STATE[id]);}
 const EQ_ZONE_DB={"Andaman":1,"Nicobar":1,"Port Blair":1,"North Andaman":1,"South Andaman":1,"Middle Andaman":1,"Car Nicobar":1,"Nicobars":1,"Andamans":1,"Mayabunder":1,"Diglipur":1,"Arunachal Pradesh":1,"Itanagar":1,"Naharlagun":1,"Tawang":1,"Bomdila":1,"Ziro":1,"Daporijo":1,"Pasighat":1,"Tezu":1,"Khonsa":1,"Roing":1,"Anini":1,"Yingkiong":1,"Changlang":1,"Papum Pare":1,"West Kameng":1,"East Kameng":1,"Lower Subansiri":1,"Upper Subansiri":1,"West Siang":1,"East Siang":1,"Upper Siang":1,"Siang":1,"Lower Dibang Valley":1,"Dibang Valley":1,"Lohit":1,"Anjaw":1,"Tirap":1,"Longding":1,"Kurung Kumey":1,"Kra Daadi":1,"Namsai":1,"Kamle":1,"Pakke Kessang":1,"Lepa Rada":1,"Shi Yomi":1,"Bichom":1,"Keyi Panyor":1,"Assam":1,"Guwahati":1,"Dispur":1,"Silchar":1,"Dibrugarh":1,"Jorhat":1,"Nagaon":1,"Tinsukia":1,"Tezpur":1,"Bongaigaon":1,"Karimganj":1,"Sivasagar":1,"Goalpara":1,"Barpeta":1,"North Lakhimpur":1,"Dhubri":1,"Diphu":1,"Haflong":1,"Mangaldoi":1,"Nalbari":1,"Kokrajhar":1,"Hailakandi":1,"Morigaon":1,"Golaghat":1,"Karbi Anglong":1,"Dima Hasao":1,"Cachar":1,"Darrang":1,"Dhemaji":1,"Lakhimpur":1,"Baksa":1,"Chirang":1,"Udalguri":1,"Kamrup":1,"Kamrup Metropolitan":1,"Biswanath":1,"Charaideo":1,"Hojai":1,"Majuli":1,"South Salmara-Mankachar":1,"West Karbi Anglong":1,"Bajali":1,"Tamulpur":1,"North Cachar Hills":1,"Sonitpur":1,"Darbhanga":1,"Madhepura":1,"Madhubani":1,"Saharsa":1,"Sheohar":1,"Sitamarhi":1,"Supaul":1,"Forbesganj":1,"Kutch":1,"Kachchh":1,"Bhuj":1,"Anjar":1,"Gandhidham":1,"Mandvi":1,"Mundra":1,"Naliya":1,"Bhachau":1,"Rapar":1,"Lakhpat":1,"Khavda":1,"Srinagar":1,"Baramulla":1,"Budgam":1,"Kupwara":1,"Bandipora":1,"Ganderbal":1,"Sopore":1,"Manipur":1,"Imphal":1,"Imphal East":1,"Imphal West":1,"Thoubal":1,"Bishnupur":1,"Churachandpur":1,"Senapati":1,"Ukhrul":1,"Tamenglong":1,"Chandel":1,"Jiribam":1,"Kakching":1,"Kamjong":1,"Kangpokpi":1,"Noney":1,"Pherzawl":1,"Tengnoupal":1,"Meghalaya":1,"Shillong":1,"Tura":1,"Jowai":1,"Nongstoin":1,"Williamnagar":1,"Baghmara":1,"Resubelpara":1,"Khliehriat":1,"Mawkyrwat":1,"Nongpoh":1,"Ampati":1,"East Khasi Hills":1,"West Khasi Hills":1,"South West Khasi Hills":1,"Ri Bhoi":1,"East Jaintia Hills":1,"West Jaintia Hills":1,"Jaintia Hills":1,"East Garo Hills":1,"West Garo Hills":1,"North Garo Hills":1,"South Garo Hills":1,"South West Garo Hills":1,"Eastern West Khasi Hills":1,"Mizoram":1,"Aizawl":1,"Lunglei":1,"Champhai":1,"Kolasib":1,"Serchhip":1,"Mamit":1,"Lawngtlai":1,"Saiha":1,"Khawzawl":1,"Hnahthial":1,"Saitual":1,"Nagaland":1,"Kohima":1,"Dimapur":1,"Mokokchung":1,"Tuensang":1,"Mon":1,"Wokha":1,"Zunheboto":1,"Phek":1,"Kiphire":1,"Longleng":1,"Peren":1,"Noklak":1,"Chumukedima":1,"Niuland":1,"Shamator":1,"Tseminyu":1,"Tripura":1,"Agartala":1,"West Tripura":1,"North Tripura":1,"South Tripura":1,"Dhalai":1,"Khowai":1,"Sepahijala":1,"Gomati":1,"Unakoti":1,"Udaipur Tripura":1,"Kailashahar":1,"Belonia":1,"Ambassa":1,"Dharmanagar":1,"Almora":1,"Bageshwar":1,"Chamoli":1,"Champawat":1,"Pithoragarh":1,"Joshimath":1,"Cooch Behar":1,"Koch Bihar":1,"Bilaspur HP":1,"Chamba":1,"Hamirpur HP":1,"Kangra":1,"Kullu":1,"Mandi":1,"Una":1,"Dharamshala":1,"Manali":1,"Palampur":1,"Dalhousie":1,"Ratnagiri":1,"Satara":1,"Araria":2,"Banka":2,"Begusarai":2,"Bhagalpur":2,"East Champaran":2,"Motihari":2,"West Champaran":2,"Bettiah":2,"Gopalganj":2,"Jamui":2,"Munger":2,"Monghyr":2,"Katihar":2,"Khagaria":2,"Kishanganj":2,"Lakhisarai":2,"Muzaffarpur":2,"Nalanda":2,"Patna":2,"Purnia":2,"Samastipur":2,"Saran":2,"Chhapra":2,"Sheikhpura":2,"Siwan":2,"Vaishali":2,"Hajipur":2,"Nawada":2,"Arrah":2,"Bhojpur":2,"Jehanabad":2,"Chandigarh":2,"Delhi":2,"New Delhi":2,"North Delhi":2,"South Delhi":2,"East Delhi":2,"West Delhi":2,"Central Delhi":2,"North East Delhi":2,"North West Delhi":2,"South East Delhi":2,"South West Delhi":2,"Shahdara":2,"Jamnagar":2,"Devbhumi Dwarka":2,"Dwarka":2,"Ambala":2,"Faridabad":2,"Gurgaon":2,"Gurugram":2,"Jhajjar":2,"Karnal":2,"Nuh":2,"Mewat":2,"Palwal":2,"Panchkula":2,"Panipat":2,"Rewari":2,"Rohtak":2,"Sonipat":2,"Yamunanagar":2,"Bahadurgarh":2,"Shimla":2,"Sirmaur":2,"Kinnaur":2,"Lahaul":2,"Spiti":2,"Lahaul and Spiti":2,"Nahan":2,"Solan":2,"Anantnag":2,"Doda":2,"Jammu":2,"Kathua":2,"Kishtwar":2,"Kulgam":2,"Poonch":2,"Punch":2,"Pulwama":2,"Rajouri":2,"Ramban":2,"Reasi":2,"Samba":2,"Shopian":2,"Udhampur":2,"Leh":2,"Kargil":2,"Ladakh":2,"Nubra":2,"Zanskar":2,"Amritsar":2,"Fatehgarh Sahib":2,"Gurdaspur":2,"Pathankot":2,"Hoshiarpur":2,"Jalandhar":2,"Kapurthala":2,"Ludhiana":2,"Rupnagar":2,"Ropar":2,"Nawanshahr":2,"Shaheed Bhagat Singh Nagar":2,"Tarn Taran":2,"Sikkim":2,"Gangtok":2,"Namchi":2,"Mangan":2,"Gyalshing":2,"Geyzing":2,"East Sikkim":2,"West Sikkim":2,"North Sikkim":2,"South Sikkim":2,"Pakyong":2,"Soreng":2,"Dehradun":2,"Haridwar":2,"Nainital":2,"Pauri Garhwal":2,"Garhwal":2,"Rudraprayag":2,"Tehri Garhwal":2,"Uttarkashi":2,"Udham Singh Nagar":2,"Rudrapur":2,"Roorkee":2,"Haldwani":2,"Kashipur":2,"Rishikesh":2,"Mussoorie":2,"Amroha":2,"Bahraich":2,"Baghpat":2,"Bagpat":2,"Balrampur":2,"Basti":2,"Bijnor":2,"Bulandshahr":2,"Deoria":2,"Gautam Buddha Nagar":2,"Noida":2,"Ghaziabad":2,"Gonda":2,"Gorakhpur":2,"Hapur":2,"Jyotiba Phule Nagar":2,"Kushinagar":2,"Lakhimpur Kheri":2,"Kheri":2,"Maharajganj":2,"Meerut":2,"Moradabad":2,"Muzaffarnagar":2,"Pilibhit":2,"Rampur":2,"Saharanpur":2,"Sant Kabir Nagar":2,"Sambhal":2,"Shamli":2,"Shravasti":2,"Siddharthnagar":2,"Alipurduar":2,"Dakshin Dinajpur":2,"South Dinajpur":2,"Darjeeling":2,"Jalpaiguri":2,"Kalimpong":2,"Kolkata":2,"Calcutta":2,"North 24 Parganas":2,"South 24 Parganas":2,"Malda":2,"Uttar Dinajpur":2,"North Dinajpur":2,"Siliguri":2,"Kurseong":2,"West Godavari":3,"Eluru":3,"Krishna":3,"Vijayawada":3,"NTR":3,"Anantapur":3,"Sri Sathya Sai":3,"Adoni":3,"Raigarh CG":3,"Jashpur":3,"Surajpur":3,"Sarguja":3,"Surguja":3,"Balrampur Chhattisgarh":3,"Manendragarh":3,"Goa":3,"North Goa":3,"South Goa":3,"Panaji":3,"Panjim":3,"Margao":3,"Mapusa":3,"Vasco da Gama":3,"Ahmedabad":3,"Amreli":3,"Anand":3,"Aravalli":3,"Banaskantha":3,"Palanpur":3,"Bharuch":3,"Bhavnagar":3,"Botad":3,"Chhota Udaipur":3,"Dahod":3,"Dang":3,"Gandhinagar":3,"Gir Somnath":3,"Junagadh":3,"Kheda":3,"Nadiad":3,"Mahisagar":3,"Mehsana":3,"Morbi":3,"Narmada":3,"Navsari":3,"Panchmahal":3,"Godhra":3,"Patan":3,"Porbandar":3,"Rajkot":3,"Sabarkantha":3,"Surat":3,"Surendranagar":3,"Tapi":3,"Vadodara":3,"Baroda":3,"Valsad":3,"Daman":3,"Diu":3,"Dadra and Nagar Haveli":3,"Dadra":3,"Silvassa":3,"Bhiwani":3,"Charkhi Dadri":3,"Fatehabad":3,"Hisar":3,"Jind":3,"Kaithal":3,"Kurukshetra":3,"Mahendragarh":3,"Bokaro":3,"Chatra":3,"Deoghar":3,"Dhanbad":3,"Dumka":3,"Garhwa":3,"Giridih":3,"Godda":3,"Hazaribagh":3,"Jamtara":3,"Koderma":3,"Kodarma":3,"Latehar":3,"Lohardaga":3,"Pakur":3,"Pakaur":3,"Palamu":3,"Ramgarh":3,"Sahibganj":3,"Sahebganj":3,"Dakshina Kannada":3,"Mangaluru":3,"Mangalore":3,"Udupi":3,"Kerala":3,"Alappuzha":3,"Alleppey":3,"Ernakulam":3,"Kochi":3,"Cochin":3,"Idukki":3,"Kannur":3,"Cannanore":3,"Kasaragod":3,"Kollam":3,"Kottayam":3,"Kozhikode":3,"Calicut":3,"Malappuram":3,"Palakkad":3,"Palghat":3,"Thiruvananthapuram":3,"Trivandrum":3,"Thrissur":3,"Trichur":3,"Pathanamthitta":3,"Wayanad":3,"Mahe":3,"Anuppur":3,"Barwani":3,"Betul":3,"Burhanpur":3,"Chhindwara":3,"Pandhurna":3,"Harda":3,"Hoshangabad":3,"Narmadapuram":3,"Jabalpur":3,"Katni":3,"Khandwa":3,"Khargone":3,"Narsinghpur":3,"Narsimhapur":3,"Raisen":3,"Shahdol":3,"Sidhi":3,"Singrauli":3,"Maihar":3,"Mauganj":3,"Umaria":3,"Mumbai":3,"Mumbai City":3,"Mumbai Suburban":3,"Thane":3,"Palghar":3,"Bhiwandi":3,"Navi Mumbai":3,"Kalyan":3,"Dombivli":3,"Vasai":3,"Virar":3,"Chandrapur":3,"Dhule":3,"Kolhapur":3,"Nandurbar":3,"Nashik":3,"Pune":3,"Raigad":3,"Sindhudurg":3,"Angul":3,"Anugul":3,"Bargarh":3,"Cuttack":3,"Deogarh":3,"Debagarh":3,"Dhenkanal":3,"Jagatsinghpur":3,"Jagatsinghapur":3,"Jajpur":3,"Jharsuguda":3,"Kendrapara":3,"Sambalpur":3,"Yanam":3,"Barnala":3,"Bathinda":3,"Faridkot":3,"Firozpur":3,"Ferozepur":3,"Fazilka":3,"Mansa":3,"Moga":3,"Muktsar":3,"Patiala":3,"Mohali":3,"SAS Nagar":3,"Sangrur":3,"Malerkotla":3,"Alwar":3,"Barmer":3,"Bharatpur":3,"Jaisalmer":3,"Jalore":3,"Sirohi":3,"Mount Abu":3,"Coimbatore":3,"Kanyakumari":3,"Kanniyakumari":3,"Nagercoil":3,"Nilgiris":3,"Udhagamandalam":3,"Ooty":3,"Tenkasi":3,"Tirunelveli":3,"Tiruppur":3,"Bhadradri Kothagudem":3,"Jagtial":3,"Jangaon":3,"Bhupalpally":3,"Mulugu":3,"Karimnagar":3,"Khammam":3,"Mahabubabad":3,"Mahbubabad":3,"Peddapalli":3,"Rajanna Sircilla":3,"Warangal":3,"Hanumakonda":3,"Agra":3,"Aligarh":3,"Ambedkar Nagar":3,"Amethi":3,"Auraiya":3,"Azamgarh":3,"Budaun":3,"Ballia":3,"Barabanki":3,"Bareilly":3,"Chandauli":3,"Etah":3,"Faizabad":3,"Ayodhya":3,"Farrukhabad":3,"Firozabad":3,"Ghazipur":3,"Hardoi":3,"Hathras":3,"Jaunpur":3,"Kannauj":3,"Kasganj":3,"Lucknow":3,"Mainpuri":3,"Mathura":3,"Mau":3,"Mirzapur":3,"Pratapgarh":3,"Raebareli":3,"Shahjahanpur":3,"Sitapur":3,"Sonbhadra":3,"Sultanpur":3,"Unnao":3,"Sant Ravidas Nagar":3,"Bhadohi":3,"Kaushambi":3,"Bankura":3,"Birbhum":3,"Hooghly":3,"Howrah":3,"Jhargram":3,"Murshidabad":3,"Nadia":3,"Paschim Bardhaman":3,"Purba Bardhaman":3,"Burdwan":3,"Bardhaman":3,"Asansol":3,"Durgapur":3,"Paschim Medinipur":3,"West Midnapore":3,"Purba Medinipur":3,"East Midnapore":3,"Purulia":3,"Chittoor":4,"Kadapa":4,"Cuddapah":4,"YSR":4,"Annamayya":4,"Tirupati":4,"Tirupathi":4,"Nellore":4,"Prakasam":4,"Ongole":4,"East Godavari":4,"Kakinada":4,"Rajahmundry":4,"Konaseema":4,"Alluri Sitharama Raju":4,"Visakhapatnam":4,"Vizag":4,"Anakapalli":4,"Guntur":4,"Bapatla":4,"Palnadu":4,"Vizianagaram":4,"Parvathipuram Manyam":4,"Srikakulam":4,"Balod":4,"Baloda Bazar":4,"Bastar":4,"Jagdalpur":4,"Bemetara":4,"Bijapur":4,"Bilaspur":4,"Korba":4,"Koriya":4,"Korea":4,"Dantewada":4,"Dhamtari":4,"Durg":4,"Bhilai":4,"Gariaband":4,"Janjgir-Champa":4,"Sakti":4,"Kanker":4,"Kabirdham":4,"Kawardha":4,"Kondagaon":4,"Mungeli":4,"Narayanpur":4,"Raipur":4,"Rajnandgaon":4,"Khairagarh":4,"Sukma":4,"Mohla Manpur":4,"Sarangarh":4,"East Singhbhum":4,"Jamshedpur":4,"Gumla":4,"Khunti":4,"Ranchi":4,"Saraikela Kharsawan":4,"Simdega":4,"West Singhbhum":4,"Bagalkot":4,"Bagalkote":4,"Bengaluru":4,"Bangalore":4,"Bangalore Urban":4,"Bangalore Rural":4,"Belagavi":4,"Belgaum":4,"Ballari":4,"Bellary":4,"Bidar":4,"Vijayapura":4,"Bijapur Karnataka":4,"Chamarajanagar":4,"Chikkaballapur":4,"Chikkamagaluru":4,"Chikmagalur":4,"Chitradurga":4,"Davanagere":4,"Davangere":4,"Dharwad":4,"Hubballi":4,"Hubli":4,"Gadag":4,"Kalaburagi":4,"Gulbarga":4,"Hassan":4,"Haveri":4,"Kodagu":4,"Coorg":4,"Madikeri":4,"Kolar":4,"Koppal":4,"Mandya":4,"Mysuru":4,"Mysore":4,"Raichur":4,"Ramanagara":4,"Shivamogga":4,"Shimoga":4,"Tumakuru":4,"Tumkur":4,"Uttara Kannada":4,"Karwar":4,"Vijayanagara":4,"Yadgir":4,"Lakshadweep":4,"Kavaratti":4,"Agatti":4,"Amini":4,"Minicoy":4,"Agar Malwa":4,"Alirajpur":4,"Ashoknagar":4,"Balaghat":4,"Bhind":4,"Bhopal":4,"Chhatarpur":4,"Damoh":4,"Datia":4,"Dewas":4,"Dhar":4,"Dindori":4,"Guna":4,"Gwalior":4,"Indore":4,"Jhabua":4,"Mandla":4,"Mandsaur":4,"Morena":4,"Neemuch":4,"Niwari":4,"Panna":4,"Rajgarh":4,"Ratlam":4,"Rewa":4,"Sagar":4,"Satna":4,"Sehore":4,"Seoni":4,"Shajapur":4,"Sheopur":4,"Shivpuri":4,"Tikamgarh":4,"Ujjain":4,"Vidisha":4,"Ahmednagar":4,"Ahilyanagar":4,"Akola":4,"Amravati":4,"Aurangabad":4,"Chhatrapati Sambhaji Nagar":4,"Beed":4,"Bhandara":4,"Buldhana":4,"Buldana":4,"Gadchiroli":4,"Gondia":4,"Hingoli":4,"Jalgaon":4,"Jalna":4,"Latur":4,"Nagpur":4,"Nanded":4,"Osmanabad":4,"Dharashiv":4,"Parbhani":4,"Sangli":4,"Solapur":4,"Wardha":4,"Washim":4,"Yavatmal":4,"Balasore":4,"Baleshwar":4,"Balangir":4,"Boudh":4,"Gajapati":4,"Ganjam":4,"Kalahandi":4,"Kandhamal":4,"Keonjhar":4,"Khordha":4,"Bhubaneswar":4,"Puri":4,"Koraput":4,"Malkangiri":4,"Mayurbhanj":4,"Nuapada":4,"Nabarangpur":4,"Nayagarh":4,"Rayagada":4,"Sonepur":4,"Sundargarh":4,"Rourkela":4,"Bhadrak":4,"Puducherry":4,"Pondicherry":4,"Karaikal":4,"Ajmer":4,"Banswara":4,"Baran":4,"Bhilwara":4,"Bikaner":4,"Bundi":4,"Chittorgarh":4,"Churu":4,"Dausa":4,"Dholpur":4,"Dungarpur":4,"Hanumangarh":4,"Sri Ganganagar":4,"Jaipur":4,"Jhalawar":4,"Jhunjhunu":4,"Jodhpur":4,"Karauli":4,"Kota":4,"Nagaur":4,"Pali":4,"Pratapgarh Rajasthan":4,"Rajsamand":4,"Sawai Madhopur":4,"Sikar":4,"Tonk":4,"Udaipur":4,"Ariyalur":4,"Chengalpattu":4,"Chennai":4,"Madras":4,"Cuddalore":4,"Dharmapuri":4,"Krishnagiri":4,"Dindigul":4,"Erode":4,"Kallakurichi":4,"Kanchipuram":4,"Karur":4,"Madurai":4,"Nagapattinam":4,"Namakkal":4,"Perambalur":4,"Pudukkottai":4,"Ramanathapuram":4,"Ranipet":4,"Salem":4,"Sivaganga":4,"Sivagangai":4,"Thanjavur":4,"Tanjore":4,"Theni":4,"Tiruchirappalli":4,"Trichy":4,"Tirupathur":4,"Tirupur":4,"Tiruvarur":4,"Tiruvallur":4,"Thoothukudi":4,"Tuticorin":4,"Vellore":4,"Viluppuram":4,"Villupuram":4,"Virudhunagar":4,"Sivakasi":4,"Mayiladuthurai":4,"Tiruvannamalai":4,"Hosur":4,"Adilabad":4,"Hyderabad":4,"Secunderabad":4,"Jogulamba Gadwal":4,"Kamareddy":4,"Kumuram Bheem":4,"Komaram Bheem":4,"Asifabad":4,"Mahabubnagar":4,"Mahbubnagar":4,"Mancherial":4,"Medak":4,"Medchal":4,"Medchal Malkajgiri":4,"Sangareddy":4,"Nagarkurnool":4,"Nalgonda":4,"Narayanpet":4,"Nirmal":4,"Nizamabad":4,"Ranga Reddy":4,"Rangareddy":4,"Vikarabad":4,"Siddipet":4,"Suryapet":4,"Wanaparthy":4,"Yadadri Bhuvanagiri":4,"Allahabad":4,"Prayagraj":4,"Banda":4,"Chitrakoot":4,"Etawah":4,"Fatehpur":4,"Hamirpur UP":4,"Jalaun":4,"Jhansi":4,"Kanpur Dehat":4,"Kanpur Nagar":4,"Kanpur":4,"Lalitpur":4,"Mahoba":4,};const EQ_ZONE_ALIASES={"blr":"Bengaluru","bom":"Mumbai","del":"Delhi","maa":"Chennai","ccu":"Kolkata","hyd":"Hyderabad","bombay":"Mumbai","calcutta":"Kolkata","madras":"Chennai","bangalore":"Bengaluru","mysore":"Mysuru","trivandrum":"Thiruvananthapuram","cochin":"Kochi","pondicherry":"Puducherry","vizag":"Visakhapatnam","trichy":"Tiruchirappalli","tanjore":"Thanjavur","tuticorin":"Thoothukudi","mangalore":"Mangaluru","ooty":"Udhagamandalam","hubli":"Hubballi","gulbarga":"Kalaburagi","bellary":"Ballari","shimoga":"Shivamogga","tumkur":"Tumakuru","panjim":"Panaji","banaras":"Varanasi","faizabad":"Ayodhya","prayagraj":"Allahabad","allahabad":"Prayagraj","gurgaon":"Gurugram","gurugram":"Gurgaon","kachchh":"Kutch","kutch":"Kachchh","narmadapuram":"Hoshangabad","hoshangabad":"Narmadapuram","dharashiv":"Osmanabad","osmanabad":"Dharashiv","ahilyanagar":"Ahmednagar","ahmednagar":"Ahilyanagar","chhatrapati sambhaji nagar":"Aurangabad","aurangabad":"Aurangabad"};const EQ_ZONE_META={1:{rate:0.50,label:"Zone I",desc:"Very High Risk (BIS V)"},2:{rate:0.25,label:"Zone II",desc:"High Risk (BIS IV)"},3:{rate:0.10,label:"Zone III",desc:"Moderate Risk (BIS III)"},4:{rate:0.05,label:"Zone IV",desc:"Low Risk (BIS II)"}};function _normLoc(s){return(s||"").toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();}
@@ -6116,6 +6206,28 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
     (q.flags||[]).forEach(f=>{ h += '<p class="hint" style="color:var(--accent-dark)">\u26a0 '+f+'</p>'; });
     h += '</div>';
     $('wcResult').innerHTML = h;
+    if(window.oiclFresh) oiclFresh('sectionWc');
+    return q;
+  }
+
+  /* v206 (B1, B4): a tap on Calculate ends at the result, or at the entry that is missing.
+     A group that is started but not finished stops the quote instead of being left out of it. */
+  function calcFromButton(){
+    if(!groups.length) addGroup();
+    const part = g => !!(String(g.query||'').trim() || g.code || g.employees || g.monthlyWage);
+    const full = g => !!(g.code && (parseInt(g.employees,10)||0) && (parseFloat(g.monthlyWage)||0));
+    const g = groups.find(x => part(x) && !full(x)) || (groups.some(full) ? null : groups[0]);
+    if(g){
+      const need = !g.code ? ['wc-search', String(g.query||'').trim() ? 'Pick an occupation from the list' : 'Type a trade and pick it from the list']
+                 : !(parseInt(g.employees,10)||0) ? ['wc-emp', 'Enter the number of employees']
+                 : ['wc-wage', 'Enter the monthly wage'];
+      const el = document.querySelector('#wcGroups .' + need[0] + '[data-gid="' + g.id + '"]');
+      if(window.oiclNeed) oiclNeed(el, need[1]);
+      return null;
+    }
+    let q = null;
+    try{ q = calc(); }catch(e){ console.error(e); alert('Could not calculate: ' + (e.message || e)); return null; }
+    if(q && window.oiclReveal) oiclReveal('wcResult');
     return q;
   }
 
@@ -6160,7 +6272,7 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
       groups = groups.filter(x=>x.id!==parseInt(t.dataset.del,10)); render(); return;
     }
     if(t.id==='wcAddGroup'){ addGroup(); return; }
-    if(t.id==='wcCalcBtn'){ calc(); return; }
+    if(t.closest('#wcCalcBtn')){ calcFromButton(); return; }
   });
 
   // boot
@@ -6367,8 +6479,8 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
   function busy(btn, on, label){
     if(!btn) return;
     btn.disabled = on;
-    if(on){ btn.dataset.orig = btn.textContent; btn.textContent = label; }
-    else if(btn.dataset.orig){ btn.textContent = btn.dataset.orig; }
+    if(on){ btn.dataset.orig = btn.innerHTML; btn.textContent = label; }   /* v206 (B9): innerHTML keeps the icon */
+    else if(btn.dataset.orig){ btn.innerHTML = btn.dataset.orig; }
   }
 
   function wcPDF(){
@@ -6425,10 +6537,11 @@ window.CAR={newQuote,shareImage,setMode,updateSplitTotal,onPeriodChange,onCARSea
 
   document.addEventListener('click', e=>{
     const t=e.target; if(!t.closest || !t.closest('#sectionWc')) return;
-    if(t.id==='wcPdfBtn'){ wcPDF(); }
-    else if(t.id==='wcShareBtn'){ wcShare(); }
-    else if(t.id==='wcImgBtn'){ wcShareImage(); }
-    else if(t.id==='wcNewBtn'){ if(window.WCUI) WCUI.reset(); window.wcLastQuote=null; }
+    const b=t.closest('button'), id=b?b.id:'';   /* v206 (B3): a tap on the icon lands on the svg, not the button */
+    if(id==='wcPdfBtn'){ wcPDF(); }
+    else if(id==='wcShareBtn'){ wcShare(); }
+    else if(id==='wcImgBtn'){ wcShareImage(); }
+    else if(id==='wcNewBtn'){ if(window.WCUI) WCUI.reset(); window.wcLastQuote=null; }
   });
 
   window.WCPDF = { build:buildWcPDF, pdf:wcPDF, share:wcShare, coverData:WC_COVER_DATA };
@@ -7976,7 +8089,7 @@ document.querySelectorAll('#psPlanTabs .health-plan-tab').forEach(b => b.addEven
   renderMembers();
 }));
 $('psAddMember').addEventListener('click', () => { if(members.length >= PS_MAX_MEMBERS){ alert('A single policy may cover a maximum of ' + PS_MAX_MEMBERS + ' insured persons.'); return; } addMember(); });
-$('psCalcBtn').addEventListener('click', calculate);
+$('psCalcBtn').addEventListener('click', oiclGuard(calculate));
 $('psPdfBtn').addEventListener('click', () => { try{ buildPDF(false); }catch(e){ console.error(e); alert('PDF generation failed: ' + (e.message || e)); } });
 $('psWaBtn').addEventListener('click', async () => {
   try{ const r = buildPDF(true); if(!r) return; const q = lastQuote;
@@ -8253,7 +8366,7 @@ function renderItems(){
 function line(k, v, cls){ return `<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:13px${cls==='total'?';font-weight:700':''}${cls==='sub'?';color:var(--mute);font-size:12px':''}"><span>${k}</span><span style="white-space:nowrap">${v}</span></div>`; }
 function calculate(){
   const inp = readInputs();
-  if(!inp.items.length || inp.items.every(it => !(it.si > 0))){ const el = host0(); if(el){ el.style.borderColor = 'var(--danger)'; setTimeout(() => el.style.borderColor = '', 2000); el.focus(); } return; }
+  if(!inp.items.length || inp.items.every(it => !(it.si > 0))){ const el = host0(); if(el){ el.style.borderColor = 'var(--danger)'; setTimeout(() => el.style.borderColor = '', 2000); el.focus(); oiclFieldMsg(el, 'Enter the sum insured of at least one machine'); } else { oiclSay('Add a machine with its sum insured'); } return; }
   const q = cpmCompute(inp);
   const insured = $('cpmInsured').value.trim() || 'Valued Customer';
   const flags = [];
@@ -8289,7 +8402,7 @@ function calculate(){
   $('cpmResDate').textContent = now.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
   lastQuote = Object.assign({ insured, site: $('cpmSite').value.trim(), inp, now, periodLabel, flags, commPct: CR8811_ENG.annual, commAmt,
     quoteRef: 'CPM-' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '-' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') }, q);
-  const card = $('cpmResultCard'); card.style.display = ''; setTimeout(() => card.scrollIntoView({ behavior:'smooth', block:'start' }), 60);
+  const card = $('cpmResultCard'); card.style.display = ''; oiclFresh('sectionCpm'); setTimeout(() => card.scrollIntoView({ behavior:'smooth', block:'start' }), 60);
 }
 function host0(){ return document.querySelector('#cpmItems .cpm-si'); }
 function buildPDF(returnBlob){
@@ -8472,7 +8585,8 @@ function newQuote(){ ['cpmInsured','cpmSite','cpmTplLimit','cpmOspLimit'].forEac
   $('cpmZone').addEventListener('change', () => { hint.textContent = 'Zone set by hand'; });
 })();
 $('cpmAddItem').addEventListener('click', () => { if(items.length >= 40){ alert('Maximum 40 items per quote'); return; } addItem(); });
-$('cpmCalcBtn').addEventListener('click', calculate);
+$('cpmCalcBtn').addEventListener('click', oiclGuard(calculate));
+$('cpmNewBtn').addEventListener('click', newQuote);   /* v206 (B2): the button was never wired */
 $('cpmPdfBtn').addEventListener('click', () => { try{ buildPDF(false); }catch(e){ console.error(e); alert('PDF generation failed: ' + (e.message || e)); } });
 $('cpmWaBtn').addEventListener('click', async () => { try{ const r = buildPDF(true); if(!r) return; const file = new File([r.blob], r.filename, { type:'application/pdf' });
   if(navigator.canShare && navigator.canShare({ files:[file] })){ try{ await navigator.share({ files:[file], title:'CPM Premium Quote \u2014 ' + lastQuote.insured }); return; }catch(e){ if(e.name === 'AbortError') return; } }
@@ -8760,7 +8874,7 @@ function line(k, v, cls){ return '<div style="display:flex;justify-content:space
 function calculate(){
   const inp = readInputs();
   const q = shkCompute(inp);
-  if(!q.rows.length){ const el = $('shkSi_contents'); if(el){ el.style.borderColor = 'var(--danger)'; setTimeout(function(){ el.style.borderColor = ''; }, 2000); el.focus(); } return; }
+  if(!q.rows.length){ const el = $('shkSi_contents'); if(el){ el.style.borderColor = 'var(--danger)'; setTimeout(function(){ el.style.borderColor = ''; }, 2000); el.focus(); oiclFieldMsg(el, 'Enter the sum insured for at least one section'); } return; }
   const insured = $('shkInsured').value.trim() || 'Valued Customer';
   const fl = $('shkFlags'); fl.style.display = q.flags.length ? '' : 'none';
   fl.innerHTML = q.flags.map(function(f){ return '<div>&#9888; ' + f + '</div>'; }).join('');
@@ -8784,7 +8898,7 @@ function calculate(){
   $('shkResDate').textContent = now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
   lastQuote = Object.assign({ insured, trade:$('shkTrade').value.trim(), inp, now,
     quoteRef:'SHK-' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '-' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') }, q);
-  const card = $('shkResultCard'); card.style.display = ''; setTimeout(function(){ card.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60);
+  const card = $('shkResultCard'); card.style.display = ''; oiclFresh('sectionShop'); setTimeout(function(){ card.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60);
 }
 
 /* ── the quotation PDF ──────────────────────────────────────────────────── */
@@ -8917,7 +9031,7 @@ function newQuote(){
 $('shkOccupancy').addEventListener('change', syncRows);
 $('shkDisc').addEventListener('input', syncRows);
 $('shkS11Rate').addEventListener('change', syncRows);
-$('shkCalcBtn').addEventListener('click', calculate);
+$('shkCalcBtn').addEventListener('click', oiclGuard(calculate));
 $('shkPdfBtn').addEventListener('click', function(){ try{ buildPDF(false); }catch(e){ console.error(e); alert('PDF generation failed: ' + (e.message || e)); } });
 $('shkWaBtn').addEventListener('click', async function(){ try{ const r = buildPDF(true); if(!r) return; const file = new File([r.blob], r.filename, { type:'application/pdf' });
   if(navigator.canShare && navigator.canShare({ files:[file] })){ try{ await navigator.share({ files:[file], title:"Shopkeepers' Insurance Quote — " + lastQuote.insured }); return; }catch(e){ if(e.name === 'AbortError') return; } }
@@ -9253,7 +9367,7 @@ function line(k, v, cls){ return '<div style="display:flex;justify-content:space
 function calculate(){
   const inp = readInputs();
   const q = oumCompute(inp);
-  if(!q.rows.length){ const el = $('oumSi_contentsAG'); if(el){ el.style.borderColor = 'var(--danger)'; setTimeout(function(){ el.style.borderColor = ''; }, 2000); el.focus(); } return; }
+  if(!q.rows.length){ const el = $('oumSi_contentsAG'); if(el){ el.style.borderColor = 'var(--danger)'; setTimeout(function(){ el.style.borderColor = ''; }, 2000); el.focus(); oiclFieldMsg(el, 'Enter the sum insured for at least one section'); } return; }
   const insured = $('oumInsured').value.trim() || 'Valued Customer';
   const fl = $('oumFlags'); fl.style.display = q.flags.length ? '' : 'none';
   fl.innerHTML = q.flags.map(function(f){ return '<div>&#9888; ' + f + '</div>'; }).join('');
@@ -9277,7 +9391,7 @@ function calculate(){
   $('oumResDate').textContent = now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
   lastQuote = Object.assign({ insured, business:$('oumBusiness').value.trim(), inp, now,
     quoteRef:'OUM-' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '-' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') }, q);
-  const card = $('oumResultCard'); card.style.display = ''; setTimeout(function(){ card.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60);
+  const card = $('oumResultCard'); card.style.display = ''; oiclFresh('sectionOffice'); setTimeout(function(){ card.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60);
 }
 
 /* ── the quotation PDF ──────────────────────────────────────────────────── */
@@ -9417,7 +9531,7 @@ function newQuote(){
 $('oumOccupancy').addEventListener('change', syncRows);
 $('oumDisc').addEventListener('input', syncRows);
 $('oumType').addEventListener('change', syncRows);
-$('oumCalcBtn').addEventListener('click', calculate);
+$('oumCalcBtn').addEventListener('click', oiclGuard(calculate));
 $('oumPdfBtn').addEventListener('click', function(){ try{ buildPDF(false); }catch(e){ console.error(e); alert('PDF generation failed: ' + (e.message || e)); } });
 $('oumWaBtn').addEventListener('click', async function(){ try{ const r = buildPDF(true); if(!r) return; const file = new File([r.blob], r.filename, { type:'application/pdf' });
   if(navigator.canShare && navigator.canShare({ files:[file] })){ try{ await navigator.share({ files:[file], title:'Office Umbrella Quote — ' + lastQuote.insured }); return; }catch(e){ if(e.name === 'AbortError') return; } }
@@ -9577,10 +9691,10 @@ window.OUM.VERIFIED = [
     </details>
   </section>
 
-  <button class="btn btn-primary" id="yecCalcBtn" style="margin-bottom:16px" type="button">
+  <div class="sticky-calc-wrap"><button class="btn btn-primary" id="yecCalcBtn" type="button">
     <svg class="icon" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
     Calculate YEC Premium
-  </button>
+  </button></div>
 
   <!-- YEC RESULT -->
   <section class="card h-calc-card result" id="yecResultCard" style="display:none">
@@ -13907,7 +14021,8 @@ function calculate(silent=false){
   }
   if(data.policyType !== 'thirdParty' && (!data.idv || data.idv <= 0)){ markError('idv','Enter IDV'); ok=false; }
   if((data.vehicleType === 'twoWheelerHire' || data.vehicleType === 'pccv') && data.paxCount <= 0){ markError('paxCount','Enter passenger count'); ok=false; }
-  if(!ok){ if(!silent) toast('Please fill required fields'); return; }
+  if(!ok){ if(!silent){ toast('Please fill required fields'); motorShowFirstError(); } return; }
+  if(_motorValidateOnly) return true;   /* v206 (B6): required-field pass only */
 
   const ageMonths = getAgeMonths();
   const ageYears = ageMonths / 12;
@@ -16550,10 +16665,29 @@ function showQuoteCheck(res, onProceed){
   m.querySelectorAll('.qc-warn').forEach(w => w.addEventListener('click', () => { const el = w.dataset.f && $(w.dataset.f); if(el){ m.classList.remove('show'); el.scrollIntoView({ behavior:'smooth', block:'center' }); el.classList.add('qc-flash'); setTimeout(() => el.classList.remove('qc-flash'), 2400); } }));
   m.classList.add('show');
 }
+/* v206 (B6): required fields are checked before the "check before quoting" pop-up, and a
+   missing one is brought on screen instead of being marked 1,300 px up the page.
+   (var, not let: calculate() runs during start-up, before this line is reached) */
+var _motorValidateOnly = false;
+function motorRequiredOk(){
+  _motorValidateOnly = true;
+  try{ calculate(false); } finally{ _motorValidateOnly = false; }
+  return !document.querySelector('#sectionMotor .field.has-error');
+}
+function motorShowFirstError(){
+  const f = document.querySelector('#sectionMotor .field.has-error'); if(!f) return;
+  for(let d = f.closest('details'); d; d = d.parentElement ? d.parentElement.closest('details') : null) d.open = true;
+  const inp = [...f.querySelectorAll('input,select,textarea')].find(x => x.type !== 'hidden' && x.offsetParent !== null);
+  if(inp){ try{ inp.focus({ preventScroll:true }); }catch(e){} }
+  oiclReveal(f, 'center');
+}
 $('calcBtn').addEventListener('click', ()=>{
-  let res = null; try{ res = motorQuoteChecks(); }catch(e){ console.error('quote checks skipped:', e); }
-  if(res && res.warns.length){ showQuoteCheck(res, () => calculate(false)); return; }
-  calculate(false);
+  try{
+    if(!motorRequiredOk()) return;
+    let res = null; try{ res = motorQuoteChecks(); }catch(e){ console.error('quote checks skipped:', e); }
+    if(res && res.warns.length){ showQuoteCheck(res, () => calculate(false)); return; }
+    calculate(false);
+  }catch(e){ console.error(e); alert('Could not calculate: ' + (e.message || e)); }
 });
 
 // ── Step Progress Bar ─────────────────────────────────────────────
@@ -17396,6 +17530,8 @@ function switchProduct(product) {
   document.getElementById('section' + product.charAt(0).toUpperCase() + product.slice(1)).classList.add('active');
   const _tab = document.getElementById('tab' + product.charAt(0).toUpperCase() + product.slice(1));
   _tab.classList.add('active'); _tab.setAttribute('aria-pressed', 'true');
+  /* v206 (B8): the 5-step bar belongs to Motor only */
+  const _sp = document.getElementById('stepProgress'); if(_sp) _sp.style.display = (product === 'motor') ? '' : 'none';
   if(product === 'health'){
     const sel = document.getElementById('hMainProduct');
     if(sel && typeof switchHealthProduct === 'function') switchHealthProduct(sel.value);
@@ -18774,7 +18910,16 @@ makeHSwitch('hHigherSiSwitch', 'hHigherSi', v => hState.higherSi = v);
 makeHSwitch('hPaSwitch', 'hPa', v => { hState.addons.pa = v; if (v) updateHPaRows(); }, 'hPaExpand');
 
 // Calculate button
-document.getElementById('hCalcBtn').addEventListener('click', hCalcAndShow);
+/* v206 (B5): the button ends at the result, or says what is missing */
+function hCalcFromButton(){
+  try{ hCalcAndShow(); }catch(e){ console.error(e); alert('Could not calculate: ' + (e.message || e)); return; }
+  const card = document.getElementById('hResultCard');
+  if(card && card.style.display !== 'none'){ oiclReveal(card); return; }
+  const idx = hState.members.findIndex(m => m.age === null || m.age === undefined || isNaN(m.age));
+  if(idx >= 0) oiclNeed(document.querySelector('#hMemberList .member-age-input[data-idx="' + idx + '"]'), 'Enter the age of every member');
+  else oiclSay('No premium on the chart for this plan, sum insured and age');
+}
+document.getElementById('hCalcBtn').addEventListener('click', hCalcFromButton);
 
 // Reset
 document.getElementById('hResetBtn').addEventListener('click', () => {
@@ -19292,7 +19437,16 @@ makeYecSwitch('yecOnlineDiscSwitch', 'yecOnlineDisc', v => yState.discounts.onli
 makeYecSwitch('yecTpaDiscSwitch', 'yecTpaDisc', v => yState.discounts.tpa = v);
 
 // Calculate button
-document.getElementById('yecCalcBtn').addEventListener('click', yecCalcAndShow);
+/* v206 (B5): the button ends at the result, or says what is missing */
+function yecCalcFromButton(){
+  const list = yState.basis === 'floater_floater' ? [...yState.group1, ...yState.group2] : yState.members;
+  const bad = list.findIndex(m => isNaN(m.age) || m.age === null);
+  if(bad >= 0){ oiclNeed(document.querySelectorAll('#sectionYec .yec-member-age')[bad], 'Enter the age of every member'); return; }
+  if(!YEC.rates[yState.plan] || !YEC.rates[yState.plan][yState.si]){ oiclSay('No premium on the chart for this plan and sum insured'); return; }
+  try{ yecCalcAndShow(); }catch(e){ console.error(e); alert('Could not calculate: ' + (e.message || e)); return; }
+  oiclReveal('yecResultCard');
+}
+document.getElementById('yecCalcBtn').addEventListener('click', yecCalcFromButton);
 
 // Reset
 document.getElementById('yecResetBtn').addEventListener('click', () => {
@@ -23881,6 +24035,14 @@ const OH_LIMITS = {
 };
 window.OH_LIMITS = OH_LIMITS;
 
+/* v206 (B5): the button ends at the result, or says what is missing */
+function ohCalcFromButton(){
+  try{ ohCalc(); }catch(e){ console.error(e); alert('Could not calculate: ' + (e.message || e)); return; }
+  const out = $('ohOut'); if(!out) return;
+  const only = out.children.length === 1 && out.firstElementChild.classList.contains('hint');
+  if(only) oiclSay(out.textContent.trim());
+  oiclReveal(out, only ? 'center' : 'start');
+}
 function ohCalc(){
   const prod=$('ohProduct').value;
   const ages=($('ohAges').value||'').split(',').map(x=>parseInt(x.trim(),10)).filter(x=>!isNaN(x)&&x>=0);
@@ -27217,6 +27379,7 @@ function calculate(){
     document.getElementById('sum-insured').focus();
     document.getElementById('sum-insured').style.borderColor='var(--danger)';
     setTimeout(()=>document.getElementById('sum-insured').style.borderColor='',2000);
+    oiclFieldMsg('sum-insured', 'Enter the sum insured');
     document.getElementById('result-card').classList.remove('visible');
     return;
   }
@@ -27524,7 +27687,7 @@ function calculate(){
 
   updateFlags();   // keep referral / authority flags in step with the figures just calculated
   const card = document.getElementById('result-card');
-  card.classList.add('visible');
+  card.classList.add('visible'); oiclFresh('sectionFire');
   setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),100);
 }
 
@@ -27574,7 +27737,7 @@ function generatePDF(){
 function shareImage(){
   if(!lastQuote){ alert('Please calculate the premium first.'); return; }
   const q = lastQuote;
-  const safeName = (q.insured||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);
+  const safeName = (q.insured||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40) || 'Valued_Customer';
   OICIMG.shareViaBuilder(function(){ buildFirePDF(true); }, 'Oriental_Fire_Quote_' + safeName + '.png', 'Fire Premium Quote \u2014 ' + q.insured,
     'Oriental Insurance fire quote for ' + q.insured + ' \u2014 total premium Rs. ' + fmt(q.grand) + ' (incl. GST). ' + agentSig());
 }
@@ -27604,7 +27767,7 @@ function shareOnWhatsApp(){
       if(!pdfBlob){ finish('Could not generate PDF.'); return; }
 
       const q = lastQuote;
-      const safeName = (q.insured||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);
+      const safeName = (q.insured||'Quote').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40) || 'Valued_Customer';
       const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       const now2 = q.now;
       const dStr = String(now2.getDate()).padStart(2,'0') + months[now2.getMonth()] + now2.getFullYear();
@@ -28057,6 +28220,7 @@ function calculateBGR(){
   if(!si || si <= 0){
     g('sum-insured').focus(); g('sum-insured').style.borderColor = 'var(--danger)';
     setTimeout(() => g('sum-insured').style.borderColor = '', 2000);
+    oiclFieldMsg('sum-insured', 'Enter the sum insured');
     g('result-card').classList.remove('visible'); return;
   }
   const inp = {
@@ -28112,7 +28276,7 @@ function calculateBGR(){
     now, insured: g('insured-name').value.trim() || 'Valued Customer', si, inp,
     policyMode: 'bgr', policyLabel: 'Bharat Griha Raksha (BGR)', period: q.years, termLabel, totalNet: q.net
   }, q);
-  const card = g('result-card'); card.classList.add('visible');
+  const card = g('result-card'); card.classList.add('visible'); oiclFresh('sectionFire');
   setTimeout(() => card.scrollIntoView({ behavior:'smooth', block:'start' }), 60);
 }
 
@@ -28496,7 +28660,7 @@ function buildFirePDF(returnBlob){
   }
   notes.push('Cheque / DD payable to: The Oriental Insurance Company Limited. This is a system generated quote and does not require signature. Premium and risk period may change at the time of issuance of the policy.');
 
-  const safeName = String(q.insured || 'Customer').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40);
+  const safeName = String(q.insured || 'Customer').replace(/[^a-zA-Z0-9\-_ ]/g,'').replace(/\s+/g,'_').substring(0,40) || 'Valued_Customer';
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const dStr = String(now.getDate()).padStart(2,'0') + months[now.getMonth()] + now.getFullYear();
 
@@ -28558,6 +28722,27 @@ window.FIRE_VERIFIED = [
                 const omi = run('OMI'), grp = run('GRP');
                 sel.value = was; ohSyncUI(); out.innerHTML = html;
                 return /GST @ 18%/.test(omi) + '/' + /No GST is charged/.test(omi) + '/' + /GST @ 18%/.test(grp); } },
+  { label:'Calculate feedback (v206, debug report B1 / B6 / B8 / B11): the WC Calculate button is a primary button, the Motor step bar is hidden on the other tabs and back on Motor, the Fire and CAR grand totals read "Rs. " with a space, and Motor has its required-field pass ahead of the pop-up', expect:'true/true/true/true/true/true',
+    check:()=>{ const d = document, sp = d.getElementById('stepProgress'), spWas = sp.style.display;
+                const secs = [...d.querySelectorAll('.product-section')], tabs = [...d.querySelectorAll('.product-tab')];
+                const sWas = secs.map(s => s.classList.contains('active')), tWas = tabs.map(t => t.classList.contains('active'));
+                switchProduct('wc'); const hid = sp.style.display === 'none'; switchProduct('motor'); const back = sp.style.display !== 'none';
+                secs.forEach((s, i) => s.classList.toggle('active', sWas[i]));
+                tabs.forEach((t, i) => { t.classList.toggle('active', tWas[i]); t.setAttribute('aria-pressed', tWas[i] ? 'true' : 'false'); }); sp.style.display = spWas;
+                const rs = id => /^\s*Rs\. \d/.test(d.getElementById(id).parentNode.textContent);
+                return [d.getElementById('wcCalcBtn').classList.contains('btn-primary'), hid, back, rs('grand-total'), rs('ce-grand-total'), typeof motorRequiredOk === 'function'].join('/'); } },
+  { label:'Stale quote (v206, debug report B7 / B2): an edit after Calculate greys the CPM result with a note and holds the PDF button, a fresh Calculate clears both, and CPM New Quote is wired (it hides the result)', expect:'true/true/true/true/true',
+    check:()=>{ const d = document, card = d.getElementById('cpmResultCard'), note = () => !!d.querySelector('.oicl-stale-note[data-for="sectionCpm"]');
+                const keepToast = window.toast; window.toast = () => {};
+                try{
+                  card.style.display = ''; oiclFresh('sectionCpm');
+                  d.getElementById('cpmInsured').dispatchEvent(new Event('input', { bubbles:true }));
+                  const grey = card.classList.contains('quote-stale'), had = note();
+                  const ev = new MouseEvent('click', { bubbles:true, cancelable:true }); d.getElementById('cpmPdfBtn').dispatchEvent(ev);
+                  oiclFresh('sectionCpm'); const clear = !card.classList.contains('quote-stale') && !note();
+                  d.getElementById('cpmNewBtn').click(); const nq = card.style.display === 'none';
+                  return [grey, had, ev.defaultPrevented, clear, nq].join('/');
+                } finally { window.toast = keepToast; } } },
   { label:'Fire: Sookshma list carries Dish Antenna 0.228 and Cloth Processing 1.077 (OICL Fire calculator w.e.f. 01-01-2025)', expect:'0.228/1.077',
     check:()=>RATES.sookshma['Dish Antenna'] + '/' + RATES.sookshma['Cloth Processing units outside textile mills compound'] },
   { label:'Fire add-on schedule (Addon_Revised Rating.xlsx, 18-Sep-2026): 31 rated covers for SFSP, 29 for IAR (the same list without Brands and Trademarks and Pair and Set), 5 for a Declaration or Floater policy, and 11 granted free of premium', expect:'31/29/5/11/42',
@@ -29227,7 +29412,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v205 · no GST on Overseas Mediclaim (OMP)</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v206 · Calculate feedback fixes (B1-B11), stale quote greyed</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
