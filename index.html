@@ -10375,12 +10375,15 @@ const RATES = {
   batteryProtectTable: {
     // PRIVATE CAR — ODS column EQ, rows 77-79 (Electric / Hybrid only):
     //   <1 yr 0.34% · <2 yr 0.38% · <3 yr 0.45% · <5 yr 0.53% · thereafter nil.
-    //   One option only; the co-pay variant is a two-wheeler product.
+    //   One option only, and every claim carries the age-based co-pay of
+    //   batteryProtectCoPayLadder (v207, private car underwriting guidelines).
+    //   The Without / With Co-Pay pair is a two-wheeler product.
     privateCar: { '0-1':0.34, '1-2':0.38, '2-3':0.45, '3-4':0.53, '4-5':0.53 },
     standard: { '0-1':0.15, '1-2':0.17, '2-3':0.20, '3-4':0.23, '4-5':0.28 },
     copay:    { '0-1':0.15, '1-2':0.15, '2-3':0.16, '3-4':0.16, '4-5':0.16 }
   },
-  // Claim-side co-payment borne by the insured under the With Co-Pay option
+  // Claim-side co-payment borne by the insured: two-wheeler With Co-Pay option,
+  // and every private car Battery Protect claim (v207)
   batteryProtectCoPayLadder: [
     { maxYears:1, pct:0  }, { maxYears:2, pct:10 }, { maxYears:3, pct:20 },
     { maxYears:4, pct:30 }, { maxYears:5, pct:50 }
@@ -10518,6 +10521,11 @@ function bpCoPayFor(ageMonths){
   const y = (ageMonths || 0) / 12;
   const row = (RATES.batteryProtectCoPayLadder || []).find(r => y <= r.maxYears);
   return row ? row.pct : 50;
+}
+/* v207: the private car product has ONE option and it carries the co-pay, so it is not
+   "Without Co-Pay". The two-wheeler cards keep their Without / With names. */
+function bpDisplayName(a, vt){
+  return (a && a.type === 'batteryProtect' && (vt || state.vehicleType) === 'privateCar') ? 'Battery Protect' : (a ? a.name : '');
 }
 /* Battery Protect is an extension of Section 1 (Own Damage), so it needs a
    base policy that HAS an OD section. The circular is issued in two parallel
@@ -12344,11 +12352,13 @@ function renderAddons(){
       if(!bpcPolicyEligible(currentPolicyType())){ disabled = true; note = 'Needs an OD section — Bundled or SAOD only'; }
       else if(bpPct === null){ disabled = true; note = 'Not available · age &gt; 5 yrs'; }
       else if(state.vehicleType === 'privateCar'){
-        // PRIVATE CAR battery cover = ODS EQ rows 77-79 (a rate ladder only).
-        // The two-wheeler Battery Protect circular's terms — max 2 claims/yr,
-        // 30-day intimation, pre-inspection + 1 month / 1000 km renewal waiting —
-        // are a TWO-WHEELER product and do NOT apply here, so they are not shown.
-        note = `${bpPct}% on IDV`;
+        // PRIVATE CAR (v207, private car underwriting guidelines): one option, rate
+        // ladder of ODS EQ rows 77-79, and on every claim the age-based co-pay
+        // (Nil / 10 / 20 / 30 / 50%), max 2 claims, renewal pre-inspection + wait.
+        const R   = RATES.addonCoverRules || {};
+        const cpP = bpCoPayFor(ageMonths);
+        note = `${bpPct}% on IDV · co-pay ${cpP ? cpP + '%' : 'Nil'} on claims · max ${R.maxClaimsPerPolicyPeriod} claims/yr`
+             + ` · if new at renewal: pre-inspection + ${R.renewalWaitingPeriodMonths} mth / ${R.renewalWaitingPeriodKm} km wait`;
       }
       else {
         const R  = RATES.addonCoverRules || {};
@@ -12377,7 +12387,7 @@ function renderAddons(){
     return `<label class="addon ${disabled?'disabled':''}">
       <input type="checkbox" data-addon="${key}" ${disabled?'disabled':''} />
       <span class="addon-icon">${icon}</span>
-      <span class="addon-name">${a.name}</span>${note ? `<small>${note}</small>` : ''}
+      <span class="addon-name">${bpDisplayName(a)}</span>${note ? `<small>${note}</small>` : ''}
     </label>`;
   }).join('');
   grid.querySelectorAll('input').forEach(i=>i.addEventListener('change', ()=>{
@@ -14598,7 +14608,7 @@ function calculate(silent=false){
         if(bpRate !== null){
           const bpRateDec = bpRate / 100;
           const bpAmt = Math.round(idv * bpRateDec);
-          addons.items.push({ key, name:`${a.name} (${bpRate}% on IDV)`, amount:bpAmt });
+          addons.items.push({ key, name:`${bpDisplayName(a, data.vehicleType)} (${bpRate}% on IDV)`, amount:bpAmt });
           addons.total += bpAmt;
         }
         // else: age > 5 yrs — not eligible, skip silently
@@ -16099,24 +16109,25 @@ const MOTOR_ADDON_WORDINGS = {
   },
   batteryProtect: {
     title: "Battery Protect Add-on Cover (Electric / Hybrid vehicles)",
-    scope: "Electric and Hybrid Electric vehicles - Private Car (Package, Standalone OD, Bundled) and Two-Wheeler (Bundled, Standalone OD)",
+    scope: "Electric and Hybrid Electric Private Cars - Package, Standalone Own Damage and Bundled policies",
     maxAge: { _all: 5 },
     covers: [
       "Section 1 (Own Damage) is extended to cover the expenses of repair or replacement of the battery, the charger (including a wall-mounted charger), the drive motor / electric motor and the HEV (hybrid electric vehicle) system - while attached to and forming part of the insured vehicle - for consequential damage arising out of (a) water ingression and (b) short circuit, including electrical surge during charging.",
       "Water ingression means unintended entry of water / moisture into covered components due to environmental exposure (flooding, rain) without submersion of the vehicle, excluding entry due to negligence or improper maintenance. Short circuit / electrical surge means an unintended electrical connection or a sudden voltage spike damaging battery cells or control systems."
     ],
-    copayTable: { head: ["Age of vehicle (With Co-Pay option)", "Co-payment borne by insured"], rows: [
+    copayTable: { head: ["Age of vehicle", "Co-payment borne by the insured on every claim"], rows: [
       ["Not exceeding 1 year", "Nil"], ["Over 1 year up to 2 years", "10%"], ["Over 2 years up to 3 years", "20%"],
       ["Over 3 years up to 4 years", "30%"], ["Over 4 years up to 5 years", "50%"] ] },
     table: { head: ["Private Car - vehicle age", "Office premium rate (% of IDV)"], rows: [
       ["Not exceeding 1 year", "0.34%"], ["Over 1 year up to 2 years", "0.38%"], ["Over 2 years up to 3 years", "0.45%"],
       ["Over 3 years up to 4 years", "0.53%"], ["Over 4 years up to 5 years", "0.53%"] ] },
     conditions: [
-      "Available only for Electric and Hybrid Electric vehicles, up to 5 years of vehicle age counted from the date of invoice / purchase.",
+      "Available only for private cars registered as Electric or Electric + Petrol Hybrid vehicles, up to 5 years of vehicle age counted from the date of invoice / purchase.",
+      "The cover applies for a maximum of 5 years from the date of purchase of a brand-new battery.",
       "Maximum TWO claims are payable under this add-on per policy period, after which the cover ceases.",
-      "If a battery is replaced during the policy for any reason without a claim, the new battery is covered only if its details are informed to the Company.",
+      "If a battery is replaced during the policy period for any reason without a claim under this cover, the new battery is covered only if its details are informed to the Company.",
       "Each claim is subject to the policy excess.",
-      "With Co-Pay variant: the insured bears a share of the assessed loss on every claim as per the co-payment table below; the co-payment does not reduce the Sum Insured.",
+      "Each claim is also subject to a co-payment: the insured bears a share of the assessed loss on each and every claim for the battery and the related parts covered, by the age of the vehicle, as per the co-payment table above (Nil up to 1 year, 10% up to 2 years, 20% up to 3 years, 30% up to 4 years, 50% up to 5 years).",
       "If the add-on is opted at renewal without having been in the previous policy: pre-inspection of the vehicle with mandatory speedometer reading, and a waiting period of one month and 1,000 km from the reading taken at pre-inspection.",
       "Can be cancelled only if the base policy is cancelled at the same time; refund as per the base policy. Subject otherwise to the base-policy terms."
     ],
@@ -16138,6 +16149,9 @@ const MOTOR_ADDON_WORDINGS = {
     byClass: {
       twoWheeler: {
         scope: "Electric / Hybrid Electric Motorized Two-Wheelers - Bundled and Standalone Own Damage (SAOD) policies",
+        copayTable: { head: ["Age of vehicle (With Co-Pay option)", "Co-payment borne by insured"], rows: [
+          ["Not exceeding 1 year", "Nil"], ["Over 1 year up to 2 years", "10%"], ["Over 2 years up to 3 years", "20%"],
+          ["Over 3 years up to 4 years", "30%"], ["Over 4 years up to 5 years", "50%"] ] },
         table: { head: ["Two-Wheeler - vehicle age", "Without Co-Pay  /  With Co-Pay (% of IDV)"], rows: [
           ["Up to 1 year", "0.15%  /  0.15%"], ["Over 1 up to 2 years", "0.17%  /  0.15%"], ["Over 2 up to 3 years", "0.20%  /  0.16%"],
           ["Over 3 up to 4 years", "0.23%  /  0.16%"], ["Over 4 up to 5 years", "0.28%  /  0.16%"] ] },
@@ -16440,7 +16454,16 @@ function drawMotorAddonPages(doc, q){
     const amt = (p.item && p.item.amount) ? ('Premium Rs. ' + Math.round(p.item.amount).toLocaleString('en-IN')) : '';
     section(w.title, amt);
     block('Applies to', [w.scope], {});
-    if(p.key === 'batteryProtect'){
+    if(p.key === 'batteryProtect' && vt === 'privateCar'){
+      /* v207: one option, co-pay on every claim by vehicle age */
+      const cpP = (q.ageMonths != null) ? bpCoPayFor(q.ageMonths) : (age != null ? bpCoPayFor(age * 12) : null);
+      const at  = (age != null) ? ('At this vehicle\'s age of ' + fmtAge(age) + ': ') : '';
+      block('Co-payment', [cpP == null
+        ? 'The insured bears a share of the assessed loss on every claim, by the age of the vehicle, as per the co-payment table below, in addition to the policy excess.'
+        : cpP > 0
+          ? at + 'the insured bears ' + cpP + '% of the assessed loss on every claim for the battery and the related parts covered, in addition to the policy excess.'
+          : at + 'no co-payment (vehicle not exceeding 1 year); the policy excess applies. For an older vehicle the co-payment table below applies.'], { tint: cpP > 0 ? 'red' : 'green' });
+    } else if(p.key === 'batteryProtect'){
       const copay = (p.item && p.item.key === 'batteryProtectCoPay');
       block('Option selected', [copay ? 'Battery Protect Cover - With Co-Pay option (insured bears the age-based co-payment on every claim)' : 'Battery Protect Cover - Without Co-Pay option (no co-payment; policy excess applies)'], { tint: 'green' });
     }
@@ -16453,7 +16476,7 @@ function drawMotorAddonPages(doc, q){
     }
     block('What is covered', w.covers, { bullet: w.covers.length > 1 });
     table(w.table);
-    if(w.copayTable && !(p.key === 'batteryProtect' && p.item && p.item.key !== 'batteryProtectCoPay')) table(w.copayTable);
+    if(w.copayTable && (vt === 'privateCar' || !(p.key === 'batteryProtect' && p.item && p.item.key !== 'batteryProtectCoPay'))) table(w.copayTable);
     block('Conditions', w.conditions, { numbered: true });
     block('Exclusions', w.exclusions, { numbered: true, tint:'red' });
     y += 8;
@@ -16588,6 +16611,18 @@ function motorQuoteChecks(){
     facts.push(['Nil Depreciation', on ? ('Opted \u00b7 discount ' + nd + '%') : 'Not opted']);
   }
 
+  /* v207: Battery Protect co-pay. Private car: every claim carries the age-based co-pay.
+     Two-wheeler: only the With Co-Pay option. Nil (first year) is a fact, not a warning. */
+  if(hasOD){
+    const bpOn = k => { const c = document.querySelector('#addonsGrid input[data-addon="' + k + '"]'); return !!(c && c.checked && !c.disabled); };
+    if((vt === 'privateCar' && bpOn('batteryProtect')) || (vt === 'twoWheeler' && bpOn('batteryProtectCoPay'))){
+      const cpP = bpCoPayFor(getAgeMonths());
+      const mx  = (RATES.addonCoverRules || {}).maxClaimsPerPolicyPeriod || 2;
+      facts.push(['Battery Protect co-pay', cpP > 0 ? cpP + '% of every claim' : 'Nil (vehicle not over 1 year)']);
+      if(cpP > 0) warns.push({ f:'addonsGrid', t:'Battery Protect: the customer bears a co-pay of ' + cpP + '% of the assessed loss on every battery claim at this vehicle age, in addition to the policy excess. Maximum ' + mx + ' claims in the policy period. Tell the customer before quoting.' });
+    }
+  }
+
   /* PCCV: passengers and seating vs the vehicle class */
   if(vt === 'pccv'){
     const pax = parseInt($('paxCount').value, 10) || 0;
@@ -16614,7 +16649,7 @@ function motorQuoteChecks(){
 
   /* A cover the agent had ticked that is no longer eligible must never just vanish. */
   if(_addonsDropped.length){
-    const nm = k => ((RATES.addons[k] || {}).name) || k;
+    const nm = k => bpDisplayName(RATES.addons[k]) || k;
     warns.push({ f:'addonsGrid', t:'Removed from this quote because it is no longer available for the vehicle as entered: '
       + _addonsDropped.map(nm).join(', ') + '. Check the card for the reason.' });
   }
@@ -23697,6 +23732,11 @@ const VERIFIED_CASES = [
     check:()=>OSSSP_RATES.Royal.rates['II'].annual[10000000][3], expect:17472 },
   { label:'Battery Protect 2-3yr, without co-pay (circular table)',
     check:()=>RATES.batteryProtectTable.standard['2-3'], expect:0.20 },
+  { label:'Battery Protect (v207, private car underwriting guidelines): the private car cover is one option named Battery Protect and carries the co-pay by vehicle age (Nil / 10 / 20 / 30 / 50%), the wording page has the co-payment table and condition for a private car, the two-wheeler keeps its Without / With Co-Pay pair, rate 2-3 years 0.45%', expect:'Battery Protect/true/0,10,20,30,50/Age of vehicle/true/true/true/0.45',
+    check:()=>{ const A = RATES.addons, W = MOTOR_ADDON_WORDINGS.batteryProtect, T = W.byClass.twoWheeler, c = W.conditions.join(' ');
+                return [bpDisplayName(A.batteryProtect, 'privateCar'), /Without Co-Pay/.test(bpDisplayName(A.batteryProtect, 'twoWheeler')) && /With Co-Pay/.test(bpDisplayName(A.batteryProtectCoPay, 'twoWheeler')),
+                        [12, 24, 36, 48, 60].map(bpCoPayFor).join(','), W.copayTable.head[0], /co-payment/.test(c) && !/Co-Pay variant|Without Co-Pay/.test(c) && /brand-new battery/.test(c),
+                        /With Co-Pay option/.test(T.copayTable.head[0]) && /Without Co-Pay option/.test(T.conditions.join(' ')), W.copayTable.rows.map(r => r[1]).join(',') === 'Nil,10%,20%,30%,50%', bpRateFor('standard', 30, 'privateCar')].join('/'); } },
   { label:'2W Engine Protect 4-5yr (circular table)',
     check:()=>RATES.twEngineProtectTable['4-5'], expect:0.140 },
   { label:'Towing — PCCV bus, Rs.1,500 limit',
@@ -29412,7 +29452,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v206 · Calculate feedback fixes (B1-B11), stale quote greyed</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v207 · Private car Battery Protect co-pay (wordings, pop-up)</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
