@@ -1648,6 +1648,15 @@ select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http
       <button class="vehicle-tab" data-type="misc"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zM4.93 4.93l14.14 14.14M12 8v4l2 2"/></svg><span>Misc</span></button>
     </div>
 
+    <div id="pccvCatWrap" style="display:none;margin-bottom:16px">
+      <label class="lbl">Passenger Vehicle Category</label>
+      <div class="segmented cols-2">
+        <input type="radio" name="pccvCat" id="pccvCatCab" value="cab" checked />
+        <label for="pccvCatCab">Motor Cab<small>Up to 6 passengers</small></label>
+        <input type="radio" name="pccvCat" id="pccvCatOther" value="other" />
+        <label for="pccvCatOther">Other Passenger Vehicles<small>Auto &middot; Bus &middot; School / Staff bus</small></label>
+      </div>
+    </div>
     <div id="twUseWrap" style="display:none;margin-bottom:16px">
       <label class="lbl">2-Wheeler Use</label>
       <div class="segmented cols-2">
@@ -10682,6 +10691,7 @@ function applyAutoNilDepDisc(){
 
 const state = {
   vehicleType: 'privateCar',
+  pccvCat: 'cab',           // v209: cab (Motor Cab, up to 6 passengers) | other (auto, bus, school / staff bus)
   zone: 'B',
   fuel: 'petrol',           // petrol | diesel | cng | electric
   policyTerm: '1yr',
@@ -11986,13 +11996,33 @@ document.querySelectorAll('.qty-btn').forEach(btn=>{
 });
 
 /* ─── Render slabs ──────────────────────────────────────────── */
+/* v209 (user 13-Nov-2026): PCCV is quoted as two categories picked with two buttons - Motor Cab
+   (carrying capacity up to 6 passengers, the three CC bands) and Other Passenger Vehicles (autos,
+   buses, school / staff bus) - instead of one list holding both. The class keys, rates and discount
+   rows are unchanged; only the list shown is narrowed to the chosen category. */
+const PCCV_CAB_SLABS = ['taxiLt1000','taxi1000to1500','taxiOver1500'];
+function pccvCatOf(slab){ return PCCV_CAB_SLABS.indexOf(slab) >= 0 ? 'cab' : 'other'; }
+/* a class set by code (a saved quote) is in one of the two lists: show that category first */
+function pccvShowSlab(slab){
+  if(state.vehicleType !== 'pccv' || !slab) return;
+  if(!(RATES.slabs.pccv || []).some(x => x.key === slab)) return;
+  if(pccvCatOf(slab) !== state.pccvCat){ state.pccvCat = pccvCatOf(slab); $('ccSlab').innerHTML = ''; renderSlabs(); }
+}
+window.pccvShowSlab = pccvShowSlab;
 function renderSlabs(){
-  const slabs = RATES.slabs[state.vehicleType];
+  let slabs = RATES.slabs[state.vehicleType];
+  const isPccv = state.vehicleType === 'pccv';
+  if(isPccv) slabs = slabs.filter(x => pccvCatOf(x.key) === state.pccvCat);
+  const catWrap = $('pccvCatWrap');
+  if(catWrap){
+    catWrap.style.display = isPccv ? 'block' : 'none';
+    const catRadio = $(state.pccvCat === 'other' ? 'pccvCatOther' : 'pccvCatCab'); if(catRadio) catRadio.checked = true;
+  }
   const current = $('ccSlab').value;
   $('ccSlab').innerHTML = slabs.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
   if(slabs.some(s=>s.key===current)) $('ccSlab').value = current;
   $('ccLabel').textContent = state.vehicleType==='commercial' ? 'Weight (GVW)'
-    : state.vehicleType==='pccv' ? 'PCCV Vehicle / Seating Class'
+    : state.vehicleType==='pccv' ? (state.pccvCat === 'cab' ? 'Engine Capacity' : 'Vehicle / Seating Class')
     : state.vehicleType==='misc' ? 'Vehicle / Equipment Type'
     : 'Engine Capacity';
   updateGCVSurchargeVisibility();
@@ -12660,6 +12690,18 @@ document.querySelectorAll('.vehicle-tab').forEach(btn=>{
   });
 });
 
+/* v209: the category button narrows the class list; the class change handlers do the rest
+   (zones, covers, discount, recalculation) */
+document.querySelectorAll('input[name="pccvCat"]').forEach(r=>{
+  r.addEventListener('change',()=>{
+    if(!r.checked) return;
+    state.pccvCat = r.value === 'other' ? 'other' : 'cab';
+    $('ccSlab').innerHTML = '';
+    renderSlabs();
+    $('ccSlab').dispatchEvent(new Event('change', { bubbles:true }));
+  });
+});
+
 document.querySelectorAll('input[name="twUse"]').forEach(r=>{
   r.addEventListener('change',()=>{
     state.vehicleType = r.value==='hire' ? 'twoWheelerHire' : 'twoWheeler';
@@ -13135,7 +13177,7 @@ function addonClassBlocked(a, vehicleType, paxCount){
   return false;
 }
 function seatCapacity(){ const v = parseInt(($('seatCap')||{}).value, 10); return v > 0 ? v : (SEAT_DEFAULTS[state.vehicleType] || 5); }
-function syncSeatDefault(){ const e = $('seatCap'); if(!e) return; if(e.dataset.vt !== state.vehicleType){ e.dataset.vt = state.vehicleType; e.value = SEAT_DEFAULTS[state.vehicleType] || 5; } }
+function syncSeatDefault(){ const e = $('seatCap'); if(!e) return; if(e.dataset.vt !== state.vehicleType){ e.dataset.vt = state.vehicleType; e.value = SEAT_DEFAULTS[state.vehicleType] || 5; /* v208: the class default lands a moment after the class change; the taxi discount band reads it */ if(!state.hasCalcedOnce && typeof scheduleAutoCalc === 'function') scheduleAutoCalc(); } }
 
 /* ── Quick quote presets: one tap sets policy type, PA switches and add-ons, then rates ── */
 const MOTOR_PRESETS = [
@@ -13292,6 +13334,8 @@ if($('trailerCoverType')){
   });
 }
 if($('trailerCoverIDV')) $('trailerCoverIDV').addEventListener('input', ()=>scheduleAutoCalc());
+/* v208: seating capacity had no listener at all; the taxi discount band (up to 6 / over 6 seats) and the passenger cover read it */
+if($('seatCap')) $('seatCap').addEventListener('input', ()=>scheduleAutoCalc());
 
 $('ccSlab').addEventListener('change', ()=>{ renderZones(); updateImt23Row(); updateDiscountHint(); updateGCVSurchargeVisibility(); updateAutoCcBandField(); updateLiabSpecialFields(); autoFillGVW(); renderAddons(); scheduleAutoCalc(); });
 
@@ -13366,7 +13410,14 @@ if($('gcvActualGVW')){
 
 let autoCalcTimer;
 function scheduleAutoCalc(){
-  if(!state.hasCalcedOnce) return;
+  /* v208: before the first Calculate nothing recalculates, so the automatic OD and Nil Dep discounts
+     are refreshed here. A change of class / CC slab, fuel (3-wheeler EV), seating or hearse count used
+     to leave the previous figure selected until Calculate was pressed. A figure the agent chose is
+     still only held at the maximum (autoApplySipDiscount), never replaced. */
+  if(!state.hasCalcedOnce){
+    try{ autoApplySipDiscount(); updateDiscountHint(); applyAutoNilDepDisc(); }catch(e){}
+    return;
+  }
   clearTimeout(autoCalcTimer);
   autoCalcTimer = setTimeout(()=>calculate(true), 250);
 }
@@ -22281,7 +22332,7 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
 
   // Schedule the rest of the fields after vehicle type renderers have run
   setTimeout(() => {
-    if(d.slab) $$('ccSlab').value = d.slab;
+    if(d.slab){ if(typeof window.pccvShowSlab === 'function') window.pccvShowSlab(d.slab); $$('ccSlab').value = d.slab; }
     if(d.idv && !asDuplicate) $$('idv').value = d.idv;
     if(d.idv && asDuplicate) $$('idv').value = d.idv;  // include in duplicate too — user can adjust
     if(d.paxCount) $$('paxCount').value = d.paxCount;
@@ -22321,7 +22372,7 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
     _sipManualOverride = true; _sipClamp = null;
     _nilDepManual = true;
     if(typeof updateAll === 'function'){ try{ updateAll(); }catch(e){} }
-    if(d.slab) $$('ccSlab').value = d.slab;          /* the refresh above re-renders the slab list */
+    if(d.slab){ if(typeof window.pccvShowSlab === 'function') window.pccvShowSlab(d.slab); $$('ccSlab').value = d.slab; }   /* the refresh above re-renders the slab list */
     document.querySelectorAll('#sectionMotor .switch').forEach(sw => {
       const on = !!state.switches[sw.dataset.key];
       sw.classList.toggle('on', on);
@@ -23296,6 +23347,34 @@ const VERIFIED_CASES = [
                   const nd = $('nilDepDiscCustom'); nd.value = '50'; nilDepDiscInput(nd); out.push(state.nilDepDiscount); nd.value = '';
                   state.switches.hoDisc = false; state.ncbYears = 0; autoApplySipDiscount(); out.push(state.odDiscount);
                 } finally { window.toast = keepToast; window.calculate = keepCalc; state.switches.hoDisc = false; _sipClamp = null; }
+                return out.join('|'); } },
+  { label:'OD discount (v208): before the first Calculate a change of class / CC slab re-selects the automatic OD discount (1000 cc 80% -> over 1500 cc 60%, it used to stay at 80% until Calculate); a figure the agent chose is kept',
+    expect:'80|60|40',
+    check:()=>{ const out = [], keepH = state.hasCalcedOnce, sel = $('ccSlab');
+                try{
+                  window._stRun(['privateCar','s1','B',4,600000,'petrol','comprehensive',0,0,0,0,0]);
+                  state.hasCalcedOnce = false; _sipManualOverride = false; _sipClamp = null;
+                  sel.innerHTML = '<option value="s1">x</option><option value="s3">y</option>';
+                  sel.value = 's1'; sel.dispatchEvent(new Event('change')); out.push(state.odDiscount);
+                  sel.value = 's3'; sel.dispatchEvent(new Event('change')); out.push(state.odDiscount);
+                  _sipManualOverride = true; state.odDiscount = 40; sel.value = 's1'; sel.dispatchEvent(new Event('change')); out.push(state.odDiscount);
+                } finally { state.hasCalcedOnce = keepH; _sipClamp = null; }
+                return out.join('|'); } },
+  { label:'PCCV (v209): two categories instead of one list - Motor Cab (up to 6 passengers) shows only the three taxi CC bands under "Engine Capacity", Other Passenger Vehicles shows the nine auto / bus classes and no taxi; a saved class shows its own category',
+    expect:'3/true/Engine Capacity|9/false/Vehicle / Seating Class|cab/taxi1000to1500|other/pax19to36',
+    check:()=>{ const sel = $('ccSlab'), keep = { vt:state.vehicleType, cat:state.pccvCat, html:sel.innerHTML, val:sel.value, lbl:$('ccLabel').textContent };
+                const out = [], isCab = k => ['taxiLt1000','taxi1000to1500','taxiOver1500'].indexOf(k) >= 0;
+                const read = () => { const o = [...sel.options].map(x => x.value); return o.length + '/' + o.every(isCab) + '/' + $('ccLabel').textContent; };
+                try{
+                  state.vehicleType = 'pccv';
+                  state.pccvCat = 'cab';   sel.innerHTML = ''; renderSlabs(); out.push(read());
+                  state.pccvCat = 'other'; sel.innerHTML = ''; renderSlabs(); out.push(read());
+                  window.pccvShowSlab('taxi1000to1500'); sel.value = 'taxi1000to1500'; out.push(state.pccvCat + '/' + sel.value);
+                  window.pccvShowSlab('pax19to36');      sel.value = 'pax19to36';      out.push(state.pccvCat + '/' + sel.value);
+                } finally {
+                  state.vehicleType = keep.vt; state.pccvCat = keep.cat; sel.innerHTML = ''; try{ renderSlabs(); }catch(e){}
+                  sel.innerHTML = keep.html; sel.value = keep.val; $('ccLabel').textContent = keep.lbl;
+                }
                 return out.join('|'); } },
   { label:'OD discount ceiling (v164): a manual discount above the maximum is held at the maximum when NCB is removed and goes back to the agent\'s value when NCB returns; one within it stays; a chip or custom value above it is set to the maximum; the target solver stops at the maximum (was 90%; Private Car SAOD without NCB maximum 85 since v197, was 75)', expect:'85/true|90|60/true|85|85|capped/85',
     check:()=>{ const out = [], keepToast = window.toast, keepCalc = window.calculate;
@@ -29028,6 +29107,7 @@ window.FIRE_VERIFIED = [
                                               return r ? r.max : 'err'; };
                 state.vehicleType = 'pccv'; state.ncbYears = 0;
                 try{ renderSlabs(); }catch(e){}
+                cs.innerHTML = '<option value="taxiLt1000">x</option>';   /* v209: the list on screen may be the other category */
                 cs.value = 'taxiLt1000';
                 const d = new Date(); d.setFullYear(d.getFullYear() - 3);
                 const rd = $('regDate'), keepDate = rd.value;
@@ -29452,7 +29532,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v207 · Private car Battery Protect co-pay (wordings, pop-up)</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v209 · PCCV in two categories: Motor Cab (up to 6 passengers) / Other</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
