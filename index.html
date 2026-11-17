@@ -10185,7 +10185,7 @@ const RATES = {
   addons: {
     nilDep:       { name:'Nil Depreciation',        type:'nilDep' },
     engineProtect:{ name:'Engine Protection',        type:'percent', rate:0.03,  rateTable:'engineProtect',
-                    hideFor:['commercial','pccv','misc'], hideFuel:['electric'] },   // no engine to protect on a pure EV; hybrids keep it
+                    hideFor:['misc'], hideFuel:['electric'] },   // no engine to protect on a pure EV; hybrids keep it
     rti:          { name:'Return to Invoice',        type:'percent', rate:0.003, maxAgeYears:3, maxAgeYearsBy:{ privateCar:5 }, idvBased:true },
     consumables:  { name:'Consumables Cover',        type:'percent', rate:0.04,  rateTable:'consumables',
                     hideFor:['twoWheeler','twoWheelerHire','misc'], maxAgeYears:5 },   // wording: Private Car and PCCV / GCCV, up to 5 years
@@ -10194,9 +10194,9 @@ const RATES = {
     tyreProtect:  { name:'Tyre & Rim Protect',       type:'tyreProtect', rate:0.002, pccvRate:0.003,
                     hideFor:['commercial','misc'], pccvMaxPax:6 },   // wording: Private Car / Two-Wheeler / PCCV<6; PCCV rated 0.30% of invoice
     batteryProtect:{ name:'Battery Protect — Without Co-Pay', type:'batteryProtect', variant:'standard',
-                    fuelOnly:['electric','hybrid'], vehicleOnly:['twoWheeler','privateCar'], maxAgeYears:5 },
+                    fuelOnly:['electric','hybrid'], vehicleOnly:['twoWheeler','privateCar','commercial','pccv','twoWheelerHire'], maxAgeYears:5 },
     batteryProtectCoPay:{ name:'Battery Protect — With Co-Pay', type:'batteryProtect', variant:'copay',
-                    fuelOnly:['electric','hybrid'], vehicleOnly:['twoWheeler'], maxAgeYears:5 },
+                    fuelOnly:['electric','hybrid'], vehicleOnly:['twoWheeler','commercial','pccv','twoWheelerHire'], maxAgeYears:5 },
     /* maxAgeYears was 7 while the pricing branch charges only below 5 years, so between 5 and 7
        the card was tickable, showed a rate, and added nothing to the premium. 5 is the figure
        that is actually rated, and the note on the card says the same. */
@@ -10381,6 +10381,24 @@ const RATES = {
 
   twEngineProtectTable: { '0-1':0.067, '1-2':0.077, '2-3':0.090, '3-4':0.110, '4-5':0.140 },
 
+  // GCCV / PCCV Package - Engine Protect and Battery Protect add-ons (v211, underwriting guidelines of the
+  // four covers, office mail 17-Nov-2026). % of IDV by vehicle age, up to 5 years from the date of invoice
+  // or first registration, whichever is earlier. Classes (cvAddonClass): gccv = goods carrying;
+  // pccvTaxi = taxis; pccv2w = two-wheelers carrying passengers; pccvOther = every other passenger class.
+  cvEngineProtectTable: {
+    gccv:      { '0-1':0.09, '1-2':0.11, '2-3':0.13, '3-4':0.15, '4-5':0.19 },
+    pccvTaxi:  { '0-1':0.20, '1-2':0.23, '2-3':0.25, '3-4':0.30, '4-5':0.37 },
+    pccvOther: { '0-1':0.12, '1-2':0.14, '2-3':0.17, '3-4':0.20, '4-5':0.25 },
+    pccv2w:    { '0-1':0.10, '1-2':0.12, '2-3':0.13, '3-4':0.16, '4-5':0.21 }
+  },
+  // copay = With Co-Pay option (insured bears batteryProtectCoPayLadder on every claim); standard = Without Co-Pay
+  cvBatteryProtectTable: {
+    gccv:      { copay:{ '0-1':0.20, '1-2':0.21, '2-3':0.23, '3-4':0.24, '4-5':0.25 }, standard:{ '0-1':0.20, '1-2':0.24, '2-3':0.28, '3-4':0.34, '4-5':0.43 } },
+    pccvTaxi:  { copay:{ '0-1':0.34, '1-2':0.38, '2-3':0.45, '3-4':0.53, '4-5':0.53 }, standard:{ '0-1':0.34, '1-2':0.42, '2-3':0.56, '3-4':0.76, '4-5':1.06 } },
+    pccvOther: { copay:{ '0-1':0.34, '1-2':0.35, '2-3':0.35, '3-4':0.36, '4-5':0.36 }, standard:{ '0-1':0.34, '1-2':0.39, '2-3':0.44, '3-4':0.52, '4-5':0.62 } },
+    pccv2w:    { copay:{ '0-1':0.22, '1-2':0.22, '2-3':0.24, '3-4':0.24, '4-5':0.24 }, standard:{ '0-1':0.22, '1-2':0.24, '2-3':0.30, '3-4':0.34, '4-5':0.42 } }
+  },
+
   batteryProtectTable: {
     // PRIVATE CAR — ODS column EQ, rows 77-79 (Electric / Hybrid only):
     //   <1 yr 0.34% · <2 yr 0.38% · <3 yr 0.45% · <5 yr 0.53% · thereafter nil.
@@ -10501,8 +10519,29 @@ function gccvGvwBand(gvw, slab){
 /* Battery Protect Cover helpers — cover is Bundled/SAOD-only, EV/Hybrid, and
    runs to 5 years from invoice / first registration. Two-wheeler has a
    Without-/With-Co-Pay pair; private car uses a single richer rate ladder. */
-function bpRateFor(variant, ageMonths, vehicleType){
+/* v211: GCCV / PCCV Package add-on class. A hire and reward two-wheeler is a PCCV class. */
+function cvAddonClass(vehicleType, slab){
+  if(vehicleType === 'commercial') return 'gccv';
+  if(vehicleType === 'twoWheelerHire') return 'pccv2w';
+  if(vehicleType === 'pccv') return PCCV_CAB_SLABS.includes(slab) ? 'pccvTaxi' : 'pccvOther';
+  return null;
+}
+function cvAgeBand(ageMonths){
+  if(ageMonths === null || ageMonths === undefined) return null;
+  const y = ageMonths / 12;
+  return y <= 1 ? '0-1' : y <= 2 ? '1-2' : y <= 3 ? '2-3' : y <= 4 ? '3-4' : y <= 5 ? '4-5' : null;   // above 5 yrs - not eligible
+}
+function cvEngineProtectRate(cls, ageMonths){
+  const t = (RATES.cvEngineProtectTable || {})[cls], b = cvAgeBand(ageMonths);
+  return (t && b) ? t[b] / 100 : null;
+}
+function bpRateFor(variant, ageMonths, vehicleType, slab){
   const vt = vehicleType || state.vehicleType;
+  const cv = cvAddonClass(vt, slab);
+  if(cv){
+    const t = ((RATES.cvBatteryProtectTable || {})[cv] || {})[variant === 'copay' ? 'copay' : 'standard'], b = cvAgeBand(ageMonths);
+    return (t && b) ? t[b] : null;
+  }
   const key = (vt === 'privateCar') ? 'privateCar'
             : (variant === 'copay') ? 'copay' : 'standard';
   const tbl = (RATES.batteryProtectTable || {})[key];
@@ -12009,6 +12048,27 @@ function pccvShowSlab(slab){
   if(pccvCatOf(slab) !== state.pccvCat){ state.pccvCat = pccvCatOf(slab); $('ccSlab').innerHTML = ''; renderSlabs(); }
 }
 window.pccvShowSlab = pccvShowSlab;
+/* v210 (user 13-Nov-2026, "Motor cab limit passengers to 6 only"): a Motor Cab carries at most six
+   passengers besides the driver, so on the three Motor Cab classes the passenger box stops at 6 and
+   the seating box at 7 (driver included). A bigger figure, typed, stepped or brought in by a saved
+   quote or a change of category, is cut back and the agent is told where a bigger vehicle goes.
+   Every other class keeps its own range. Returns true when a figure was cut back. */
+const PCCV_CAB_MAX_PAX = 6;
+function pccvCabLimit(quiet){
+  const pc = $('paxCount'), sc = $('seatCap'); if(!pc || !sc) return false;
+  const isCab = state.vehicleType === 'pccv' && pccvCatOf(($('ccSlab') || {}).value) === 'cab';
+  pc.max = isCab ? String(PCCV_CAB_MAX_PAX) : (state.vehicleType === 'pccv' ? '100' : '10');
+  sc.max = isCab ? String(PCCV_CAB_MAX_PAX + 1) : '100';
+  if(!isCab) return false;
+  let cut = null;
+  if((parseInt(pc.value, 10) || 0) > PCCV_CAB_MAX_PAX){ pc.value = String(PCCV_CAB_MAX_PAX); cut = pc; }
+  if((parseInt(sc.value, 10) || 0) > PCCV_CAB_MAX_PAX + 1){ sc.value = String(PCCV_CAB_MAX_PAX + 1); cut = cut || sc; }
+  if(cut && !quiet && typeof window.oiclFieldMsg === 'function'){
+    window.oiclFieldMsg(cut, 'Motor Cab carries up to 6 passengers (7 seats with the driver). For a bigger vehicle choose Other Passenger Vehicles.');
+  }
+  return !!cut;
+}
+window.pccvCabLimit = pccvCabLimit;
 function renderSlabs(){
   let slabs = RATES.slabs[state.vehicleType];
   const isPccv = state.vehicleType === 'pccv';
@@ -12029,6 +12089,7 @@ function renderSlabs(){
   updateExactCCField();
   updateAutoCcBandField();
   autoFillGVW();
+  pccvCabLimit();   /* v210 */
   // Wire slab change → show/hide exactCC
   $('ccSlab').onchange = () => { updateGCVSurchargeVisibility(); updateExactCCField(); updateAutoCcBandField(); updateLiabSpecialFields(); autoFillGVW(); scheduleAutoCalc(); };
 }
@@ -12346,6 +12407,12 @@ function renderAddons(){
       else if(ageYrUI > 2 && ageYrUI <= 3)   { note = `0.11% on IDV · yr 3`; }
       else if(ageYrUI > 3 && ageYrUI <= 4)   { note = `0.14% on IDV · yr 4`; }
       else { disabled = true; note = 'Not available · age &gt; 4 yrs'; }
+    } else if(key === 'engineProtect' && cvAddonClass(state.vehicleType, ccSlab)){
+      /* v211: GCCV / PCCV Package - % of IDV by class and age, Package policy only */
+      const cvR = cvEngineProtectRate(cvAddonClass(state.vehicleType, ccSlab), ageMonths);
+      if(currentPolicyType() !== 'comprehensive'){ disabled = true; note = 'Needs a Package policy'; }
+      else if(cvR === null){ disabled = true; note = 'Not available · age &gt; 5 yrs'; }
+      else note = `${(cvR*100).toFixed(2)}% on IDV · water ingress / oil leakage damage to engine, gearbox, transmission · nil-dep on parts only if Nil Dep taken`;
     } else if(key === 'engineProtect' && (state.vehicleType === 'twoWheeler' || state.vehicleType === 'twoWheelerHire')){
       const twR = twEngineProtectRate(ageMonths);
       /* the test is only that the policy has an OD section; it accepts a Package too */
@@ -12378,8 +12445,10 @@ function renderAddons(){
       }
       note = kr ? `Rs. ${kr} (IDV-slab based)` : 'Rs. 250/Rs. 300/Rs. 400/Rs. 500 (IDV-slab)';
     } else if(a.type === 'batteryProtect'){
-      const bpPct = bpRateFor(a.variant, ageMonths, state.vehicleType);
-      if(!bpcPolicyEligible(currentPolicyType())){ disabled = true; note = 'Needs an OD section — Bundled or SAOD only'; }
+      const bpCv  = cvAddonClass(state.vehicleType, ccSlab);   /* v211: GCCV / PCCV Package only */
+      const bpPct = bpRateFor(a.variant, ageMonths, state.vehicleType, ccSlab);
+      if(bpCv && currentPolicyType() !== 'comprehensive'){ disabled = true; note = 'Needs a Package policy'; }
+      else if(!bpcPolicyEligible(currentPolicyType())){ disabled = true; note = 'Needs an OD section — Bundled or SAOD only'; }
       else if(bpPct === null){ disabled = true; note = 'Not available · age &gt; 5 yrs'; }
       else if(state.vehicleType === 'privateCar'){
         // PRIVATE CAR (v207, private car underwriting guidelines): one option, rate
@@ -13324,8 +13393,8 @@ $('invoiceValue') && $('invoiceValue').addEventListener('input', () => { if(type
   $(id).addEventListener('change', scheduleAutoCalc);
 });
 // paxCount also triggers IMT 23 visibility for PCCV (>6 seats)
-$('paxCount').addEventListener('input',  ()=>{ updateImt23Row(); renderAddons(); autoApplySipDiscount(); updateDiscountHint(); scheduleAutoCalc(); });
-$('paxCount').addEventListener('change', ()=>{ updateImt23Row(); renderAddons(); autoApplySipDiscount(); updateDiscountHint(); scheduleAutoCalc(); });
+$('paxCount').addEventListener('input',  ()=>{ pccvCabLimit(); updateImt23Row(); renderAddons(); autoApplySipDiscount(); updateDiscountHint(); scheduleAutoCalc(); });
+$('paxCount').addEventListener('change', ()=>{ pccvCabLimit(); updateImt23Row(); renderAddons(); autoApplySipDiscount(); updateDiscountHint(); scheduleAutoCalc(); });
 if($('trailerCoverType')){
   $('trailerCoverType').addEventListener('change', ()=>{
     const ti=$('trailerCoverInputs');
@@ -13335,7 +13404,7 @@ if($('trailerCoverType')){
 }
 if($('trailerCoverIDV')) $('trailerCoverIDV').addEventListener('input', ()=>scheduleAutoCalc());
 /* v208: seating capacity had no listener at all; the taxi discount band (up to 6 / over 6 seats) and the passenger cover read it */
-if($('seatCap')) $('seatCap').addEventListener('input', ()=>scheduleAutoCalc());
+if($('seatCap')) $('seatCap').addEventListener('input', ()=>{ pccvCabLimit(); scheduleAutoCalc(); });
 
 $('ccSlab').addEventListener('change', ()=>{ renderZones(); updateImt23Row(); updateDiscountHint(); updateGCVSurchargeVisibility(); updateAutoCcBandField(); updateLiabSpecialFields(); autoFillGVW(); renderAddons(); scheduleAutoCalc(); });
 
@@ -13922,6 +13991,7 @@ function updatePassengerField(){
   const show = state.vehicleType === 'twoWheelerHire' || state.vehicleType === 'pccv';
   $('paxField').style.display = show ? 'block' : 'none';
   $('paxCount').max = state.vehicleType === 'pccv' ? '100' : '10';
+  if(typeof pccvCabLimit === 'function') pccvCabLimit(true);   /* v210: Motor Cab stops at 6 */
   if(show && (parseInt($('paxCount').value,10) || 0) < 1) $('paxCount').value = '1';
 }
 function getAgeMonths(){
@@ -14204,7 +14274,15 @@ function calculate(silent=false){
       if(a && (!a.maxAgeYears || ageYears <= a.maxAgeYears)){
         let rate = a.rate;
         let epEligible = true;
-        if(data.vehicleType === 'twoWheeler' || data.vehicleType === 'twoWheelerHire'){
+        const cvEpCls = cvAddonClass(data.vehicleType, data.slab);
+        if(cvEpCls){
+          // GCCV / PCCV Package (v211) - own % of IDV table by class and age, Package policy only, max 5 yrs.
+          // A hire and reward two-wheeler is a PCCV class and takes the PCCV two-wheeler table.
+          // No CC / IDV loading grid; the wording gives no NCB on this premium (noNcb below).
+          const cvRate = cvEngineProtectRate(cvEpCls, ageMonths);
+          if(cvRate !== null && data.policyType === 'comprehensive') rate = cvRate;
+          else epEligible = false;
+        } else if(data.vehicleType === 'twoWheeler' || data.vehicleType === 'twoWheelerHire'){
           // Two-Wheeler Engine Protect — own % of IDV table, needs an OD section,
           // max 5 yrs. Was falling through to the generic 3% ON OD figure.
           // Hire and reward was left behind by that fix and kept the 3% of OD figure,
@@ -14221,7 +14299,7 @@ function calculate(silent=false){
           }
         }
         if(epEligible){
-        const isTwEp     = data.vehicleType === 'twoWheeler' || data.vehicleType === 'twoWheelerHire';
+        const isTwEp     = !!cvEpCls || data.vehicleType === 'twoWheeler' || data.vehicleType === 'twoWheelerHire';   // flat % of IDV, no CC / IDV grid
         const isIdvBased = data.vehicleType === 'privateCar' || isTwEp;
         const base = isIdvBased ? idv : odBase;
         const baseLabel = isIdvBased ? 'on IDV' : 'on OD';
@@ -14253,7 +14331,7 @@ function calculate(silent=false){
         const epNcbRate = data.policyType === 'odOnly' ? (RATES.ncb[data.ncbYears] || 0) : 0;
         const epAdjNet  = Math.sign(epPct) * Math.round(baseEpAmt * Math.abs(epPct) / 100 * (1 - epNcbRate));
         engineProtectAmt = baseEpAmt + epAdjNet + idvLoadAmt;
-        epForCngBase     = baseEpAmt + Math.sign(epPct) * baseEpAmt * Math.abs(epPct) / 100;   // 1,770 - 265.5 = 1,504.5
+        epForCngBase     = cvEpCls ? 0 : baseEpAmt + Math.sign(epPct) * baseEpAmt * Math.abs(epPct) / 100;   // 1,770 - 265.5 = 1,504.5
         // Gross EP = before adjustment — used in NCB base per rule
         // Adjusted EP = after CC/IDV loading/discount — shown to customer and charged
         const engineProtectGrossAmt = baseEpAmt; // gross, before adj factor
@@ -14262,6 +14340,7 @@ function calculate(silent=false){
           name:`${a.name} (${(rate*100).toFixed(2)}% ${baseLabel}${epLabel})`,
           amount: engineProtectAmt,
           grossAmount: engineProtectGrossAmt,
+          noNcb: !!cvEpCls,   // v211: GCCV / PCCV - no NCB on the add-on premium
           inOD: false   // Show in Section B (Add-ons), not inside OD section
         };
         } // end epEligible
@@ -14344,7 +14423,7 @@ function calculate(silent=false){
     //   Basic OD + Electrical + CNG + IMT-47 − OD Discount − Anti-theft
     //   + Engine Protection GROSS + Towing
     //   Gross EP = rate × IDV before any +/− loading/discount factor
-    const epGrossForNCB = engineProtectAddon ? (engineProtectAddon.grossAmount || engineProtectAmt) : 0;
+    const epGrossForNCB = (engineProtectAddon && !engineProtectAddon.noNcb) ? (engineProtectAddon.grossAmount || engineProtectAmt) : 0;
     const ncbCore = (odBase + imt47Amt + accInDiscBase - odDiscountAmt - antiTheftDiscount)
                   + epGrossForNCB + gccvTowingPremium + imt34Amt;
     ncbDiscount = Math.round(ncbCore * (RATES.ncb[data.ncbYears] || 0));
@@ -14655,7 +14734,8 @@ function calculate(silent=false){
       // ── Battery Protection (EV only) ──────────────────────────
       if(a.type === 'batteryProtect'){
         // Battery Protection — age-based rate from batteryProtectTable (% of IDV)
-        const bpRate = bpcPolicyEligible(data.policyType) ? bpRateFor(a.variant, ageMonths, data.vehicleType) : null;
+        const bpCv   = cvAddonClass(data.vehicleType, data.slab);   // v211: GCCV / PCCV - Package policy only
+        const bpRate = (bpCv ? data.policyType === 'comprehensive' : bpcPolicyEligible(data.policyType)) ? bpRateFor(a.variant, ageMonths, data.vehicleType, data.slab) : null;
         if(bpRate !== null){
           const bpRateDec = bpRate / 100;
           const bpAmt = Math.round(idv * bpRateDec);
@@ -15270,7 +15350,7 @@ function renderResult(q, silent=false){
         const imt23Part = (q.data.switches && q.data.switches.imt23) ? ' + IMT 23' : '';
         ncbLabel = `No Claim Bonus (${ncbPct}% on Net OD${q.imt34Amt > 0 ? ' + IMT-34' : ''}${imt23Part} + Net Nil Dep)`;
       } else {
-        ncbLabel = `No Claim Bonus (${ncbPct}% on Basic OD after Disc + EP)`;
+        ncbLabel = `No Claim Bonus (${ncbPct}% on Basic OD after Disc${q.data.vehicleType === 'twoWheelerHire' ? '' : ' + EP'})`;
       }
       lines.push({k: ncbLabel, v:'− '+fmt(q.ncbDiscount), discount:true});
     }
@@ -16357,6 +16437,85 @@ const MOTOR_ADDON_WORDINGS = {
   }
 };
 
+/* v211 (office mails 17-Nov-2026, "Launch of Battery Protect and Engine Protect Add on cover for GCCV/ PCCV
+   package policies"): wordings pages for a goods carrying vehicle, a passenger carrying vehicle and a two-wheeler
+   carrying passengers. Text from the sales literature of the four covers; the rate tables are built from
+   RATES.cvEngineProtectTable / cvBatteryProtectTable so a page cannot differ from the premium charged. */
+(function(){
+  const E = MOTOR_ADDON_WORDINGS.engineProtect, B = MOTOR_ADDON_WORDINGS.batteryProtect;
+  const AGES = [['0-1','Up to 1 year'], ['1-2','Over 1 up to 2 years'], ['2-3','Over 2 up to 3 years'], ['3-4','Over 3 up to 4 years'], ['4-5','Over 4 up to 5 years']];
+  const pc = v => v.toFixed(2) + '%';
+  const epTable = (cls, who) => ({ head: [who + ' - vehicle age', 'Premium as % of IDV'],
+    rows: AGES.map(a => [a[1], pc(RATES.cvEngineProtectTable[cls][a[0]])]) });
+  const bpTable = (cls, who) => ({ head: [who + ' - vehicle age', 'Without Co-Pay  /  With Co-Pay (% of IDV)'],
+    rows: AGES.map(a => [a[1], pc(RATES.cvBatteryProtectTable[cls].standard[a[0]]) + '  /  ' + pc(RATES.cvBatteryProtectTable[cls].copay[a[0]])]) });
+  const POL = { commercial: 'Goods Carrying Commercial Vehicle Package policy', pccv: 'Passenger Carrying Commercial Vehicle Package policy',
+                twoWheelerHire: 'Passenger Carrying Commercial Vehicle Package policy' };
+  const WHO = { commercial: '', pccv: '', twoWheelerHire: 'Two-wheelers carrying passengers - ' };
+  const epCond = pol => [
+    'Available only with the ' + pol + ', for vehicles up to five years from the date of invoice or the date of first registration, whichever is earlier. Mid-term inclusion of the cover is not permitted.',
+    'A claim is admissible only where there is evidence of ingress of water damaging the internal parts of the engine, and / or visible evidence of accidental under-carriage damage to the engine, gearbox or transmission leading to leakage of lubricating oil and damage to their internal parts - AND the loss is not payable under the base policy.',
+    'The vehicle must be transported / towed to the workshop within 48 hours of water receding from the water-logged area, and all reasonable steps taken to prevent aggravation of loss.',
+    'No depreciation on replacement of parts ONLY if the Nil Depreciation add-on is also opted under the base policy and the vehicle is up to five years old on commencement; otherwise depreciation applies at the base-policy rates.',
+    'Prior approval of the Company must be taken before repair / replacement of parts.',
+    'No NCB accrues on the add-on premium; a claim admitted under this add-on affects the NCB of the base policy as per its terms.',
+    'Subject otherwise to all terms, conditions, limitations and exceptions of the base policy.'
+  ];
+  const EP_EXCL = [
+    'Consequential losses other than the damage to internal parts of the engine due to ingress of water, and / or to internal parts of the engine, gearbox or transmission due to leakage of lubricating oil from accidental causes, as described above.',
+    'Expenses towards improvements and / or extra fittings.',
+    'Loss of or damage to consumables, including the cost of engine oil and consumables in case of flushing of the engine.',
+    "Loss or damage covered under the manufacturer's warranty, a recall campaign, or a maintenance / preventive-maintenance agreement.",
+    'Aggravation of loss or damage (including corrosion) due to delay in intimation to the Company or delay in retrieving the vehicle from the water-logged area.',
+    'Wilful act or gross negligence of the insured, including failure to take reasonable care to prevent further damage.',
+    'Water-ingress claims where water inundation or ingress is not established.',
+    'Claims arising from the use of non-OEM or incompatible lubricants.',
+    'Engine seizure without evidence of water ingress or oil leakage.'
+  ];
+  const bpCond = pol => [
+    'Available only for Electric and Hybrid Electric vehicles insured under the ' + pol + ', up to five years from the date of invoice or the date of first registration, whichever is earlier. Mid-term inclusion of the cover is not permitted.',
+    'The battery, the charger, the drive motor / electric motor and the HEV system must have been attached to and formed part of the vehicle at the time of sale, with their cost included in the vehicle invoice.',
+    'Maximum TWO claims are payable under this add-on per policy period.',
+    'If the battery is replaced with a new battery during the five-year period, cover automatically extends to the replaced battery - but only up to the completion of five years from the original invoice / first-registration date (whichever is earlier), whatever the date of replacement.',
+    'Each claim is subject to the policy excess.',
+    'The insured chooses either the With Co-Pay option or the Without Co-Pay option, shown in the policy schedule. Under With Co-Pay the insured bears a share of every admissible claim by the age of the vehicle (Nil up to 1 year, 10% up to 2 years, 20% up to 3 years, 30% up to 4 years, 50% up to 5 years); under Without Co-Pay no co-payment applies, subject to the policy excess. The co-payment does not reduce the sum insured.',
+    'If the add-on is opted at renewal without having been in the previous policy: pre-inspection of the vehicle with mandatory odometer reading, and a waiting period of one month and 1,000 km from the odometer reading taken at pre-inspection.',
+    'No NCB accrues on the add-on premium; a claim admitted under this add-on affects the NCB of the base policy as per its terms.',
+    'Can be cancelled only if the base policy is cancelled at the same time; refund as per the base policy. Subject otherwise to the base-policy terms.'
+  ];
+  const BP_EXCL = [
+    "Claims where the subject matter is covered at the same time under any other insurance, the manufacturer's warranty (including a recall campaign), a service contract or a similar package.",
+    'Claims intimated to the Company after 30 days of the loss / damage.',
+    "Repair / replacement carried out at a workshop not authorised by the OEM, or without the Company's prior approval.",
+    'Loss or damage due to wear and tear.',
+    'Use of a battery or charger (other than at public EV charging stations) that does not conform to industry standards, OEM standards or the standards prescribed by law.',
+    'Charging not carried out as per the guidelines of the OEM or of the appropriate authority under law.',
+    'Consequential loss from untimely charging or over-discharge contrary to the guidance of the OEM.',
+    'Battery swapping, unless done at OEM-authorised or Government-approved swapping stations with OEM-approved battery modules and processes.',
+    "Damage attributable to neglect of periodic maintenance of the vehicle or of the battery's State of Health as prescribed by the OEM.",
+    'Failure of the insured to follow the reasonable measures and precautions prescribed by the OEM.',
+    "Wilful damage by the insured, the insured's employees or family members.",
+    'Damage attributable to modifications or additional installations not approved by the OEM.',
+    'Any claim where the vehicle is left unused for more than 90 days in an unplugged condition (no active connection or current flow to the Battery Management System, or not kept in the OEM battery-preservation mode; a cable connected without current flow counts as unplugged).',
+    'Inconsequential aspects such as noises, vibrations or heating that do not lead to failure of function or performance.'
+  ];
+  const BP_COVERS = B.covers.concat(['The HEV (hybrid electric vehicle) system comprises the electric motor, the DC/DC step-down converter, the electric generator and the power electronics controller.']);
+  ['commercial', 'pccv', 'twoWheelerHire'].forEach(function(vt){
+    E.byClass[vt] = { scope: WHO[vt] + POL[vt], covers: E.byClass.twoWheeler.covers, conditions: epCond(POL[vt]), exclusions: EP_EXCL };
+    B.byClass[vt] = { scope: 'Electric and Hybrid Electric vehicles - ' + WHO[vt] + POL[vt], covers: BP_COVERS, copayTable: B.byClass.twoWheeler.copayTable,
+                      conditions: bpCond(POL[vt]), exclusions: BP_EXCL };
+    E.maxAge[vt] = 5;
+  });
+  E.byClass.commercial.table     = epTable('gccv', 'Goods carrying vehicle');
+  E.byClass.twoWheelerHire.table = epTable('pccv2w', 'Two-wheeler carrying passengers');
+  E.byClass.pccv.tableBySlab     = { pccvTaxi: epTable('pccvTaxi', 'Taxi'), pccvOther: epTable('pccvOther', 'Passenger vehicle other than a taxi') };
+  E.byClass.pccv.table           = E.byClass.pccv.tableBySlab.pccvOther;
+  B.byClass.commercial.table     = bpTable('gccv', 'Goods carrying vehicle');
+  B.byClass.twoWheelerHire.table = bpTable('pccv2w', 'Two-wheeler carrying passengers');
+  B.byClass.pccv.tableBySlab     = { pccvTaxi: bpTable('pccvTaxi', 'Taxi'), pccvOther: bpTable('pccvOther', 'Passenger vehicle other than a taxi') };
+  B.byClass.pccv.table           = B.byClass.pccv.tableBySlab.pccvOther;
+})();
+
 function motorAddonWordingKey(itemKey){
   if(/^towing/.test(itemKey)) return 'towing';
   if(itemKey === 'batteryProtectCoPay') return 'batteryProtect';
@@ -16500,8 +16659,9 @@ function drawMotorAddonPages(doc, q){
 
   picks.forEach(function(p){
     const base = MOTOR_ADDON_WORDINGS[p.key];
-    const clsKey = (vt === 'twoWheelerHire') ? 'twoWheeler' : vt;
+    const clsKey = (base.byClass && base.byClass[vt]) ? vt : (vt === 'twoWheelerHire') ? 'twoWheeler' : vt;
     const w = Object.assign({}, base, (base.byClass && base.byClass[clsKey]) || {});
+    if(w.tableBySlab){ w.table = w.tableBySlab[cvAddonClass(vt, q.data && q.data.slab)] || w.table; }   /* v211: PCCV taxi / other */
     const amt = (p.item && p.item.amount) ? ('Premium Rs. ' + Math.round(p.item.amount).toLocaleString('en-IN')) : '';
     section(w.title, amt);
     block('Applies to', [w.scope], {});
@@ -16666,7 +16826,7 @@ function motorQuoteChecks(){
      Two-wheeler: only the With Co-Pay option. Nil (first year) is a fact, not a warning. */
   if(hasOD){
     const bpOn = k => { const c = document.querySelector('#addonsGrid input[data-addon="' + k + '"]'); return !!(c && c.checked && !c.disabled); };
-    if((vt === 'privateCar' && bpOn('batteryProtect')) || (vt === 'twoWheeler' && bpOn('batteryProtectCoPay'))){
+    if((vt === 'privateCar' && bpOn('batteryProtect')) || ((vt === 'twoWheeler' || cvAddonClass(vt)) && bpOn('batteryProtectCoPay'))){
       const cpP = bpCoPayFor(getAgeMonths());
       const mx  = (RATES.addonCoverRules || {}).maxClaimsPerPolicyPeriod || 2;
       facts.push(['Battery Protect co-pay', cpP > 0 ? cpP + '% of every claim' : 'Nil (vehicle not over 1 year)']);
@@ -16680,7 +16840,7 @@ function motorQuoteChecks(){
     const seat = parseInt(($('seatCap') || {}).value, 10) || 0;
     facts.push(['Passengers (excl. driver)', String(pax)]);
     facts.push(['Seating (incl. driver)', String(seat)]);
-    const RANGE = { autoLt6:[1,5], auto7to17:[6,17], paxUpto18:[1,18], pax19to36:[19,36], pax37to60:[37,60], paxOver60:[61,999], threeWheelOver17:[18,999], schoolBus:[6,999], staffBus:[6,999], taxiLt1000:[1,7], taxi1000to1500:[1,7], taxiOver1500:[1,9] };
+    const RANGE = { autoLt6:[1,5], auto7to17:[6,17], paxUpto18:[1,18], pax19to36:[19,36], pax37to60:[37,60], paxOver60:[61,999], threeWheelOver17:[18,999], schoolBus:[6,999], staffBus:[6,999], taxiLt1000:[1,6], taxi1000to1500:[1,6], taxiOver1500:[1,6] };   /* v210: Motor Cab = up to 6 passengers */
     const r = RANGE[slabKey];
     if(pax <= 0) warns.push({ f:'paxCount', t:'Passenger capacity is not entered.' });
     else if(r && (pax < r[0] || pax > r[1])) warns.push({ f:'paxCount', t:'Passenger capacity ' + pax + ' does not match the class "' + slabLabel + '" (' + r[0] + (r[1] >= 999 ? '+' : ' to ' + r[1]) + ' passengers).' });
@@ -22373,6 +22533,7 @@ async function loadSavedQuoteIntoForm(id, asDuplicate){
     _nilDepManual = true;
     if(typeof updateAll === 'function'){ try{ updateAll(); }catch(e){} }
     if(d.slab){ if(typeof window.pccvShowSlab === 'function') window.pccvShowSlab(d.slab); $$('ccSlab').value = d.slab; }   /* the refresh above re-renders the slab list */
+    if(typeof window.pccvCabLimit === 'function') window.pccvCabLimit();   /* v210 */
     document.querySelectorAll('#sectionMotor .switch').forEach(sw => {
       const on = !!state.switches[sw.dataset.key];
       sw.classList.toggle('on', on);
@@ -23376,6 +23537,25 @@ const VERIFIED_CASES = [
                   sel.innerHTML = keep.html; sel.value = keep.val; $('ccLabel').textContent = keep.lbl;
                 }
                 return out.join('|'); } },
+  { label:'PCCV Motor Cab (v210): passengers stop at 6 and seating at 7 with the driver - 9 passengers / 12 seats are cut back to 6 / 7 and the boxes carry those maximums; Other Passenger Vehicles keeps 29 passengers / 30 seats',
+    expect:'true/6/7/6/7|false/29/30/100/100',
+    check:()=>{ const sel = $('ccSlab'), pc = $('paxCount'), sc = $('seatCap');
+                const keep = { vt:state.vehicleType, cat:state.pccvCat, html:sel.innerHTML, val:sel.value, lbl:$('ccLabel').textContent, pax:pc.value, seat:sc.value };
+                const out = [];
+                try{
+                  pc.value = '1'; sc.value = '4';
+                  state.vehicleType = 'pccv';
+                  state.pccvCat = 'cab';   sel.innerHTML = ''; renderSlabs();
+                  pc.value = '9'; sc.value = '12'; out.push([pccvCabLimit(true), pc.value, sc.value, pc.max, sc.max].join('/'));
+                  state.pccvCat = 'other'; sel.innerHTML = ''; renderSlabs();
+                  pc.value = '29'; sc.value = '30'; out.push([pccvCabLimit(true), pc.value, sc.value, pc.max, sc.max].join('/'));
+                } finally {
+                  pc.value = '1'; sc.value = '4';
+                  state.vehicleType = keep.vt; state.pccvCat = keep.cat; sel.innerHTML = ''; try{ renderSlabs(); }catch(e){}
+                  sel.innerHTML = keep.html; sel.value = keep.val; $('ccLabel').textContent = keep.lbl;
+                  pc.value = keep.pax; sc.value = keep.seat; try{ pccvCabLimit(true); }catch(e){}
+                }
+                return out.join('|'); } },
   { label:'OD discount ceiling (v164): a manual discount above the maximum is held at the maximum when NCB is removed and goes back to the agent\'s value when NCB returns; one within it stays; a chip or custom value above it is set to the maximum; the target solver stops at the maximum (was 90%; Private Car SAOD without NCB maximum 85 since v197, was 75)', expect:'85/true|90|60/true|85|85|capped/85',
     check:()=>{ const out = [], keepToast = window.toast, keepCalc = window.calculate;
                 window.toast = () => {}; window.calculate = () => keepCalc(true);   /* no toasts or rendered quote from the check */
@@ -23811,6 +23991,21 @@ const VERIFIED_CASES = [
     check:()=>OSSSP_RATES.Royal.rates['II'].annual[10000000][3], expect:17472 },
   { label:'Battery Protect 2-3yr, without co-pay (circular table)',
     check:()=>RATES.batteryProtectTable.standard['2-3'], expect:0.20 },
+  { label:'GCCV / PCCV Engine Protect and Battery Protect (v211, underwriting guidelines, office mail 17-Nov-2026): class by vehicle type and slab (goods / taxi / other passenger / two-wheeler carrying passengers), % of IDV by age, nothing above 5 years; two-wheeler and private car tables untouched',
+    expect:'gccv/pccvTaxi/pccvOther/pccv2w/null/0.09/0.37/0.17/0.12/null/0.25/0.43/1.06/0.35/0.24/null/0.2/0.45',
+    check:()=>{ const e = (c, m) => { const r = cvEngineProtectRate(c, m); return r === null ? 'null' : (r*100).toFixed(2); };
+                return [cvAddonClass('commercial','s1'), cvAddonClass('pccv','taxi1000to1500'), cvAddonClass('pccv','autoLt6'), cvAddonClass('twoWheelerHire'), String(cvAddonClass('misc')),
+                        e('gccv', 6), e('pccvTaxi', 54), e('pccvOther', 30), e('pccv2w', 13), e('gccv', 61),
+                        bpRateFor('copay', 54, 'commercial'), bpRateFor('standard', 54, 'commercial'), bpRateFor('standard', 54, 'pccv', 'taxiLt1000'), bpRateFor('copay', 30, 'pccv', 'schoolBus'),
+                        bpRateFor('standard', 13, 'twoWheelerHire'), String(bpRateFor('standard', 61, 'pccv', 'taxiLt1000')), bpRateFor('standard', 30, 'twoWheeler'), bpRateFor('standard', 30, 'privateCar')].join('/'); } },
+  { label:'GCCV / PCCV add-on wordings pages (v211): Engine Protect and Battery Protect take their own page text for a goods vehicle, a passenger vehicle (taxi / other table by class) and a two-wheeler carrying passengers; rate tables are built from the rate tables; odometer reading at renewal; 14 and 9 exclusions; no UIN on them',
+    expect:'0.09%|0.37%|0.17%|0.21%|0.43%  /  0.25%|1.06%  /  0.53%|0.30%  /  0.24%|true|14|9|5/5|true',
+    check:()=>{ const E = MOTOR_ADDON_WORDINGS.engineProtect.byClass, B = MOTOR_ADDON_WORDINGS.batteryProtect.byClass;
+                return [E.commercial.table.rows[0][1], E.pccv.tableBySlab.pccvTaxi.rows[4][1], E.pccv.tableBySlab.pccvOther.rows[2][1], E.twoWheelerHire.table.rows[4][1],
+                        B.commercial.table.rows[4][1], B.pccv.tableBySlab.pccvTaxi.rows[4][1], B.twoWheelerHire.table.rows[2][1],
+                        /odometer/.test(B.pccv.conditions.join(' ')), B.commercial.exclusions.length, E.commercial.exclusions.length,
+                        MOTOR_ADDON_WORDINGS.engineProtect.maxAge.pccv + '/' + MOTOR_ADDON_WORDINGS.engineProtect.maxAge.commercial,
+                        !/IRDAN|UIN/.test(JSON.stringify([E.commercial, E.pccv, E.twoWheelerHire, B.commercial, B.pccv, B.twoWheelerHire]))].join('|'); } },
   { label:'Battery Protect (v207, private car underwriting guidelines): the private car cover is one option named Battery Protect and carries the co-pay by vehicle age (Nil / 10 / 20 / 30 / 50%), the wording page has the co-payment table and condition for a private car, the two-wheeler keeps its Without / With Co-Pay pair, rate 2-3 years 0.45%', expect:'Battery Protect/true/0,10,20,30,50/Age of vehicle/true/true/true/0.45',
     check:()=>{ const A = RATES.addons, W = MOTOR_ADDON_WORDINGS.batteryProtect, T = W.byClass.twoWheeler, c = W.conditions.join(' ');
                 return [bpDisplayName(A.batteryProtect, 'privateCar'), /Without Co-Pay/.test(bpDisplayName(A.batteryProtect, 'twoWheeler')) && /With Co-Pay/.test(bpDisplayName(A.batteryProtectCoPay, 'twoWheeler')),
@@ -29115,6 +29310,7 @@ window.FIRE_VERIFIED = [
                 const out = [read('7','6'), read('4','1'), read('4','6'), read('8','1'), read('','20')];
                 sc.value = keep.seat; pc.value = keep.pax; cs.innerHTML = keep.html; cs.value = keep.slab;
                 state.vehicleType = keep.vt; state.ncbYears = keep.ncb; rd.value = keepDate;
+                try{ window.pccvCabLimit(true); }catch(e){}
                 return out.join('/'); } },
   { label:'A quick-quote preset fills the passenger count only when it is still at its default: a figure the agent has entered is left alone, because the passenger count decides IMT-23 eligibility and through it Nil Depreciation', expect:'true/true',
     check:()=>{ const src = String(applyMotorPreset);
@@ -29532,7 +29728,7 @@ window.OICI18N = (function(){
 })();
 </script>
 
-<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v209 · PCCV in two categories: Motor Cab (up to 6 passengers) / Other</div>
+<div id="buildStamp" style="display:none;position:fixed;bottom:4px;right:8px;z-index:9999;font-size:10px;color:#94a3b8;font-family:monospace;cursor:pointer;opacity:.85" onclick="document.getElementById('selfTestPanel').style.display='block';runSelfTest();" title="Click to run the built-in regression suite">build v211 · Battery Protect and Engine Protect on GCCV / PCCV Package</div>
 <script>/* the build stamp stays hidden for users; Ctrl+Alt+T reveals it (click it to run the self-test) */document.addEventListener('keydown',function(e){ if(e.ctrlKey && e.altKey && String(e.key).toLowerCase()==='t'){ var b=document.getElementById('buildStamp'); if(b) b.style.display = (b.style.display==='none') ? '' : 'none'; } });</script>
 <script>console.log('OIC Calculator build v59 (Motor PDF: policy details block, trailer IDV, CNG labels, all liability extras listed), 02-Sep-2026');</script>
 </body>
